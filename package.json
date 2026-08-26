@@ -1,0 +1,24 @@
+{
+  "name": "auxio-one",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "db:generate": "pnpm --filter @repo/database exec prisma generate",
+    "db:push": "pnpm --filter @repo/database exec prisma db push"
+  },
+  "packageManager": "pnpm@11.24.0",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "11.24.0",
+      "onFail": "download"
+    }
+  },
+  "devDependencies": {
+    "turbo": "^2.10.11"
+  }
+}

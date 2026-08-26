@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.*
+.yarn/
+
+# Build output and caches
+.next/
+out/
+dist/
+build/
+.turbo/
+coverage/
+*.tsbuildinfo
+
+# Database & Local Storage
+prisma/*.db
+prisma/*.db-journal
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+
+# Logs and reports
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Temporary and runtime files
+.tmp/
+.temp/
+pids/
+*.pid
+*.pid.lock
+*.seed
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Local editor files
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.sublime-workspace
