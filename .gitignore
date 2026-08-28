@@ -3,6 +3,7 @@ node_modules/
 .pnp/
 .pnp.*
 .yarn/
+.pnpm-store/
 
 # Build output and caches
 .next/

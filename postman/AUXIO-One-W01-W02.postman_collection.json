@@ -1,0 +1,172 @@
+{
+  "info": {
+    "name": "AUXIO One — W-01 & W-02",
+    "description": "Register an organisation (W-01) and configure module entitlements (W-02).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "superAdminEmail", "value": "superadmin@auxio.local" },
+    { "key": "superAdminPassword", "value": "SuperAdmin123!" },
+    { "key": "accessToken", "value": "" },
+    { "key": "organisationId", "value": "" },
+    { "key": "orgAdminEmail", "value": "orgadmin@demo-provider.local" },
+    { "key": "orgAdminPassword", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login — Super Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('accessToken', body.accessToken);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{superAdminEmail}}\",\n  \"password\": \"{{superAdminPassword}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login"
+          }
+        },
+        {
+          "name": "Login — Org Admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('accessToken', body.accessToken);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{orgAdminEmail}}\",\n  \"password\": \"{{orgAdminPassword}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login"
+          }
+        },
+        {
+          "name": "Change Password — Org Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"{{orgAdminPassword}}\",\n  \"newPassword\": \"OrgAdmin123!\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/change-password"
+          }
+        }
+      ]
+    },
+    {
+      "name": "W-01 — Register Organisation",
+      "item": [
+        {
+          "name": "Create Organisation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.organisation?.id) {",
+                  "  pm.collectionVariables.set('organisationId', body.organisation.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"legalName\": \"Demo NDIS Provider Pty Ltd\",\n  \"tradingName\": \"Demo Care Services\",\n  \"contactEmail\": \"contact@demo-provider.local\",\n  \"contactPhone\": \"+61400000000\",\n  \"timeZone\": \"Australia/Sydney\",\n  \"moduleCeilingCodes\": [\"03\", \"05\", \"06\", \"07\", \"09\", \"10\"],\n  \"orgAdminEmail\": \"{{orgAdminEmail}}\",\n  \"orgAdminName\": \"Demo Org Admin\"\n}"
+            },
+            "url": "{{baseUrl}}/organisations"
+          }
+        },
+        {
+          "name": "Get Organisation",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/organisations/{{organisationId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "W-02 — Configure Organisation",
+      "item": [
+        {
+          "name": "List Module Entitlements",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "url": "{{baseUrl}}/organisations/{{organisationId}}/modules"
+          }
+        },
+        {
+          "name": "Enable Module — Workforce (05)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": true\n}"
+            },
+            "url": "{{baseUrl}}/organisations/{{organisationId}}/modules/05"
+          }
+        },
+        {
+          "name": "Disable Module — Workforce (05)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": false\n}"
+            },
+            "url": "{{baseUrl}}/organisations/{{organisationId}}/modules/05"
+          }
+        }
+      ]
+    }
+  ]
+}
