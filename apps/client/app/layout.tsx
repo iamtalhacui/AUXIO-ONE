@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import type { ReactNode } from "react";
+import { StoreProvider } from "@/lib/store/StoreProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,8 +15,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Auxio-One | Care operations platform",
-  description: "A connected workspace for modern care teams.",
+  title: "AUXIO One | Care operations platform for NDIS providers",
+  description:
+    "Multi-tenant SaaS for NDIS providers — organisation setup, workforce onboarding, rostering, shift execution, and billing-ready handoff.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
@@ -24,7 +26,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <StoreProvider>{children}</StoreProvider>
+      </body>
     </html>
   );
 }

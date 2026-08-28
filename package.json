@@ -8,7 +8,10 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "db:generate": "pnpm --filter @repo/database exec prisma generate",
-    "db:push": "pnpm --filter @repo/database exec prisma db push"
+    "db:push": "pnpm --filter @repo/database exec prisma db push",
+    "db:seed": "pnpm --filter @repo/database db:seed",
+    "db:setup": "pnpm db:push && pnpm db:seed",
+    "server:dev": "pnpm --filter @repo/server dev"
   },
   "packageManager": "pnpm@11.24.0",
   "devEngines": {
