@@ -6,12 +6,20 @@
   "scripts": {
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
-    "postinstall": "prisma skills sync || exit 0"
+    "postinstall": "prisma generate",
+    "db:seed": "tsx prisma/seed.ts"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "devDependencies": {
-    "prisma": "6.19.3"
+    "@types/bcrypt": "^6.0.0",
+    "@types/bcryptjs": "^3.0.0",
+    "prisma": "6.19.3",
+    "tsx": "^4.23.12"
   },
   "dependencies": {
-    "@prisma/client": "^6.19.3"
+    "@prisma/client": "^6.19.3",
+    "bcryptjs": "^3.0.3"
   }
 }

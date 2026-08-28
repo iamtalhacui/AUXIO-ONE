@@ -1,16 +1,259 @@
-generator client {
-  provider = "prisma-client-js"
-}
-
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum OrgStatus {
+  ACTIVE
+  SUSPENDED
+  CLOSED
+}
+
+enum UserStatus {
+  INVITED
+  RESTRICTED
+  ACTIVE
+  DEACTIVATED
+}
+
+enum ServiceLine {
+  NDIS
+  AGED_CARE
+  FIELD_SERVICES
+}
+
+enum ScopeType {
+  PARTICIPANT
+  SERVICE_LINE
+  ORGANISATION
+}
+
+enum PermissionAction {
+  VIEW
+  CREATE
+  EDIT
+  DELETE
+  APPROVE
+  EXPORT
+}
+
+enum WorkflowType {
+  ONBOARDING
+  TIME
+  ROSTER
+  INCIDENT
+  FORM
+  CORRECTION
+}
+
+enum RequirementRecordType {
+  EMPLOYEE
+  PARTICIPANT
+}
+
+enum RequirementItemType {
+  DOCUMENT
+  FIELD
+}
+
+model Organisation {
+  id                      String                   @id @default(uuid())
+  legalName               String
+  tradingName             String?
+  contactEmail            String                   @unique
+  contactPhone            String?
+  timeZone                String
+  status                  OrgStatus                @default(ACTIVE)
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+
+  moduleEntitlements      ModuleEntitlement[]
+  users                   User[]
+  roles                   Role[]
+  accessPackages          AccessPackage[]
+  approvalWorkflowConfigs ApprovalWorkflowConfig[]
+  requirementSets         RequirementSet[]
+  terminologyOverrides    TerminologyOverride[]
+  auditEntries            AuditEntry[]
+}
+
+model Module {
+  id             String              @id @default(uuid())
+  code           String              @unique
+  name           String
+  isOperational  Boolean             @default(true)
+  sortOrder      Int                 @default(0)
+
+  entitlements   ModuleEntitlement[]
+  rolePermissions RolePermission[]
+}
+
+model ModuleEntitlement {
+  id             String       @id @default(uuid())
+  organisationId String
+  moduleId       String
+  ceilingGranted Boolean      @default(false)
+  enabled        Boolean      @default(false)
+  grantedById    String?
+  effectiveFrom  DateTime     @default(now())
+  effectiveTo    DateTime?
+
+  organisation   Organisation @relation(fields: [organisationId], references: [id])
+  module         Module       @relation(fields: [moduleId], references: [id])
+  grantedBy      User?        @relation(fields: [grantedById], references: [id])
+
+  @@index([organisationId, moduleId, effectiveTo])
+}
+
+model Role {
+  id             String           @id @default(uuid())
+  organisationId String?
+  code           String
+  name           String
+  isBaseRole     Boolean          @default(false)
+  createdAt      DateTime         @default(now())
+
+  organisation   Organisation?    @relation(fields: [organisationId], references: [id])
+  users          User[]
+  permissions    RolePermission[]
+  step1Approvals ApprovalWorkflowConfig[] @relation("Step1Approver")
+  step2Approvals ApprovalWorkflowConfig[] @relation("Step2Approver")
+  @@unique([organisationId, code])
+}
+
+model RolePermission {
+  id       String            @id @default(uuid())
+  roleId   String
+  moduleId String
+  action   PermissionAction
+  allowed  Boolean           @default(false)
+
+  role     Role              @relation(fields: [roleId], references: [id])
+  module   Module            @relation(fields: [moduleId], references: [id])
+
+  @@unique([roleId, moduleId, action])
+}
+
+model AccessPackage {
+  id                 String       @id @default(uuid())
+  organisationId     String
+  userId             String
+  name               String
+  scopeType          ScopeType
+  scopeParticipantId String?
+  scopeServiceLine   ServiceLine?
+  grantedById        String
+  startsAt           DateTime     @default(now())
+  expiresAt          DateTime?
+  revokedAt          DateTime?
+
+  organisation       Organisation @relation(fields: [organisationId], references: [id])
+  user               User         @relation("AccessPackageHolder", fields: [userId], references: [id])
+  grantedBy          User         @relation("AccessPackageGrantor", fields: [grantedById], references: [id])
+
+  @@index([organisationId, userId])
+}
+
+model ApprovalWorkflowConfig {
+  id                           String       @id @default(uuid())
+  organisationId               String
+  workflowType                 WorkflowType
+  stepCount                    Int          @default(1)
+  step1ApproverRoleId          String
+  step2ApproverRoleId          String?
+  autoApprovalThresholdMinutes Int?
+  effectiveFrom                DateTime     @default(now())
+  effectiveTo                  DateTime?
+
+  organisation                 Organisation @relation(fields: [organisationId], references: [id])
+  step1ApproverRole            Role         @relation("Step1Approver", fields: [step1ApproverRoleId], references: [id])
+  step2ApproverRole            Role?        @relation("Step2Approver", fields: [step2ApproverRoleId], references: [id])
+
+  @@index([organisationId, workflowType, effectiveTo])
+}
+
+model RequirementSet {
+  id             String                  @id @default(uuid())
+  organisationId String
+  serviceLine    ServiceLine
+  recordType     RequirementRecordType
+  name           String
+  effectiveFrom  DateTime                @default(now())
+  effectiveTo    DateTime?
+
+  organisation   Organisation            @relation(fields: [organisationId], references: [id])
+  items          RequirementSetItem[]
+
+  @@index([organisationId, serviceLine, recordType, effectiveTo])
+}
+
+model RequirementSetItem {
+  id                String              @id @default(uuid())
+  requirementSetId  String
+  itemType          RequirementItemType
+  code              String
+  label             String
+  mandatory         Boolean             @default(true)
+  requiresExpiry    Boolean             @default(false)
+
+  requirementSet    RequirementSet      @relation(fields: [requirementSetId], references: [id])
+
+  @@unique([requirementSetId, code])
+}
+
+model TerminologyOverride {
+  id             String       @id @default(uuid())
+  organisationId String
+  baseTerm       String
+  overrideTerm   String
+  effectiveFrom  DateTime     @default(now())
+  effectiveTo    DateTime?
+
+  organisation   Organisation @relation(fields: [organisationId], references: [id])
+
+  @@unique([organisationId, baseTerm, effectiveTo])
+}
+
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                   String              @id @default(uuid())
+  organisationId       String?
+  roleId               String?
+  email                String
+  name                 String
+  passwordHash         String?
+  status               UserStatus          @default(INVITED)
+  isFirstOrgAdmin      Boolean             @default(false)
+  vouchedBySuperAdmin  Boolean             @default(false)
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  organisation         Organisation?       @relation(fields: [organisationId], references: [id])
+  role                 Role?               @relation(fields: [roleId], references: [id])
+  moduleEntitlementsGranted ModuleEntitlement[]
+  accessPackagesHeld   AccessPackage[]     @relation("AccessPackageHolder")
+  accessPackagesGranted AccessPackage[]    @relation("AccessPackageGrantor")
+  auditEntries         AuditEntry[]
+
+  @@unique([organisationId, email])
+}
+
+model AuditEntry {
+  id             String        @id @default(uuid())
+  organisationId String?
+  actorUserId    String?
+  action         String
+  entityType     String
+  entityId       String
+  beforeJson     Json?
+  afterJson      Json?
+  createdAt      DateTime      @default(now())
+
+  organisation   Organisation? @relation(fields: [organisationId], references: [id])
+  actor          User?         @relation(fields: [actorUserId], references: [id])
+
+  @@index([organisationId, entityType, entityId])
 }
