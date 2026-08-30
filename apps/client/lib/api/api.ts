@@ -6,6 +6,14 @@ import type {
   CreateOrganisationResponse,
   LoginRequest,
   LoginResponse,
+  OrganisationDetail,
+  OrganisationListItem,
+  OrgModuleEntitlement,
+  OrgAdminProfile,
+  ToggleModuleRequest,
+  UpdateModuleCeilingRequest,
+  UpdateOrgAdminProfileRequest,
+  UpdateOrganisationRequest,
 } from "@/lib/api/types";
 import type { RootState } from "@/lib/store/store";
 
@@ -21,7 +29,7 @@ export const api = createApi({
       return headers;
     },
   }),
-  tagTypes: ["Organisation"],
+  tagTypes: ["Organisation", "OrgModules", "OrgProfile"],
   endpoints: (builder) => ({
     login: builder.mutation<LoginResponse, LoginRequest>({
       query: (body) => ({
@@ -46,7 +54,80 @@ export const api = createApi({
         method: "POST",
         body,
       }),
-      invalidatesTags: ["Organisation"],
+      invalidatesTags: [{ type: "Organisation", id: "LIST" }],
+    }),
+    listOrganisations: builder.query<OrganisationListItem[], void>({
+      query: () => "/organisations",
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.map(({ id }) => ({ type: "Organisation" as const, id })),
+              { type: "Organisation", id: "LIST" },
+            ]
+          : [{ type: "Organisation", id: "LIST" }],
+    }),
+    getOrganisation: builder.query<OrganisationDetail, string>({
+      query: (id) => `/organisations/${id}`,
+      providesTags: (_result, _error, id) => [{ type: "Organisation", id }],
+    }),
+    updateOrganisation: builder.mutation<
+      OrganisationDetail,
+      { id: string; body: UpdateOrganisationRequest }
+    >({
+      query: ({ id, body }) => ({
+        url: `/organisations/${id}`,
+        method: "PATCH",
+        body,
+      }),
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: "Organisation", id },
+        { type: "Organisation", id: "LIST" },
+      ],
+    }),
+    updateModuleCeiling: builder.mutation<
+      OrganisationDetail,
+      { id: string; body: UpdateModuleCeilingRequest }
+    >({
+      query: ({ id, body }) => ({
+        url: `/organisations/${id}/module-ceiling`,
+        method: "PATCH",
+        body,
+      }),
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: "Organisation", id },
+        { type: "Organisation", id: "LIST" },
+      ],
+    }),
+    listOrgModules: builder.query<OrgModuleEntitlement[], string>({
+      query: (organisationId) => `/organisations/${organisationId}/modules`,
+      providesTags: (_result, _error, organisationId) => [
+        { type: "OrgModules", id: organisationId },
+      ],
+    }),
+    toggleOrgModule: builder.mutation<
+      OrgModuleEntitlement,
+      { organisationId: string; moduleCode: string; enabled: boolean }
+    >({
+      query: ({ organisationId, moduleCode, enabled }) => ({
+        url: `/organisations/${organisationId}/modules/${moduleCode}`,
+        method: "PATCH",
+        body: { enabled } satisfies ToggleModuleRequest,
+      }),
+      invalidatesTags: (_result, _error, { organisationId }) => [
+        { type: "OrgModules", id: organisationId },
+      ],
+    }),
+    getMyOrgProfile: builder.query<OrgAdminProfile, void>({
+      query: () => "/organisations/me/profile",
+      providesTags: [{ type: "OrgProfile", id: "ME" }],
+    }),
+    updateMyOrgProfile: builder.mutation<OrgAdminProfile, UpdateOrgAdminProfileRequest>({
+      query: (body) => ({
+        url: "/organisations/me/profile",
+        method: "PATCH",
+        body,
+      }),
+      invalidatesTags: [{ type: "OrgProfile", id: "ME" }],
     }),
   }),
 });
@@ -55,4 +136,12 @@ export const {
   useLoginMutation,
   useChangePasswordMutation,
   useCreateOrganisationMutation,
+  useListOrganisationsQuery,
+  useGetOrganisationQuery,
+  useUpdateOrganisationMutation,
+  useUpdateModuleCeilingMutation,
+  useListOrgModulesQuery,
+  useToggleOrgModuleMutation,
+  useGetMyOrgProfileQuery,
+  useUpdateMyOrgProfileMutation,
 } = api;

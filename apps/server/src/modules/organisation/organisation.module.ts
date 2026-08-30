@@ -1,11 +1,17 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { OrganisationController } from './organisation.controller';
-import { OrganisationService } from './organisation.service';
+import { OrganisationCoreService } from './organisation-core.service';
+import { SuperAdminOrganisationService } from './super-admin-organisation.service';
+import { OrgAdminOrganisationService } from './org-admin-organisation.service';
 
 @Module({
   imports: [AuthModule],
   controllers: [OrganisationController],
-  providers: [OrganisationService],
+  providers: [
+    OrganisationCoreService,
+    SuperAdminOrganisationService,
+    OrgAdminOrganisationService,
+  ],
 })
 export class OrganisationModule {}

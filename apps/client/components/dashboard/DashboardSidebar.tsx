@@ -26,6 +26,7 @@ const labelIconMap = {
   Entitlements: IconGrid,
   "Platform settings": IconSettings,
   Settings: IconSettings,
+  Configuration: IconSettings,
   "Audit log": IconSettings,
   "Usage & health": IconOverview,
   Notifications: IconBell,

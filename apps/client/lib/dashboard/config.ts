@@ -61,9 +61,9 @@ const orgAdminNav: NavGroup[] = [
   {
     title: "Organisation",
     items: [
-      { label: "Modules", href: "/org-admin/modules" },
       { label: "Team", href: "/org-admin/team" },
-      { label: "Settings", href: "/org-admin/settings" },
+      { label: "Roles", href: "/org-admin/roles" },
+      { label: "Configuration", href: "/org-admin/settings" },
     ],
   },
 ];

@@ -1,30 +1,63 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { organisations } from "@/lib/dashboard/content/super-admin";
+import { useMemo, useState } from "react";
+import { useListOrganisationsQuery } from "@/lib/api/api";
+import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import type { OrgStatus } from "@/lib/api/types";
 import { OrgStatusBadge } from "@/components/dashboard/StatusBadge";
 
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString("en-AU", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 export function OrganisationsPageContent() {
+  const { data: organisations = [], isLoading, error } = useListOrganisationsQuery();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
 
-  const filtered = organisations.filter((org) => {
-    const matchesQuery =
-      query === "" ||
-      org.tradingName.toLowerCase().includes(query.toLowerCase()) ||
-      org.legalName.toLowerCase().includes(query.toLowerCase());
-    const matchesStatus = statusFilter === "ALL" || org.status === statusFilter;
-    return matchesQuery && matchesStatus;
-  });
+  const filtered = useMemo(() => {
+    return organisations.filter((org) => {
+      const search = query.toLowerCase();
+      const matchesQuery =
+        query === "" ||
+        (org.tradingName ?? "").toLowerCase().includes(search) ||
+        org.legalName.toLowerCase().includes(search) ||
+        org.contactEmail.toLowerCase().includes(search);
+      const matchesStatus = statusFilter === "ALL" || org.status === statusFilter;
+      return matchesQuery && matchesStatus;
+    });
+  }, [organisations, query, statusFilter]);
+
+  if (isLoading) {
+    return <div className="dashboard-card p-6 text-sm text-muted">Loading organisations...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="dashboard-card p-6 text-sm text-red-700">
+        {getErrorMessage(error, "Could not load organisations")}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-3">
         {[
           { label: "Total", value: organisations.length },
-          { label: "Active", value: organisations.filter((o) => o.status === "ACTIVE").length },
-          { label: "Suspended", value: organisations.filter((o) => o.status === "SUSPENDED").length },
+          {
+            label: "Active",
+            value: organisations.filter((org) => org.status === "ACTIVE").length,
+          },
+          {
+            label: "Suspended",
+            value: organisations.filter((org) => org.status === "SUSPENDED").length,
+          },
         ].map((stat) => (
           <div key={stat.label} className="dashboard-card p-5">
             <p className="text-sm text-muted">{stat.label}</p>
@@ -42,13 +75,13 @@ export function OrganisationsPageContent() {
           <div className="flex flex-wrap gap-3">
             <input
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(event) => setQuery(event.target.value)}
               placeholder="Search organisations..."
               className="rounded-xl border border-border bg-background px-4 py-2.5 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
             />
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(event) => setStatusFilter(event.target.value)}
               className="rounded-xl border border-border bg-background px-4 py-2.5 text-sm outline-none focus:border-primary"
             >
               <option value="ALL">All statuses</option>
@@ -65,48 +98,59 @@ export function OrganisationsPageContent() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
-            <thead className="bg-[#faf9f7] text-xs uppercase tracking-wide text-muted">
-              <tr>
-                <th className="px-6 py-3 font-semibold">Organisation</th>
-                <th className="px-6 py-3 font-semibold">Contact</th>
-                <th className="px-6 py-3 font-semibold">Status</th>
-                <th className="px-6 py-3 font-semibold">Modules</th>
-                <th className="px-6 py-3 font-semibold">Org Admin</th>
-                <th className="px-6 py-3 font-semibold">Registered</th>
-                <th className="px-6 py-3 font-semibold">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((org) => (
-                <tr key={org.id} className="border-t border-border/60">
-                  <td className="px-6 py-4">
-                    <p className="font-medium">{org.tradingName}</p>
-                    <p className="text-xs text-muted">{org.legalName}</p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <p className="text-muted">{org.contactEmail}</p>
-                    <p className="text-xs text-muted">{org.timeZone}</p>
-                  </td>
-                  <td className="px-6 py-4">
-                    <OrgStatusBadge status={org.status} />
-                  </td>
-                  <td className="px-6 py-4 text-muted">
-                    {org.modulesEnabled}/{org.modulesGranted} enabled
-                  </td>
-                  <td className="px-6 py-4 text-muted">{org.orgAdmin}</td>
-                  <td className="px-6 py-4 text-muted">{org.createdAt}</td>
-                  <td className="px-6 py-4">
-                    <button type="button" className="text-sm font-semibold text-primary hover:text-primary-light">
-                      View
-                    </button>
-                  </td>
+        {filtered.length === 0 ? (
+          <div className="px-6 py-12 text-center text-sm text-muted">
+            No organisations match your filters.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead className="bg-[#faf9f7] text-xs uppercase tracking-wide text-muted">
+                <tr>
+                  <th className="px-6 py-3 font-semibold">Organisation</th>
+                  <th className="px-6 py-3 font-semibold">Contact</th>
+                  <th className="px-6 py-3 font-semibold">Status</th>
+                  <th className="px-6 py-3 font-semibold">Modules</th>
+                  <th className="px-6 py-3 font-semibold">Org Admin</th>
+                  <th className="px-6 py-3 font-semibold">Registered</th>
+                  <th className="px-6 py-3 font-semibold">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {filtered.map((org) => (
+                  <tr key={org.id} className="border-t border-border/60">
+                    <td className="px-6 py-4">
+                      <p className="font-medium">{org.tradingName ?? org.legalName}</p>
+                      <p className="text-xs text-muted">{org.legalName}</p>
+                    </td>
+                    <td className="px-6 py-4">
+                      <p className="text-muted">{org.contactEmail}</p>
+                      <p className="text-xs text-muted">{org.timeZone}</p>
+                    </td>
+                    <td className="px-6 py-4">
+                      <OrgStatusBadge status={org.status as OrgStatus} />
+                    </td>
+                    <td className="px-6 py-4 text-muted">
+                      {org.modulesEnabled}/{org.modulesGranted} enabled
+                    </td>
+                    <td className="px-6 py-4 text-muted">
+                      {org.orgAdminEmail ?? "—"}
+                    </td>
+                    <td className="px-6 py-4 text-muted">{formatDate(org.createdAt)}</td>
+                    <td className="px-6 py-4">
+                      <Link
+                        href={`/super-admin/organisations/${org.id}`}
+                        className="text-sm font-semibold text-primary hover:text-primary-light"
+                      >
+                        View
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

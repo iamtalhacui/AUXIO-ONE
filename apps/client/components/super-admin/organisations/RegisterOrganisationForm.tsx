@@ -3,6 +3,12 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { moduleCatalogue } from "@/lib/dashboard/content/super-admin";
+import {
+  ASSIGNABLE_MODULE_CODES,
+  getModuleCodesForTemplate,
+  MODULE_CEILING_TEMPLATES,
+  type ModuleCeilingTemplate,
+} from "@/lib/dashboard/content/module-templates";
 import { useCreateOrganisationMutation } from "@/lib/api/api";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
 
@@ -14,14 +20,17 @@ const timeZones = [
   "Australia/Adelaide",
 ];
 
-const defaultModuleCodes = ["03", "05", "06", "07", "09", "10"];
-
 export function RegisterOrganisationForm() {
   const router = useRouter();
   const [createOrganisation, { isLoading }] = useCreateOrganisationMutation();
 
-  const operationalModules = useMemo(
-    () => moduleCatalogue.filter((module) => module.operational),
+  const assignableModules = useMemo(
+    () => moduleCatalogue.filter((module) => ASSIGNABLE_MODULE_CODES.includes(module.code as (typeof ASSIGNABLE_MODULE_CODES)[number])),
+    [],
+  );
+
+  const moduleNameByCode = useMemo(
+    () => Object.fromEntries(moduleCatalogue.map((module) => [module.code, module.name])),
     [],
   );
 
@@ -30,14 +39,27 @@ export function RegisterOrganisationForm() {
   const [timeZone, setTimeZone] = useState(timeZones[0]);
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  const [template, setTemplate] = useState<ModuleCeilingTemplate>("BASIC");
+  const [customModules, setCustomModules] = useState<string[]>(["03", "05", "06"]);
   const [orgAdminName, setOrgAdminName] = useState("");
   const [orgAdminEmail, setOrgAdminEmail] = useState("");
-  const [selectedModules, setSelectedModules] = useState<string[]>(defaultModuleCodes);
+  const [orgAdminPassword, setOrgAdminPassword] = useState("");
+  const [orgAdminPasswordConfirm, setOrgAdminPasswordConfirm] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  function toggleModule(code: string) {
-    setSelectedModules((current) =>
+  const resolvedModules =
+    template === "CUSTOM" ? customModules : getModuleCodesForTemplate(template);
+
+  function selectTemplate(next: ModuleCeilingTemplate) {
+    setTemplate(next);
+    if (next !== "CUSTOM") {
+      setCustomModules(getModuleCodesForTemplate(next));
+    }
+  }
+
+  function toggleCustomModule(code: string) {
+    setCustomModules((current) =>
       current.includes(code) ? current.filter((item) => item !== code) : [...current, code],
     );
   }
@@ -47,8 +69,18 @@ export function RegisterOrganisationForm() {
     setError("");
     setSuccess("");
 
-    if (selectedModules.length === 0) {
-      setError("Select at least one module for the ceiling.");
+    if (resolvedModules.length === 0) {
+      setError("Select at least one module for the custom ceiling.");
+      return;
+    }
+
+    if (orgAdminPassword.length < 8) {
+      setError("Org Admin password must be at least 8 characters.");
+      return;
+    }
+
+    if (orgAdminPassword !== orgAdminPasswordConfirm) {
+      setError("Org Admin passwords do not match.");
       return;
     }
 
@@ -59,16 +91,18 @@ export function RegisterOrganisationForm() {
         contactEmail,
         contactPhone: contactPhone || undefined,
         timeZone,
-        moduleCeilingCodes: selectedModules,
+        moduleCeilingTemplate: template,
+        moduleCeilingCodes: template === "CUSTOM" ? customModules : undefined,
         orgAdminEmail,
         orgAdminName,
+        orgAdminPassword,
       }).unwrap();
 
       setSuccess(
-        `Organisation "${result.organisation.tradingName ?? result.organisation.legalName}" created. Org Admin invite sent to ${result.orgAdmin.email}. Check the API server console for the temporary password.`,
+        `Organisation "${result.organisation.tradingName ?? result.organisation.legalName}" created with ${result.moduleEntitlements.length} modules in the ceiling. Org Admin ${result.orgAdmin.email} can sign in now.`,
       );
 
-      setTimeout(() => router.push("/super-admin/organisations"), 1500);
+      setTimeout(() => router.push("/super-admin/organisations"), 2000);
     } catch (err) {
       setError(getErrorMessage(err, "Could not register organisation"));
     }
@@ -142,36 +176,83 @@ export function RegisterOrganisationForm() {
       </section>
 
       <section className="dashboard-card p-6">
-        <h2 className="text-lg font-semibold">Module ceiling</h2>
+        <h2 className="text-lg font-semibold">Module ceiling template</h2>
         <p className="mt-1 text-sm text-muted">
-          Select which modules this organisation may ever enable. All start disabled until the Org Admin toggles them on.
+          Choose a preset or build a custom ceiling. Selected modules are saved to the organisation and define what the Org Admin may enable later.
         </p>
 
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {operationalModules.map((module) => (
-            <label
-              key={module.code}
-              className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-background px-4 py-3 transition hover:border-primary/20"
-            >
-              <input
-                type="checkbox"
-                checked={selectedModules.includes(module.code)}
-                onChange={() => toggleModule(module.code)}
-                className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary/20"
-              />
-              <span>
-                <span className="block text-sm font-medium">{module.name}</span>
-                <span className="text-xs text-muted">Code {module.code}</span>
-              </span>
-            </label>
-          ))}
+        <div className="mt-6 grid gap-3 lg:grid-cols-3">
+          {MODULE_CEILING_TEMPLATES.map((option) => {
+            const active = template === option.value;
+
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => selectTemplate(option.value)}
+                className={`rounded-2xl border px-4 py-4 text-left transition ${
+                  active
+                    ? "border-primary bg-primary/5 ring-2 ring-primary/10"
+                    : "border-border bg-background hover:border-primary/20"
+                }`}
+              >
+                <p className="text-sm font-semibold">{option.label}</p>
+                <p className="mt-2 text-sm text-muted">{option.description}</p>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-6">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p className="text-sm font-medium">
+              {template === "CUSTOM" ? "Choose modules" : "Modules in this ceiling"}
+            </p>
+            <span className="rounded-full bg-surface-muted px-3 py-1 text-xs font-semibold text-muted">
+              {resolvedModules.length} selected
+            </span>
+          </div>
+
+          {template === "CUSTOM" ? (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {assignableModules.map((module) => (
+                <label
+                  key={module.code}
+                  className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-background px-4 py-3 transition hover:border-primary/20"
+                >
+                  <input
+                    type="checkbox"
+                    checked={customModules.includes(module.code)}
+                    onChange={() => toggleCustomModule(module.code)}
+                    className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary/20"
+                  />
+                  <span>
+                    <span className="block text-sm font-medium">{module.name}</span>
+                    <span className="text-xs text-muted">Code {module.code}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {resolvedModules.map((code) => (
+                <span
+                  key={code}
+                  className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-sm"
+                >
+                  <span className="font-semibold text-primary">{code}</span>
+                  <span className="text-muted">{moduleNameByCode[code]}</span>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
       <section className="dashboard-card p-6">
         <h2 className="text-lg font-semibold">First Org Admin</h2>
         <p className="mt-1 text-sm text-muted">
-          Creates the organisation&apos;s first administrator with a temporary password and invited status.
+          Creates the organisation&apos;s first administrator. They can sign in immediately and manage modules within the granted ceiling.
         </p>
 
         <div className="mt-6 grid gap-5 sm:grid-cols-2">
@@ -194,6 +275,32 @@ export function RegisterOrganisationForm() {
               onChange={(event) => setOrgAdminEmail(event.target.value)}
               placeholder="orgadmin@demo-provider.com.au"
               required
+              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
+            />
+          </label>
+
+          <label className="block">
+            <span className="mb-2 block text-sm font-medium">Password</span>
+            <input
+              type="password"
+              value={orgAdminPassword}
+              onChange={(event) => setOrgAdminPassword(event.target.value)}
+              required
+              minLength={8}
+              autoComplete="new-password"
+              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
+            />
+          </label>
+
+          <label className="block">
+            <span className="mb-2 block text-sm font-medium">Confirm password</span>
+            <input
+              type="password"
+              value={orgAdminPasswordConfirm}
+              onChange={(event) => setOrgAdminPasswordConfirm(event.target.value)}
+              required
+              minLength={8}
+              autoComplete="new-password"
               className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
             />
           </label>

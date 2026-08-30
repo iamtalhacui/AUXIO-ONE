@@ -1,4 +1,4 @@
-import { OrgAdminOverview } from "@/components/dashboard/RolePlaceholder";
+import { OrgAdminOverview } from "@/components/org-admin/OrgAdminOverview";
 
 export default function OrgAdminPage() {
   return <OrgAdminOverview />;

@@ -7,9 +7,12 @@ import {
   getDashboardConfigForRole,
 } from "@/lib/dashboard/config";
 import { getDashboardHomeForRole, isUserRole } from "@/lib/dashboard/roles";
+import { useHasMounted } from "@/lib/hooks/useHasMounted";
 import { useAppSelector } from "@/lib/store/hooks";
+import { DashboardBootScreen } from "@/components/dashboard/DashboardBootScreen";
 
 export function DashboardAuthGuard({ children }: { children: React.ReactNode }) {
+  const mounted = useHasMounted();
   const router = useRouter();
   const pathname = usePathname();
   const { accessToken, user, mustChangePassword } = useAppSelector((state) => state.auth);
@@ -17,6 +20,8 @@ export function DashboardAuthGuard({ children }: { children: React.ReactNode }) 
   const userConfig = getDashboardConfigForRole(user?.role);
 
   useEffect(() => {
+    if (!mounted) return;
+
     if (!accessToken) {
       router.replace("/login");
       return;
@@ -35,11 +40,23 @@ export function DashboardAuthGuard({ children }: { children: React.ReactNode }) 
     if (user?.role !== routeConfig.role) {
       router.replace(getDashboardHomeForRole(user?.role));
     }
-  }, [accessToken, mustChangePassword, routeConfig, router, user?.role]);
+  }, [mounted, accessToken, mustChangePassword, routeConfig, router, user?.role]);
 
-  if (!accessToken || mustChangePassword) return null;
-  if (!routeConfig || !userConfig) return null;
-  if (user?.role !== routeConfig.role) return null;
+  if (!mounted) {
+    return <DashboardBootScreen />;
+  }
+
+  if (!accessToken || mustChangePassword) {
+    return <DashboardBootScreen />;
+  }
+
+  if (!routeConfig || !userConfig) {
+    return <DashboardBootScreen />;
+  }
+
+  if (user?.role !== routeConfig.role) {
+    return <DashboardBootScreen />;
+  }
 
   return children;
 }
