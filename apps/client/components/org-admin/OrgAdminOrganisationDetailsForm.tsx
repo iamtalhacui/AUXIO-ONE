@@ -7,6 +7,8 @@ import {
 } from "@/lib/api/api";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
 
+import { PageHeader } from "@/components/dashboard/PageHeader";
+
 const timeZones = [
   "Australia/Sydney",
   "Australia/Melbourne",
@@ -102,7 +104,9 @@ export function OrgAdminOrganisationDetailsForm() {
   }
 
   return (
-    <form className="space-y-6" onSubmit={handleSubmit}>
+    <>
+      <PageHeader title="Organisation details" description="Name, contact info, and branding." />
+      <form className="space-y-6" onSubmit={handleSubmit}>
       <section className="dashboard-card p-6">
         <h2 className="text-lg font-semibold">Identity</h2>
         <p className="mt-1 text-sm text-muted">How your organisation appears across the workspace.</p>
@@ -259,5 +263,6 @@ export function OrgAdminOrganisationDetailsForm() {
         </button>
       </div>
     </form>
+    </>
   );
 }

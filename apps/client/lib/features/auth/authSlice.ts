@@ -53,8 +53,16 @@ const authSlice = createSlice({
       state.mustChangePassword = action.payload.mustChangePassword;
       persistAuth(state);
     },
-    clearMustChangePassword(state) {
-      state.mustChangePassword = false;
+    completePasswordChange(
+      state,
+      action: PayloadAction<Pick<LoginResponse, "user" | "mustChangePassword">>,
+    ) {
+      state.mustChangePassword = action.payload.mustChangePassword;
+      state.user = action.payload.user;
+      persistAuth(state);
+    },
+    updateUser(state, action: PayloadAction<AuthUser>) {
+      state.user = action.payload;
       persistAuth(state);
     },
     logout(state) {
@@ -66,7 +74,7 @@ const authSlice = createSlice({
   },
 });
 
-export const { hydrateAuth, setCredentials, clearMustChangePassword, logout } =
+export const { hydrateAuth, setCredentials, completePasswordChange, updateUser, logout } =
   authSlice.actions;
 
 export default authSlice.reducer;

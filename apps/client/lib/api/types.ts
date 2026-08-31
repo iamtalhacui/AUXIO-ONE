@@ -4,6 +4,7 @@ export type AuthUser = {
   name: string;
   role?: string;
   organisationId?: string | null;
+  status?: string;
 };
 
 export type LoginRequest = {
@@ -24,6 +25,8 @@ export type ChangePasswordRequest = {
 
 export type ChangePasswordResponse = {
   success: boolean;
+  mustChangePassword: boolean;
+  user: AuthUser;
 };
 
 export type ModuleCeilingTemplate = "BASIC" | "ADVANCED" | "CUSTOM";
@@ -151,7 +154,172 @@ export type UpdateOrgAdminProfileRequest = {
   logoData?: string | null;
 };
 
+export type ConfigurableRoleCode = "MANAGER" | "ROSTERING_EXPERT" | "EMPLOYEE";
+
+export type OrgRoleItem = {
+  id: string;
+  code: ConfigurableRoleCode;
+  name: string;
+  capabilities: Record<string, boolean>;
+};
+
+export type OrgRolesResponse = {
+  roles: OrgRoleItem[];
+};
+
+export type UpdateOrgRolesRequest = {
+  roles: Array<{
+    code: ConfigurableRoleCode;
+    capabilities: Record<string, boolean>;
+  }>;
+};
+
+export type TeamMemberRole = {
+  code: string;
+  name: string;
+};
+
+export type TeamMember = {
+  id: string;
+  name: string;
+  email: string;
+  status:
+    | "INVITED"
+    | "PROCESSING"
+    | "SUBMITTED"
+    | "VERIFIED"
+    | "RESTRICTED"
+    | "ACTIVE"
+    | "DEACTIVATED";
+  role: TeamMemberRole | null;
+  createdAt: string;
+};
+
+export type TeamMembersResponse = {
+  members: TeamMember[];
+};
+
+export type RegisterTeamMemberRequest = {
+  name: string;
+  email: string;
+  password: string;
+  role: ConfigurableRoleCode;
+};
+
+export type RegisterTeamMemberResponse = {
+  id: string;
+  name: string;
+  email: string;
+  status: string;
+  role: TeamMemberRole;
+  credentialEmail?: { queued: boolean };
+};
+
 export type ApiErrorBody = {
   message?: string | string[];
   statusCode?: number;
+};
+
+export type OnboardingProfileResponse = {
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    status: string;
+    role: string | null;
+    roleName: string | null;
+  };
+  organisation: {
+    id: string;
+    legalName: string;
+    tradingName: string | null;
+  } | null;
+  profile: {
+    data: Record<string, unknown>;
+    currentStep: number;
+    submittedAt: string | null;
+    updatedAt: string | null;
+  };
+};
+
+export type SaveOnboardingRequest = {
+  data: Record<string, unknown>;
+  currentStep: number;
+};
+
+export type SubmitOnboardingResponse = {
+  profile: OnboardingProfileResponse["profile"];
+  user: AuthUser;
+};
+
+export type MemberOnboardingReviewResponse = {
+  member: {
+    id: string;
+    name: string;
+    email: string;
+    status: TeamMember["status"];
+    role: TeamMemberRole | null;
+    createdAt: string;
+  };
+  profile: OnboardingProfileResponse["profile"] | null;
+};
+
+export type TeamMemberDetail = TeamMember & {
+  updatedAt: string;
+};
+
+export type UpdateTeamMemberRequest = {
+  name?: string;
+  email?: string;
+  role?: ConfigurableRoleCode;
+  status?: TeamMember["status"];
+};
+
+export type WorkforceProfile = {
+  id: string;
+  name: string;
+  email: string;
+  role: string | null;
+  roleName: string | null;
+  status: string;
+  organisationName: string | null;
+  phone: string;
+  addressLine1: string;
+  addressLine2: string;
+  suburb: string;
+  state: string;
+  postcode: string;
+  preferredName: string;
+  dateOfBirth: string;
+  gender: string;
+  languages: string;
+  bio: string;
+};
+
+export type UpdateWorkforceProfileRequest = {
+  name?: string;
+  phone?: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  suburb?: string;
+  state?: string;
+  postcode?: string;
+  preferredName?: string;
+  dateOfBirth?: string;
+  gender?: string;
+  languages?: string;
+  bio?: string;
+};
+
+export type UploadOnboardingDocumentRequest = {
+  docType: string;
+  file: File;
+};
+
+export type UploadedFileMeta = {
+  name: string;
+  size: number;
+  type: string;
+  uploadedAt: string;
+  storedName: string;
 };

@@ -15,6 +15,9 @@ enum OrgStatus {
 
 enum UserStatus {
   INVITED
+  PROCESSING
+  SUBMITTED
+  VERIFIED
   RESTRICTED
   ACTIVE
   DEACTIVATED
@@ -82,6 +85,7 @@ model Organisation {
   requirementSets         RequirementSet[]
   terminologyOverrides    TerminologyOverride[]
   auditEntries            AuditEntry[]
+  workerOnboardingProfiles WorkerOnboardingProfile[]
 }
 
 model Module {
@@ -123,6 +127,7 @@ model Role {
   organisation   Organisation?    @relation(fields: [organisationId], references: [id])
   users          User[]
   permissions    RolePermission[]
+  capabilities   RoleCapability[]
   step1Approvals ApprovalWorkflowConfig[] @relation("Step1Approver")
   step2Approvals ApprovalWorkflowConfig[] @relation("Step2Approver")
   @@unique([organisationId, code])
@@ -139,6 +144,30 @@ model RolePermission {
   module   Module            @relation(fields: [moduleId], references: [id])
 
   @@unique([roleId, moduleId, action])
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  groupCode   String
+  label       String
+  description String?
+  sortOrder   Int      @default(0)
+
+  roleGrants  RoleCapability[]
+}
+
+model RoleCapability {
+  id           String     @id @default(uuid())
+  roleId       String
+  permissionId String
+  allowed      Boolean    @default(false)
+
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id])
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
 }
 
 model AccessPackage {
@@ -229,6 +258,7 @@ model User {
   name                 String
   passwordHash         String?
   status               UserStatus          @default(INVITED)
+  pendingPasswordChange Boolean           @default(false)
   isFirstOrgAdmin      Boolean             @default(false)
   vouchedBySuperAdmin  Boolean             @default(false)
   createdAt            DateTime            @default(now())
@@ -240,8 +270,25 @@ model User {
   accessPackagesHeld   AccessPackage[]     @relation("AccessPackageHolder")
   accessPackagesGranted AccessPackage[]    @relation("AccessPackageGrantor")
   auditEntries         AuditEntry[]
+  onboardingProfile    WorkerOnboardingProfile?
 
   @@unique([organisationId, email])
+}
+
+model WorkerOnboardingProfile {
+  id             String    @id @default(uuid())
+  userId         String    @unique
+  organisationId String
+  data           Json      @default("{}")
+  currentStep    Int       @default(0)
+  submittedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user           User         @relation(fields: [userId], references: [id])
+  organisation   Organisation @relation(fields: [organisationId], references: [id])
+
+  @@index([organisationId, submittedAt])
 }
 
 model AuditEntry {

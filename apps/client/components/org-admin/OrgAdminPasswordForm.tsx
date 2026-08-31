@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { PageHeader } from "@/components/dashboard/PageHeader";
 import { useChangePasswordMutation } from "@/lib/api/api";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
 
@@ -40,28 +41,23 @@ export function OrgAdminPasswordForm() {
   }
 
   return (
-    <form className="dashboard-card max-w-xl space-y-5 p-6" onSubmit={handleSubmit}>
-      <div>
-        <h2 className="text-lg font-semibold">Change password</h2>
-        <p className="mt-1 text-sm text-muted">
-          Update the password you use to sign in to AUXIO One.
-        </p>
-      </div>
-
+    <>
+      <PageHeader title="Security" description="Update your account password." />
+      <form className="dashboard-card max-w-xl space-y-5 p-6" onSubmit={handleSubmit}>
       <label className="block">
-        <span className="mb-2 block text-sm font-medium">Current password</span>
+        <span className="input-label">Current password</span>
         <input
           type="password"
           value={currentPassword}
           onChange={(event) => setCurrentPassword(event.target.value)}
           required
           autoComplete="current-password"
-          className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
+          className="input-field"
         />
       </label>
 
       <label className="block">
-        <span className="mb-2 block text-sm font-medium">New password</span>
+        <span className="input-label">New password</span>
         <input
           type="password"
           value={newPassword}
@@ -69,12 +65,12 @@ export function OrgAdminPasswordForm() {
           required
           minLength={8}
           autoComplete="new-password"
-          className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
+          className="input-field"
         />
       </label>
 
       <label className="block">
-        <span className="mb-2 block text-sm font-medium">Confirm new password</span>
+        <span className="input-label">Confirm new password</span>
         <input
           type="password"
           value={confirmPassword}
@@ -82,7 +78,7 @@ export function OrgAdminPasswordForm() {
           required
           minLength={8}
           autoComplete="new-password"
-          className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
+          className="input-field"
         />
       </label>
 
@@ -98,13 +94,10 @@ export function OrgAdminPasswordForm() {
         </p>
       ) : null}
 
-      <button
-        type="submit"
-        disabled={isLoading}
-        className="rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white hover:bg-primary-light disabled:opacity-70"
-      >
+      <button type="submit" disabled={isLoading} className="btn-primary disabled:opacity-70">
         {isLoading ? "Updating..." : "Update password"}
       </button>
     </form>
+    </>
   );
 }

@@ -14,7 +14,7 @@ build/
 coverage/
 *.tsbuildinfo
 
-# Database & Local Storage
+apps/server/uploads/
 prisma/*.db
 prisma/*.db-journal
 

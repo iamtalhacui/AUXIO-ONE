@@ -1,5 +1,11 @@
 import { PrismaClient } from "@prisma/client";
 import * as bcrypt from "bcryptjs";
+import {
+  CONFIGURABLE_ROLE_CODES,
+  CONFIGURABLE_ROLE_NAMES,
+  DEFAULT_ROLE_CAPABILITIES,
+  ORG_PERMISSION_CATALOGUE,
+} from "../src/org-permissions.js";
 
 const prisma = new PrismaClient();
 
@@ -31,6 +37,48 @@ async function main() {
   }
   console.log(`Seeded ${MODULES.length} modules`);
 
+  for (const entry of ORG_PERMISSION_CATALOGUE) {
+    await prisma.permission.upsert({
+      where: { code: entry.code },
+      update: {
+        groupCode: entry.groupCode,
+        label: entry.label,
+        description: entry.description,
+        sortOrder: entry.sortOrder,
+      },
+      create: {
+        code: entry.code,
+        groupCode: entry.groupCode,
+        label: entry.label,
+        description: entry.description,
+        sortOrder: entry.sortOrder,
+      },
+    });
+  }
+  console.log(`Seeded ${ORG_PERMISSION_CATALOGUE.length} permissions`);
+
+  const permissions = await prisma.permission.findMany();
+  const permissionByCode = Object.fromEntries(permissions.map((p) => [p.code, p]));
+
+  async function seedRoleCapabilities(roleId: string, capabilities: Record<string, boolean>) {
+    for (const code of ORG_PERMISSION_CATALOGUE.map((p) => p.code)) {
+      const permission = permissionByCode[code];
+      if (!permission) continue;
+
+      await prisma.roleCapability.upsert({
+        where: {
+          roleId_permissionId: { roleId, permissionId: permission.id },
+        },
+        update: { allowed: capabilities[code] ?? false },
+        create: {
+          roleId,
+          permissionId: permission.id,
+          allowed: capabilities[code] ?? false,
+        },
+      });
+    }
+  }
+
   let superAdminRole = await prisma.role.findFirst({
     where: { organisationId: null, code: "SUPER_ADMIN" },
   });
@@ -45,6 +93,26 @@ async function main() {
       },
     });
   }
+
+  for (const code of CONFIGURABLE_ROLE_CODES) {
+    let templateRole = await prisma.role.findFirst({
+      where: { organisationId: null, code },
+    });
+
+    if (!templateRole) {
+      templateRole = await prisma.role.create({
+        data: {
+          organisationId: null,
+          code,
+          name: CONFIGURABLE_ROLE_NAMES[code],
+          isBaseRole: true,
+        },
+      });
+    }
+
+    await seedRoleCapabilities(templateRole.id, DEFAULT_ROLE_CAPABILITIES[code]);
+  }
+  console.log("Seeded platform role templates");
 
   const email = process.env.SUPER_ADMIN_EMAIL;
   const password = process.env.SUPER_ADMIN_PASSWORD;

@@ -5,9 +5,10 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useChangePasswordMutation } from "@/lib/api/api";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
-import { clearMustChangePassword } from "@/lib/features/auth/authSlice";
 import { getDashboardHomeForRole } from "@/lib/dashboard/roles";
+import { getPostAuthPath } from "@/lib/dashboard/user-lifecycle";
 import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
+import { completePasswordChange } from "@/lib/features/auth/authSlice";
 
 export function ChangePasswordForm() {
   const router = useRouter();
@@ -37,11 +38,23 @@ export function ChangePasswordForm() {
     }
 
     try {
-      await changePassword({ currentPassword, newPassword }).unwrap();
-      dispatch(clearMustChangePassword());
+      const result = await changePassword({ currentPassword, newPassword }).unwrap();
+      dispatch(
+        completePasswordChange({
+          mustChangePassword: result.mustChangePassword,
+          user: result.user,
+        }),
+      );
       setSuccess("Password updated. Redirecting...");
       setTimeout(() => {
-        router.replace(getDashboardHomeForRole(user?.role));
+        router.replace(
+          getPostAuthPath(
+            result.user.role,
+            result.user.status,
+            result.mustChangePassword,
+            getDashboardHomeForRole(result.user.role),
+          ),
+        );
       }, 800);
     } catch (err) {
       setError(getErrorMessage(err, "Could not change password"));

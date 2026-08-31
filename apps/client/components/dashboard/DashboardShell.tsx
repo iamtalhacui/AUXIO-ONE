@@ -4,7 +4,6 @@ import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { getDashboardConfigForPath } from "@/lib/dashboard/config";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
-import { DashboardTopBar } from "@/components/dashboard/DashboardTopBar";
 
 type DashboardShellProps = {
   children: ReactNode;
@@ -19,10 +18,9 @@ export function DashboardShell({ children }: DashboardShellProps) {
   return (
     <div className="dashboard-shell">
       <DashboardSidebar config={config} />
-      <div className="dashboard-main">
-        <DashboardTopBar config={config} />
+      <main className="dashboard-main">
         <div className="dashboard-content">{children}</div>
-      </div>
+      </main>
     </div>
   );
 }

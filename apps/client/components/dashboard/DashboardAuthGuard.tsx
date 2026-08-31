@@ -7,6 +7,7 @@ import {
   getDashboardConfigForRole,
 } from "@/lib/dashboard/config";
 import { getDashboardHomeForRole, isUserRole } from "@/lib/dashboard/roles";
+import { getWorkforceLifecyclePath } from "@/lib/dashboard/user-lifecycle";
 import { useHasMounted } from "@/lib/hooks/useHasMounted";
 import { useAppSelector } from "@/lib/store/hooks";
 import { DashboardBootScreen } from "@/components/dashboard/DashboardBootScreen";
@@ -32,6 +33,12 @@ export function DashboardAuthGuard({ children }: { children: React.ReactNode }) 
       return;
     }
 
+    const lifecyclePath = getWorkforceLifecyclePath(user?.role, user?.status);
+    if (lifecyclePath) {
+      router.replace(lifecyclePath);
+      return;
+    }
+
     if (!routeConfig || !isUserRole(user?.role)) {
       router.replace(getDashboardHomeForRole(user?.role));
       return;
@@ -40,13 +47,17 @@ export function DashboardAuthGuard({ children }: { children: React.ReactNode }) 
     if (user?.role !== routeConfig.role) {
       router.replace(getDashboardHomeForRole(user?.role));
     }
-  }, [mounted, accessToken, mustChangePassword, routeConfig, router, user?.role]);
+  }, [mounted, accessToken, mustChangePassword, routeConfig, router, user?.role, user?.status]);
 
   if (!mounted) {
     return <DashboardBootScreen />;
   }
 
   if (!accessToken || mustChangePassword) {
+    return <DashboardBootScreen />;
+  }
+
+  if (getWorkforceLifecyclePath(user?.role, user?.status)) {
     return <DashboardBootScreen />;
   }
 

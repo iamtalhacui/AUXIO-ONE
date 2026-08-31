@@ -1,5 +1,3 @@
-import { moduleCatalogue } from "@/lib/dashboard/content/super-admin";
-
 export const CONFIGURABLE_ROLES = [
   {
     id: "MANAGER" as const,
@@ -298,27 +296,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
   },
 ];
 
-export type ModuleAccessLevel = "none" | "view" | "full";
-
-export type ModuleAccessDef = {
-  code: string;
-  name: string;
-  description: string;
-};
-
-export const ROLE_MODULE_CATALOGUE: ModuleAccessDef[] = moduleCatalogue
-  .filter((module) => module.operational || module.code === "04")
-  .map((module) => ({
-    code: module.code,
-    name: module.name,
-    description: module.operational
-      ? "Operational module — can be scoped per role."
-      : "Workspace entry — typically read-only for most roles.",
-  }));
-
 export type RolePermissionMatrix = Record<ConfigurableRoleId, Record<PermissionId, boolean>>;
-
-export type RoleModuleMatrix = Record<ConfigurableRoleId, Record<string, ModuleAccessLevel>>;
 
 function buildPermissionDefaults(
   overrides: Partial<Record<ConfigurableRoleId, Partial<Record<PermissionId, boolean>>>>,
@@ -397,64 +375,6 @@ export const DEFAULT_PERMISSION_MATRIX: RolePermissionMatrix = buildPermissionDe
   },
 });
 
-function buildModuleDefaults(
-  overrides: Partial<Record<ConfigurableRoleId, Partial<Record<string, ModuleAccessLevel>>>>,
-): RoleModuleMatrix {
-  const codes = ROLE_MODULE_CATALOGUE.map((m) => m.code);
-  const base = Object.fromEntries(
-    CONFIGURABLE_ROLES.map((role) => [
-      role.id,
-      Object.fromEntries(codes.map((code) => [code, "none"])) as Record<string, ModuleAccessLevel>,
-    ]),
-  ) as RoleModuleMatrix;
-
-  for (const role of CONFIGURABLE_ROLES) {
-    const roleOverrides = overrides[role.id];
-    if (roleOverrides) {
-      for (const [key, value] of Object.entries(roleOverrides)) {
-        if (value !== undefined) {
-          base[role.id][key] = value;
-        }
-      }
-    }
-  }
-
-  return base;
-}
-
-export const DEFAULT_MODULE_MATRIX: RoleModuleMatrix = buildModuleDefaults({
-  MANAGER: {
-    "04": "view",
-    "03": "view",
-    "05": "full",
-    "06": "full",
-    "07": "full",
-    "08": "full",
-    "09": "full",
-    "10": "full",
-    "12": "view",
-  },
-  ROSTERING_EXPERT: {
-    "04": "view",
-    "05": "view",
-    "06": "full",
-    "07": "view",
-    "10": "view",
-  },
-  EMPLOYEE: {
-    "04": "view",
-    "06": "view",
-    "07": "full",
-    "08": "full",
-    "09": "view",
-    "10": "view",
-  },
-});
-
 export function countGrantedPermissions(matrix: RolePermissionMatrix, roleId: ConfigurableRoleId) {
   return Object.values(matrix[roleId]).filter(Boolean).length;
-}
-
-export function countModuleAccess(matrix: RoleModuleMatrix, roleId: ConfigurableRoleId) {
-  return Object.values(matrix[roleId]).filter((level) => level !== "none").length;
 }

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { getDashboardHomeForRole } from "@/lib/dashboard/roles";
+import { getPostAuthPath } from "@/lib/dashboard/user-lifecycle";
 import { useHasMounted } from "@/lib/hooks/useHasMounted";
 import { useAppSelector } from "@/lib/store/hooks";
 import { ChangePasswordForm } from "@/components/auth/ChangePasswordForm";
@@ -21,7 +22,14 @@ export function ChangePasswordGuard({ children }: { children: React.ReactNode })
     }
 
     if (!mustChangePassword) {
-      router.replace(getDashboardHomeForRole(user?.role));
+      router.replace(
+        getPostAuthPath(
+          user?.role,
+          user?.status,
+          false,
+          getDashboardHomeForRole(user?.role),
+        ),
+      );
     }
   }, [mounted, accessToken, mustChangePassword, router, user?.role]);
 

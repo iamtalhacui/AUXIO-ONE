@@ -1,5 +1,6 @@
 "use client";
 
+import { PageHeader } from "@/components/dashboard/PageHeader";
 import { useAppSelector } from "@/lib/store/hooks";
 import {
   useListOrgModulesQuery,
@@ -53,7 +54,9 @@ export function OrgAdminModulesContent() {
   }
 
   return (
-    <div className="dashboard-card overflow-hidden">
+    <>
+      <PageHeader title="Modules" description="Enable modules within your organisation ceiling." />
+      <div className="dashboard-card overflow-hidden">
       <div className="border-b border-border px-6 py-4">
         <p className="text-sm text-muted">
           Only modules in your ceiling are listed here. Enable the ones your organisation is ready to use.
@@ -89,5 +92,6 @@ export function OrgAdminModulesContent() {
         ))}
       </ul>
     </div>
+    </>
   );
 }

@@ -9,10 +9,19 @@ import { setCredentials } from "@/lib/features/auth/authSlice";
 import { useAppDispatch } from "@/lib/store/hooks";
 import { loginCopy } from "@/lib/content/auth";
 import { getDashboardHomeForRole } from "@/lib/dashboard/roles";
+import { getPostAuthPath } from "@/lib/dashboard/user-lifecycle";
 
-function getRedirectPath(role?: string, mustChangePassword?: boolean) {
-  if (mustChangePassword) return "/change-password";
-  return getDashboardHomeForRole(role);
+function getRedirectPath(
+  role?: string,
+  status?: string,
+  mustChangePassword?: boolean,
+) {
+  return getPostAuthPath(
+    role,
+    status,
+    mustChangePassword,
+    getDashboardHomeForRole(role),
+  );
 }
 
 export function LoginForm() {
@@ -31,7 +40,13 @@ export function LoginForm() {
     try {
       const result = await login({ email, password }).unwrap();
       dispatch(setCredentials(result));
-      router.replace(getRedirectPath(result.user.role, result.mustChangePassword));
+      router.replace(
+        getRedirectPath(
+          result.user.role,
+          result.user.status,
+          result.mustChangePassword,
+        ),
+      );
     } catch (err) {
       setError(getErrorMessage(err, "Login failed"));
     }

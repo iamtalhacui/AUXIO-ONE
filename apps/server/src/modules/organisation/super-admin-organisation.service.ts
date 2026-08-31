@@ -8,6 +8,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { CreateOrganisationDto } from './dto/create-organisation.dto';
 import { UpdateOrganisationDto } from './dto/update-organisation.dto';
 import { OrganisationCoreService } from './organisation-core.service';
+import { OrgRolesService } from '../roles/org-roles.service';
 import {
   ModuleCeilingTemplate,
   resolveModuleCeilingCodes,
@@ -18,6 +19,7 @@ export class SuperAdminOrganisationService {
   constructor(
     private prisma: PrismaService,
     private core: OrganisationCoreService,
+    private orgRolesService: OrgRolesService,
   ) {}
 
   async create(dto: CreateOrganisationDto, actorUserId: string) {
@@ -85,6 +87,8 @@ export class SuperAdminOrganisationService {
           },
         });
       }
+
+      await this.orgRolesService.provisionOrgRoles(organisation.id, tx);
 
       const orgAdmin = await tx.user.create({
         data: {

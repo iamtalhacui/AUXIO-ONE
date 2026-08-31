@@ -5,7 +5,9 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
+import type { UserStatus } from '@repo/database';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { isWorkforceLifecycleRole } from '../../common/user-lifecycle';
 
 @Injectable()
 export class AuthService {
@@ -33,6 +35,16 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    let status: UserStatus = user.status;
+    if (status === 'INVITED') {
+      const updated = await this.prisma.user.update({
+        where: { id: user.id },
+        data: { status: 'PROCESSING' },
+        select: { status: true },
+      });
+      status = updated.status;
+    }
+
     const payload = {
       sub: user.id,
       email: user.email,
@@ -42,13 +54,14 @@ export class AuthService {
 
     return {
       accessToken: this.jwt.sign(payload),
-      mustChangePassword: user.status === 'INVITED',
+      mustChangePassword: user.pendingPasswordChange,
       user: {
         id: user.id,
         email: user.email,
         name: user.name,
         role: user.role?.code,
         organisationId: user.organisationId,
+        status,
       },
     };
   }
@@ -60,6 +73,7 @@ export class AuthService {
   ) {
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
+      include: { role: true },
     });
 
     if (!user.passwordHash) {
@@ -72,12 +86,53 @@ export class AuthService {
     }
 
     const newHash = await bcrypt.hash(newPassword, 10);
+    const roleCode = user.role?.code;
 
-    await this.prisma.user.update({
+    const data: {
+      passwordHash: string;
+      pendingPasswordChange: boolean;
+      status?: UserStatus;
+    } = {
+      passwordHash: newHash,
+      pendingPasswordChange: false,
+    };
+
+    if (user.status === 'INVITED') {
+      data.status = 'PROCESSING';
+    }
+
+    if (
+      isWorkforceLifecycleRole(roleCode) &&
+      user.status !== 'VERIFIED' &&
+      user.status !== 'SUBMITTED'
+    ) {
+      data.status = 'PROCESSING';
+    }
+
+    const updated = await this.prisma.user.update({
       where: { id: userId },
-      data: { passwordHash: newHash, status: 'ACTIVE' },
+      data,
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        organisationId: true,
+        status: true,
+        role: { select: { code: true } },
+      },
     });
 
-    return { success: true };
+    return {
+      success: true,
+      mustChangePassword: false,
+      user: {
+        id: updated.id,
+        email: updated.email,
+        name: updated.name,
+        role: updated.role?.code,
+        organisationId: updated.organisationId,
+        status: updated.status,
+      },
+    };
   }
 }

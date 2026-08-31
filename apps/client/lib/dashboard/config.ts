@@ -2,7 +2,8 @@ import type { UserRole } from "@/lib/dashboard/roles";
 
 export type NavItem = {
   label: string;
-  href: string;
+  href?: string;
+  children?: NavItem[];
 };
 
 export type NavGroup = {
@@ -15,29 +16,32 @@ export type DashboardConfig = {
   basePath: string;
   roleLabel: string;
   title: string;
-  subtitle: string;
   sidebarGroups: NavGroup[];
-  primaryAction?: {
-    label: string;
-    href: string;
-  };
 };
 
 const superAdminNav: NavGroup[] = [
   {
     title: "Overview",
-    items: [
-      { label: "Dashboard", href: "/super-admin" },
-      { label: "Organisations", href: "/super-admin/organisations" },
-      { label: "Register organisation", href: "/super-admin/organisations/new" },
-      { label: "Pending invites", href: "/super-admin/invites" },
-    ],
+    items: [{ label: "Dashboard", href: "/super-admin" }],
   },
   {
     title: "Platform",
     items: [
-      { label: "Module catalogue", href: "/super-admin/modules" },
-      { label: "Entitlements", href: "/super-admin/entitlements" },
+      {
+        label: "Organisations",
+        children: [
+          { label: "All organisations", href: "/super-admin/organisations" },
+          { label: "Register organisation", href: "/super-admin/organisations/new" },
+          { label: "Pending invites", href: "/super-admin/invites" },
+        ],
+      },
+      {
+        label: "Modules",
+        children: [
+          { label: "Module catalogue", href: "/super-admin/modules" },
+          { label: "Entitlements", href: "/super-admin/entitlements" },
+        ],
+      },
       { label: "Platform settings", href: "/super-admin/settings" },
       { label: "Audit log", href: "/super-admin/audit" },
     ],
@@ -47,7 +51,6 @@ const superAdminNav: NavGroup[] = [
     items: [
       { label: "Usage & health", href: "/super-admin/health" },
       { label: "Notifications", href: "/super-admin/notifications" },
-      { label: "Support access", href: "/super-admin/support" },
       { label: "Reports", href: "/super-admin/reports" },
     ],
   },
@@ -61,9 +64,22 @@ const orgAdminNav: NavGroup[] = [
   {
     title: "Organisation",
     items: [
-      { label: "Team", href: "/org-admin/team" },
+      {
+        label: "Team",
+        children: [
+          { label: "All members", href: "/org-admin/team" },
+          { label: "Register member", href: "/org-admin/team/register" },
+        ],
+      },
       { label: "Roles", href: "/org-admin/roles" },
-      { label: "Configuration", href: "/org-admin/settings" },
+      {
+        label: "Configuration",
+        children: [
+          { label: "Organisation details", href: "/org-admin/settings/organisation" },
+          { label: "Modules", href: "/org-admin/settings/modules" },
+          { label: "Security", href: "/org-admin/settings/password" },
+        ],
+      },
     ],
   },
 ];
@@ -80,6 +96,10 @@ const managerNav: NavGroup[] = [
       { label: "Compliance", href: "/manager/compliance" },
     ],
   },
+  {
+    title: "Account",
+    items: [{ label: "Your profile", href: "/manager/profile" }],
+  },
 ];
 
 const rosterNav: NavGroup[] = [
@@ -94,6 +114,10 @@ const rosterNav: NavGroup[] = [
       { label: "Matching", href: "/roster/matching" },
     ],
   },
+  {
+    title: "Account",
+    items: [{ label: "Your profile", href: "/roster/profile" }],
+  },
 ];
 
 const employeeNav: NavGroup[] = [
@@ -104,9 +128,18 @@ const employeeNav: NavGroup[] = [
   {
     title: "My work",
     items: [
-      { label: "Shifts", href: "/employee/shifts" },
-      { label: "Timesheets", href: "/employee/timesheets" },
+      {
+        label: "Shifts & timesheets",
+        children: [
+          { label: "Shifts", href: "/employee/shifts" },
+          { label: "Timesheets", href: "/employee/timesheets" },
+        ],
+      },
     ],
+  },
+  {
+    title: "Account",
+    items: [{ label: "Your profile", href: "/employee/profile" }],
   },
 ];
 
@@ -116,19 +149,13 @@ export const DASHBOARD_CONFIGS: DashboardConfig[] = [
     basePath: "/super-admin",
     roleLabel: "Super Admin",
     title: "Platform Console",
-    subtitle: "AUXIO One platform administration",
     sidebarGroups: superAdminNav,
-    primaryAction: {
-      label: "+ Register org",
-      href: "/super-admin/organisations/new",
-    },
   },
   {
     role: "ORG_ADMIN",
     basePath: "/org-admin",
     roleLabel: "Org Admin",
     title: "Organisation Console",
-    subtitle: "Manage your organisation settings and modules",
     sidebarGroups: orgAdminNav,
   },
   {
@@ -136,7 +163,6 @@ export const DASHBOARD_CONFIGS: DashboardConfig[] = [
     basePath: "/manager",
     roleLabel: "Manager",
     title: "Manager Console",
-    subtitle: "Oversee workforce and compliance",
     sidebarGroups: managerNav,
   },
   {
@@ -144,7 +170,6 @@ export const DASHBOARD_CONFIGS: DashboardConfig[] = [
     basePath: "/roster",
     roleLabel: "Rostering Expert",
     title: "Rostering Console",
-    subtitle: "Build schedules and match support workers",
     sidebarGroups: rosterNav,
   },
   {
@@ -152,7 +177,6 @@ export const DASHBOARD_CONFIGS: DashboardConfig[] = [
     basePath: "/employee",
     roleLabel: "Employee",
     title: "My Dashboard",
-    subtitle: "Your shifts, timesheets, and tasks",
     sidebarGroups: employeeNav,
   },
 ];
@@ -163,4 +187,28 @@ export function getDashboardConfigForPath(pathname: string) {
 
 export function getDashboardConfigForRole(role?: string) {
   return DASHBOARD_CONFIGS.find((config) => config.role === role) ?? null;
+}
+
+/** Collect all hrefs from nav tree for active-state checks. */
+export function flattenNavHrefs(items: NavItem[]): string[] {
+  return items.flatMap((item) => [
+    ...(item.href ? [item.href] : []),
+    ...(item.children ? flattenNavHrefs(item.children) : []),
+  ]);
+}
+
+export function isNavItemActive(pathname: string, item: NavItem, basePath: string): boolean {
+  if (!item.href) {
+    return item.children?.some((child) => isNavItemActive(pathname, child, basePath)) ?? false;
+  }
+
+  if (item.href === basePath) return pathname === item.href;
+  if (pathname === item.href) return true;
+
+  if (!pathname.startsWith(`${item.href}/`)) return false;
+
+  const remainder = pathname.slice(item.href.length + 1);
+  const firstSegment = remainder.split("/")[0];
+  const excludedSegments = new Set(["register"]);
+  return !excludedSegments.has(firstSegment);
 }

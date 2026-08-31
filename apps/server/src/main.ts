@@ -4,7 +4,12 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 
-loadEnv({ path: resolve(process.cwd(), '../../packages/database/.env') });
+const repoRoot = resolve(process.cwd(), '../../');
+
+// Database seed vars first; repo root `.env` overrides (SMTP, CLIENT_URL, etc.)
+loadEnv({ path: resolve(repoRoot, 'packages/database/.env') });
+loadEnv({ path: resolve(repoRoot, '.env'), override: true });
+loadEnv({ path: resolve(process.cwd(), '.env'), override: true });
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
