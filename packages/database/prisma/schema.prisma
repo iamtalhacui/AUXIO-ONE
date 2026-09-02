@@ -230,7 +230,7 @@ model User {
   id                   String              @id @default(uuid())
   organisationId       String?
   roleId               String?
-  email                String
+  email                String              @unique
   name                 String
   passwordHash         String?
   inviteTokenHash      String?
@@ -250,8 +250,6 @@ model User {
   accessPackagesGranted AccessPackage[]    @relation("AccessPackageGrantor")
   auditEntries         AuditEntry[]
   onboardingProfile    WorkerOnboardingProfile?
-
-  @@unique([organisationId, email])
 }
 
 model WorkerOnboardingProfile {

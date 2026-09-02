@@ -16,5 +16,6 @@ import { RequirementSetService } from './requirement-set.service';
     OrgAdminOrganisationService,
     RequirementSetService,
   ],
+  exports: [OrganisationCoreService],
 })
 export class OrganisationModule {}

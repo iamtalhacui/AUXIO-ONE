@@ -5,7 +5,9 @@
   "types": "./src/index.ts",
   "scripts": {
     "db:generate": "prisma generate",
-    "db:push": "prisma db push",
+    "db:dedupe-emails": "tsx prisma/dedupe-user-emails.ts",
+    "db:push": "prisma db push --accept-data-loss",
+    "db:setup": "pnpm db:dedupe-emails && pnpm db:push && pnpm db:generate && pnpm db:seed",
     "postinstall": "prisma generate",
     "db:seed": "tsx prisma/seed.ts"
   },

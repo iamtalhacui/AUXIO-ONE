@@ -15,11 +15,11 @@ export function CtaSection() {
                 Ready when you are
               </p>
               <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
-                Bring your organisation onto AUXIO One.
+                Ready to spend less time on paperwork?
               </h2>
               <p className="mt-4 text-base leading-7 text-white/80">
-                Request access and our team will register your tenant, seed your
-                first Org Admin, and configure your module ceiling.
+                Tell us about your organisation and our team will set up your
+                account, modules, and first admin login — usually within days.
               </p>
               <div className="mt-8">
                 <Button

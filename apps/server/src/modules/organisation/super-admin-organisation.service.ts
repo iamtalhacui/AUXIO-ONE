@@ -47,14 +47,7 @@ export class SuperAdminOrganisationService {
 
     const modules = await this.core.findModulesByCodes(moduleCodes);
 
-    const existingOrgAdmin = await this.prisma.user.findFirst({
-      where: { email: dto.orgAdminEmail },
-    });
-    if (existingOrgAdmin) {
-      throw new ConflictException(
-        `A user with email ${dto.orgAdminEmail} already exists on the platform`,
-      );
-    }
+    await this.core.assertUserEmailAvailable(dto.orgAdminEmail);
 
     const invite = this.inviteTokenService.generate();
 
