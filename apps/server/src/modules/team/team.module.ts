@@ -4,11 +4,10 @@ import { OnboardingModule } from '../onboarding/onboarding.module';
 import { RolesModule } from '../roles/roles.module';
 import { OrgTeamController } from './org-team.controller';
 import { OrgTeamService } from './org-team.service';
-import { TeamCredentialEmailService } from './team-credential-email.service';
 
 @Module({
   imports: [AuthModule, RolesModule, OnboardingModule],
   controllers: [OrgTeamController],
-  providers: [OrgTeamService, TeamCredentialEmailService],
+  providers: [OrgTeamService],
 })
 export class TeamModule {}

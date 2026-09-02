@@ -28,9 +28,9 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   {
     id: "compliance",
     index: 3,
-    label: "Service & availability",
+    label: "Service lines & availability",
     shortLabel: "Service",
-    description: "Service lines, availability, and declarations.",
+    description: "Service lines you can work in, availability, and declarations.",
     owner: "You",
   },
   {

@@ -9,18 +9,18 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Permissions } from '../roles/decorators/permissions.decorator';
 import { PermissionsGuard } from '../roles/guards/permissions.guard';
 import { RegisterTeamMemberDto } from './dto/register-team-member.dto';
+import { ReopenTeamMemberDto } from './dto/reopen-team-member.dto';
 import { UpdateTeamMemberDto } from './dto/update-team-member.dto';
 import { OrgTeamService } from './org-team.service';
 import { OnboardingService } from '../onboarding/onboarding.service';
 
 @Controller('organisations/me/team')
-@UseGuards(AuthGuard('jwt'), RolesGuard, PermissionsGuard)
+@UseGuards(RolesGuard, PermissionsGuard)
 @Roles('ORG_ADMIN')
 export class OrgTeamController {
   constructor(
@@ -87,6 +87,22 @@ export class OrgTeamController {
       req.user.organisationId,
       memberId,
       req.user.sub,
+    );
+  }
+
+  @Post(':memberId/reopen')
+  @Permissions('onboard_workers')
+  reopenMember(
+    @Param('memberId') memberId: string,
+    @Body() dto: ReopenTeamMemberDto,
+    @Req() req: any,
+  ) {
+    this.assertOrgAdminHasOrg(req);
+    return this.orgTeamService.reopenMember(
+      req.user.organisationId,
+      memberId,
+      req.user.sub,
+      dto.reason,
     );
   }
 

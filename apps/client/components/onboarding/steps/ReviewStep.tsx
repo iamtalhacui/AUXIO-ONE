@@ -6,6 +6,7 @@ import type { OnboardingData } from "@/lib/onboarding/types";
 
 type ReviewStepProps = {
   data: OnboardingData;
+  assignedServiceLine?: string | null;
   onEditStep: (index: number) => void;
 };
 
@@ -18,12 +19,17 @@ function ReviewRow({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
-export function ReviewStep({ data, onEditStep }: ReviewStepProps) {
+export function ReviewStep({ data, assignedServiceLine, onEditStep }: ReviewStepProps) {
   const allComplete = ONBOARDING_STEPS.slice(0, 4).every((step) =>
     isStepComplete(step.id, data),
   );
 
-  const serviceLineLabels = data.compliance.serviceLines
+  const assignedLabel = assignedServiceLine
+    ? SERVICE_LINE_OPTIONS.find((opt) => opt.value === assignedServiceLine)?.label ??
+      assignedServiceLine
+    : null;
+
+  const selectedLineLabels = data.compliance.serviceLines
     .map((line) => SERVICE_LINE_OPTIONS.find((opt) => opt.value === line)?.label ?? line)
     .join(", ");
 
@@ -100,7 +106,8 @@ export function ReviewStep({ data, onEditStep }: ReviewStepProps) {
 
               {step.id === "compliance" ? (
                 <div>
-                  <ReviewRow label="Service lines" value={serviceLineLabels} />
+                  <ReviewRow label="Assigned service line" value={assignedLabel} />
+                  <ReviewRow label="Can work in" value={selectedLineLabels} />
                   <ReviewRow label="Availability" value={data.compliance.availabilityNotes} />
                 </div>
               ) : null}

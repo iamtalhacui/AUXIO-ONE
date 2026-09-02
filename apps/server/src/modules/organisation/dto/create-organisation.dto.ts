@@ -5,7 +5,6 @@ import {
   IsArray,
   ArrayNotEmpty,
   IsEnum,
-  MinLength,
   ValidateIf,
 } from 'class-validator';
 import { ModuleCeilingTemplate } from '../module-ceiling.constants';
@@ -42,8 +41,4 @@ export class CreateOrganisationDto {
 
   @IsString()
   orgAdminName: string;
-
-  @IsString()
-  @MinLength(8)
-  orgAdminPassword: string;
 }

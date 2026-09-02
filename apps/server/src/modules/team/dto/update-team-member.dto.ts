@@ -10,6 +10,8 @@ const ADMIN_EDITABLE_STATUSES = [
   'PROCESSING',
 ] as const;
 
+const SERVICE_LINES = ['NDIS', 'AGED_CARE', 'FIELD_SERVICES'] as const;
+
 export class UpdateTeamMemberDto {
   @IsOptional()
   @IsString()
@@ -27,4 +29,8 @@ export class UpdateTeamMemberDto {
   @IsOptional()
   @IsIn(ADMIN_EDITABLE_STATUSES)
   status?: (typeof ADMIN_EDITABLE_STATUSES)[number];
+
+  @IsOptional()
+  @IsIn([...SERVICE_LINES])
+  serviceLine?: (typeof SERVICE_LINES)[number];
 }

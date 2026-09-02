@@ -35,15 +35,6 @@ enum ScopeType {
   ORGANISATION
 }
 
-enum PermissionAction {
-  VIEW
-  CREATE
-  EDIT
-  DELETE
-  APPROVE
-  EXPORT
-}
-
 enum WorkflowType {
   ONBOARDING
   TIME
@@ -96,7 +87,6 @@ model Module {
   sortOrder      Int                 @default(0)
 
   entitlements   ModuleEntitlement[]
-  rolePermissions RolePermission[]
 }
 
 model ModuleEntitlement {
@@ -126,24 +116,10 @@ model Role {
 
   organisation   Organisation?    @relation(fields: [organisationId], references: [id])
   users          User[]
-  permissions    RolePermission[]
   capabilities   RoleCapability[]
   step1Approvals ApprovalWorkflowConfig[] @relation("Step1Approver")
   step2Approvals ApprovalWorkflowConfig[] @relation("Step2Approver")
   @@unique([organisationId, code])
-}
-
-model RolePermission {
-  id       String            @id @default(uuid())
-  roleId   String
-  moduleId String
-  action   PermissionAction
-  allowed  Boolean           @default(false)
-
-  role     Role              @relation(fields: [roleId], references: [id])
-  module   Module            @relation(fields: [moduleId], references: [id])
-
-  @@unique([roleId, moduleId, action])
 }
 
 model Permission {
@@ -257,10 +233,13 @@ model User {
   email                String
   name                 String
   passwordHash         String?
+  inviteTokenHash      String?
+  inviteExpiresAt      DateTime?
   status               UserStatus          @default(INVITED)
   pendingPasswordChange Boolean           @default(false)
   isFirstOrgAdmin      Boolean             @default(false)
   vouchedBySuperAdmin  Boolean             @default(false)
+  serviceLine          ServiceLine?
   createdAt            DateTime            @default(now())
   updatedAt            DateTime            @updatedAt
 

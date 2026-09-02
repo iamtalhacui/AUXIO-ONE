@@ -3,7 +3,6 @@ import {
   ConflictException,
   Injectable,
 } from '@nestjs/common';
-import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { CreateOrganisationDto } from './dto/create-organisation.dto';
 import { UpdateOrganisationDto } from './dto/update-organisation.dto';
@@ -14,12 +13,20 @@ import {
   resolveModuleCeilingCodes,
 } from './module-ceiling.constants';
 
+import { RequirementSetService } from './requirement-set.service';
+import { InviteTokenService } from '../../common/invite/invite-token.service';
+import { InviteEmailService } from '../../common/mail/invite-email.service';
+import { buildInviteUrl } from '../../common/config/client-url';
+
 @Injectable()
 export class SuperAdminOrganisationService {
   constructor(
     private prisma: PrismaService,
     private core: OrganisationCoreService,
     private orgRolesService: OrgRolesService,
+    private requirementSetService: RequirementSetService,
+    private inviteTokenService: InviteTokenService,
+    private inviteEmailService: InviteEmailService,
   ) {}
 
   async create(dto: CreateOrganisationDto, actorUserId: string) {
@@ -49,7 +56,7 @@ export class SuperAdminOrganisationService {
       );
     }
 
-    const passwordHash = await bcrypt.hash(dto.orgAdminPassword, 10);
+    const invite = this.inviteTokenService.generate();
 
     const result = await this.prisma.$transaction(async (tx) => {
       const organisation = await tx.organisation.create({
@@ -89,6 +96,7 @@ export class SuperAdminOrganisationService {
       }
 
       await this.orgRolesService.provisionOrgRoles(organisation.id, tx);
+      await this.requirementSetService.provisionForOrganisation(organisation.id, tx);
 
       const orgAdmin = await tx.user.create({
         data: {
@@ -96,10 +104,11 @@ export class SuperAdminOrganisationService {
           roleId: orgAdminRole.id,
           email: dto.orgAdminEmail,
           name: dto.orgAdminName,
-          passwordHash,
-          status: 'ACTIVE',
+          status: 'INVITED',
           isFirstOrgAdmin: true,
           vouchedBySuperAdmin: true,
+          inviteTokenHash: invite.hash,
+          inviteExpiresAt: invite.expiresAt,
         },
       });
 
@@ -157,6 +166,18 @@ export class SuperAdminOrganisationService {
       return { organisation, orgAdmin };
     });
 
+    const organisationName =
+      result.organisation.tradingName ?? result.organisation.legalName;
+
+    const emailResult = await this.inviteEmailService.sendInvite({
+      to: result.orgAdmin.email,
+      recipientName: result.orgAdmin.name,
+      organisationName,
+      roleName: 'Organisation Admin',
+      inviteUrl: buildInviteUrl(invite.token),
+      expiresAt: invite.expiresAt,
+    });
+
     return {
       organisation: {
         id: result.organisation.id,
@@ -176,6 +197,11 @@ export class SuperAdminOrganisationService {
         ceilingGranted: entitlement.ceilingGranted,
         enabled: entitlement.enabled,
       })),
+      inviteEmail: {
+        queued: true,
+        sent: emailResult.sent,
+        ...(emailResult.error ? { error: emailResult.error } : {}),
+      },
     };
   }
 

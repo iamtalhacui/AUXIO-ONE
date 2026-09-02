@@ -2,15 +2,14 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { moduleCatalogue } from "@/lib/dashboard/content/super-admin";
+import { useCreateOrganisationMutation, useListPlatformModulesQuery } from "@/lib/api/api";
+import { getErrorMessage } from "@/lib/api/getErrorMessage";
 import {
   ASSIGNABLE_MODULE_CODES,
   getModuleCodesForTemplate,
   MODULE_CEILING_TEMPLATES,
   type ModuleCeilingTemplate,
 } from "@/lib/dashboard/content/module-templates";
-import { useCreateOrganisationMutation } from "@/lib/api/api";
-import { getErrorMessage } from "@/lib/api/getErrorMessage";
 
 const timeZones = [
   "Australia/Sydney",
@@ -23,15 +22,19 @@ const timeZones = [
 export function RegisterOrganisationForm() {
   const router = useRouter();
   const [createOrganisation, { isLoading }] = useCreateOrganisationMutation();
+  const { data: platformModules = [] } = useListPlatformModulesQuery();
 
   const assignableModules = useMemo(
-    () => moduleCatalogue.filter((module) => ASSIGNABLE_MODULE_CODES.includes(module.code as (typeof ASSIGNABLE_MODULE_CODES)[number])),
-    [],
+    () =>
+      platformModules.filter((module) =>
+        ASSIGNABLE_MODULE_CODES.includes(module.code as (typeof ASSIGNABLE_MODULE_CODES)[number]),
+      ),
+    [platformModules],
   );
 
   const moduleNameByCode = useMemo(
-    () => Object.fromEntries(moduleCatalogue.map((module) => [module.code, module.name])),
-    [],
+    () => Object.fromEntries(platformModules.map((module) => [module.code, module.name])),
+    [platformModules],
   );
 
   const [legalName, setLegalName] = useState("");
@@ -43,8 +46,6 @@ export function RegisterOrganisationForm() {
   const [customModules, setCustomModules] = useState<string[]>(["03", "05", "06"]);
   const [orgAdminName, setOrgAdminName] = useState("");
   const [orgAdminEmail, setOrgAdminEmail] = useState("");
-  const [orgAdminPassword, setOrgAdminPassword] = useState("");
-  const [orgAdminPasswordConfirm, setOrgAdminPasswordConfirm] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -74,16 +75,6 @@ export function RegisterOrganisationForm() {
       return;
     }
 
-    if (orgAdminPassword.length < 8) {
-      setError("Org Admin password must be at least 8 characters.");
-      return;
-    }
-
-    if (orgAdminPassword !== orgAdminPasswordConfirm) {
-      setError("Org Admin passwords do not match.");
-      return;
-    }
-
     try {
       const result = await createOrganisation({
         legalName,
@@ -95,11 +86,12 @@ export function RegisterOrganisationForm() {
         moduleCeilingCodes: template === "CUSTOM" ? customModules : undefined,
         orgAdminEmail,
         orgAdminName,
-        orgAdminPassword,
       }).unwrap();
 
       setSuccess(
-        `Organisation "${result.organisation.tradingName ?? result.organisation.legalName}" created with ${result.moduleEntitlements.length} modules in the ceiling. Org Admin ${result.orgAdmin.email} can sign in now.`,
+        result.inviteEmail?.sent
+          ? `Organisation created. Invitation email sent to ${result.orgAdmin.email}. Ask them to check inbox and spam.`
+          : `Organisation created, but the invitation email to ${result.orgAdmin.email} could not be sent. Check server Gmail settings.`,
       );
 
       setTimeout(() => router.push("/super-admin/organisations"), 2000);
@@ -252,7 +244,7 @@ export function RegisterOrganisationForm() {
       <section className="dashboard-card p-6">
         <h2 className="text-lg font-semibold">First Org Admin</h2>
         <p className="mt-1 text-sm text-muted">
-          Creates the organisation&apos;s first administrator. They can sign in immediately and manage modules within the granted ceiling.
+          We will email this person an invitation link to set their password and activate their account.
         </p>
 
         <div className="mt-6 grid gap-5 sm:grid-cols-2">
@@ -275,32 +267,6 @@ export function RegisterOrganisationForm() {
               onChange={(event) => setOrgAdminEmail(event.target.value)}
               placeholder="orgadmin@demo-provider.com.au"
               required
-              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
-            />
-          </label>
-
-          <label className="block">
-            <span className="mb-2 block text-sm font-medium">Password</span>
-            <input
-              type="password"
-              value={orgAdminPassword}
-              onChange={(event) => setOrgAdminPassword(event.target.value)}
-              required
-              minLength={8}
-              autoComplete="new-password"
-              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
-            />
-          </label>
-
-          <label className="block">
-            <span className="mb-2 block text-sm font-medium">Confirm password</span>
-            <input
-              type="password"
-              value={orgAdminPasswordConfirm}
-              onChange={(event) => setOrgAdminPasswordConfirm(event.target.value)}
-              required
-              minLength={8}
-              autoComplete="new-password"
               className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
             />
           </label>

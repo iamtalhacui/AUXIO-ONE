@@ -7,10 +7,16 @@ import type { OnboardingCompliance, ServiceLine } from "@/lib/onboarding/types";
 
 type ComplianceStepProps = {
   value: OnboardingCompliance;
+  assignedServiceLine?: ServiceLine | null;
   onChange: (value: OnboardingCompliance) => void;
 };
 
-export function ComplianceStep({ value, onChange }: ComplianceStepProps) {
+export function ComplianceStep({ value, onChange, assignedServiceLine }: ComplianceStepProps) {
+  const assignedLabel = assignedServiceLine
+    ? SERVICE_LINE_OPTIONS.find((opt) => opt.value === assignedServiceLine)?.label ??
+      assignedServiceLine
+    : null;
+
   function toggleServiceLine(line: ServiceLine) {
     const exists = value.serviceLines.includes(line);
     onChange({
@@ -38,17 +44,22 @@ export function ComplianceStep({ value, onChange }: ComplianceStepProps) {
       <div className="mb-8">
         <h2 className="text-xl font-semibold">Service lines & availability</h2>
         <p className="mt-1 text-sm text-muted">
-          Tell us where you want to work and confirm the declarations required for compliance.
+          Select the service lines you are qualified and available to work in. Your organisation
+          assigns your primary line{assignedLabel ? ` (${assignedLabel})` : ""}; include it in
+          your selections.
         </p>
       </div>
 
       <div className="space-y-8">
         <div>
-          <p className={labelClass}>Service lines</p>
-          <p className="mb-4 text-sm text-muted">Select all service lines you are qualified and available to work in.</p>
+          <p className={labelClass}>Service lines you can work in</p>
+          <p className="mb-4 text-sm text-muted">
+            Choose every line where you can deliver support. You may select more than one.
+          </p>
           <div className="grid gap-3 sm:grid-cols-3">
             {SERVICE_LINE_OPTIONS.map((option) => {
               const selected = value.serviceLines.includes(option.value);
+              const isAssigned = assignedServiceLine === option.value;
               return (
                 <button
                   key={option.value}
@@ -60,7 +71,14 @@ export function ComplianceStep({ value, onChange }: ComplianceStepProps) {
                       : "border-border bg-background hover:border-primary/30"
                   }`}
                 >
-                  <p className="font-semibold">{option.label}</p>
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="font-semibold">{option.label}</p>
+                    {isAssigned ? (
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
+                        Assigned
+                      </span>
+                    ) : null}
+                  </div>
                   <p className="mt-1 text-xs text-muted">{option.description}</p>
                 </button>
               );

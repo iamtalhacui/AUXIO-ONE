@@ -1,6 +1,31 @@
-import { entitlements } from "@/lib/dashboard/content/super-admin";
+"use client";
+
+import { useListPlatformEntitlementsQuery } from "@/lib/api/api";
+import { getErrorMessage } from "@/lib/api/getErrorMessage";
+
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString("en-AU", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
 
 export function EntitlementsPageContent() {
+  const { data: entitlements = [], isLoading, error } = useListPlatformEntitlementsQuery();
+
+  if (isLoading) {
+    return <div className="dashboard-card p-6 text-sm text-muted">Loading entitlements...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="dashboard-card p-6 text-sm text-red-700">
+        {getErrorMessage(error, "Could not load entitlements")}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-3">
@@ -41,28 +66,14 @@ export function EntitlementsPageContent() {
             <tbody>
               {entitlements.map((row) => (
                 <tr key={row.id} className="border-t border-border/60">
-                  <td className="px-6 py-4 font-medium">{row.organisation}</td>
+                  <td className="px-6 py-4 font-medium">{row.organisationName}</td>
                   <td className="px-6 py-4">
                     <p>{row.moduleName}</p>
-                    <p className="text-xs text-muted">Code {row.moduleCode}</p>
+                    <p className="text-xs text-muted">{row.moduleCode}</p>
                   </td>
-                  <td className="px-6 py-4">
-                    <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
-                      Granted
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                        row.enabled
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-surface-muted text-muted"
-                      }`}
-                    >
-                      {row.enabled ? "Enabled" : "Disabled"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-muted">{row.grantedAt}</td>
+                  <td className="px-6 py-4">{row.ceilingGranted ? "Yes" : "No"}</td>
+                  <td className="px-6 py-4">{row.enabled ? "Yes" : "No"}</td>
+                  <td className="px-6 py-4 text-muted">{formatDate(row.grantedAt)}</td>
                 </tr>
               ))}
             </tbody>

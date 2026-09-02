@@ -5,6 +5,7 @@ import { OrganisationController } from './organisation.controller';
 import { OrganisationCoreService } from './organisation-core.service';
 import { SuperAdminOrganisationService } from './super-admin-organisation.service';
 import { OrgAdminOrganisationService } from './org-admin-organisation.service';
+import { RequirementSetService } from './requirement-set.service';
 
 @Module({
   imports: [AuthModule, RolesModule],
@@ -13,6 +14,7 @@ import { OrgAdminOrganisationService } from './org-admin-organisation.service';
     OrganisationCoreService,
     SuperAdminOrganisationService,
     OrgAdminOrganisationService,
+    RequirementSetService,
   ],
 })
 export class OrganisationModule {}

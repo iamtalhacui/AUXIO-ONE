@@ -9,7 +9,6 @@ import {
   UseGuards,
   ForbiddenException,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 import { SuperAdminOrganisationService } from './super-admin-organisation.service';
 import { OrgAdminOrganisationService } from './org-admin-organisation.service';
 import { CreateOrganisationDto } from './dto/create-organisation.dto';
@@ -21,6 +20,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 
 @Controller('organisations')
+@UseGuards(RolesGuard)
 export class OrganisationController {
   constructor(
     private superAdminOrgService: SuperAdminOrganisationService,
@@ -28,21 +28,18 @@ export class OrganisationController {
   ) {}
 
   @Post()
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('SUPER_ADMIN')
   create(@Body() dto: CreateOrganisationDto, @Req() req: any) {
     return this.superAdminOrgService.create(dto, req.user.sub);
   }
 
   @Get()
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('SUPER_ADMIN')
   findAll() {
     return this.superAdminOrgService.findAll();
   }
 
   @Get('me/profile')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('ORG_ADMIN')
   getMyProfile(@Req() req: any) {
     this.assertOrgAdminHasOrg(req);
@@ -50,7 +47,6 @@ export class OrganisationController {
   }
 
   @Patch('me/profile')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('ORG_ADMIN')
   updateMyProfile(@Req() req: any, @Body() dto: UpdateOrgAdminProfileDto) {
     this.assertOrgAdminHasOrg(req);
@@ -62,14 +58,12 @@ export class OrganisationController {
   }
 
   @Get(':id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('SUPER_ADMIN')
   findOne(@Param('id') id: string) {
     return this.superAdminOrgService.findOneDetail(id);
   }
 
   @Patch(':id')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('SUPER_ADMIN')
   update(
     @Param('id') id: string,
@@ -80,7 +74,6 @@ export class OrganisationController {
   }
 
   @Patch(':id/module-ceiling')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('SUPER_ADMIN')
   updateModuleCeiling(
     @Param('id') id: string,
@@ -95,7 +88,6 @@ export class OrganisationController {
   }
 
   @Get(':id/modules')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('ORG_ADMIN')
   listModules(@Param('id') id: string, @Req() req: any) {
     this.assertSameOrg(req, id);
@@ -103,7 +95,6 @@ export class OrganisationController {
   }
 
   @Patch(':id/modules/:moduleCode')
-  @UseGuards(AuthGuard('jwt'), RolesGuard)
   @Roles('ORG_ADMIN')
   toggleModule(
     @Param('id') id: string,

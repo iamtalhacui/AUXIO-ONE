@@ -1,5 +1,13 @@
-import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
+import {
+  createApi,
+  fetchBaseQuery,
+  type BaseQueryFn,
+  type FetchArgs,
+  type FetchBaseQueryError,
+} from "@reduxjs/toolkit/query/react";
 import type {
+  AcceptInviteRequest,
+  AcceptInviteResponse,
   ChangePasswordRequest,
   ChangePasswordResponse,
   CreateOrganisationRequest,
@@ -25,6 +33,11 @@ import type {
   UpdateTeamMemberRequest,
   UpdateWorkforceProfileRequest,
   WorkforceProfile,
+  PlatformModule,
+  PlatformEntitlement,
+  PlatformInvite,
+  PlatformHealth,
+  AuditEntry,
   ToggleModuleRequest,
   UpdateModuleCeilingRequest,
   UpdateOrgAdminProfileRequest,
@@ -32,20 +45,41 @@ import type {
   UpdateOrganisationRequest,
 } from "@/lib/api/types";
 import type { RootState } from "@/lib/store/store";
+import { logout } from "@/lib/features/auth/authSlice";
 
 const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
 
+const rawBaseQuery = fetchBaseQuery({
+  baseUrl,
+  prepareHeaders: (headers, { getState }) => {
+    const token = (getState() as RootState).auth.accessToken;
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+    return headers;
+  },
+});
+
+const baseQuery: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryError> = async (
+  args,
+  api,
+  extraOptions,
+) => {
+  const result = await rawBaseQuery(args, api, extraOptions);
+
+  if (result.error?.status === 401) {
+    const requestUrl = typeof args === "string" ? args : args.url;
+    const hadToken = Boolean((api.getState() as RootState).auth.accessToken);
+    if (hadToken && !requestUrl.includes("/auth/login") && !requestUrl.includes("/auth/accept-invite")) {
+      api.dispatch(logout());
+    }
+  }
+
+  return result;
+};
+
 export const api = createApi({
   reducerPath: "api",
-  baseQuery: fetchBaseQuery({
-    baseUrl,
-    prepareHeaders: (headers, { getState }) => {
-      const token = (getState() as RootState).auth.accessToken;
-      if (token) headers.set("Authorization", `Bearer ${token}`);
-      return headers;
-    },
-  }),
-  tagTypes: ["Organisation", "OrgModules", "OrgProfile", "OrgRoles", "OrgTeam", "Onboarding"],
+  baseQuery,
+  tagTypes: ["Organisation", "OrgModules", "OrgProfile", "OrgRoles", "OrgTeam", "Onboarding", "Platform"],
   endpoints: (builder) => ({
     login: builder.mutation<LoginResponse, LoginRequest>({
       query: (body) => ({
@@ -57,6 +91,13 @@ export const api = createApi({
     changePassword: builder.mutation<ChangePasswordResponse, ChangePasswordRequest>({
       query: (body) => ({
         url: "/auth/change-password",
+        method: "POST",
+        body,
+      }),
+    }),
+    acceptInvite: builder.mutation<AcceptInviteResponse, AcceptInviteRequest>({
+      query: (body) => ({
+        url: "/auth/accept-invite",
         method: "POST",
         body,
       }),
@@ -273,12 +314,45 @@ export const api = createApi({
         { type: "Onboarding", id: "LIST" },
       ],
     }),
+    reopenTeamMember: builder.mutation<TeamMember, { memberId: string; reason: string }>({
+      query: ({ memberId, reason }) => ({
+        url: `/organisations/me/team/${memberId}/reopen`,
+        method: "POST",
+        body: { reason },
+      }),
+      invalidatesTags: (_result, _error, { memberId }) => [
+        { type: "OrgTeam", id: "LIST" },
+        { type: "OrgTeam", id: memberId },
+        { type: "Onboarding", id: memberId },
+      ],
+    }),
+    getPlatformHealth: builder.query<PlatformHealth, void>({
+      query: () => "/platform/health",
+      providesTags: [{ type: "Platform", id: "HEALTH" }],
+    }),
+    listPlatformModules: builder.query<PlatformModule[], void>({
+      query: () => "/platform/modules",
+      providesTags: [{ type: "Platform", id: "MODULES" }],
+    }),
+    listPlatformEntitlements: builder.query<PlatformEntitlement[], void>({
+      query: () => "/platform/entitlements",
+      providesTags: [{ type: "Platform", id: "ENTITLEMENTS" }],
+    }),
+    listPlatformInvites: builder.query<PlatformInvite[], void>({
+      query: () => "/platform/invites",
+      providesTags: [{ type: "Platform", id: "INVITES" }],
+    }),
+    listPlatformAudit: builder.query<AuditEntry[], void>({
+      query: () => "/platform/audit",
+      providesTags: [{ type: "Platform", id: "AUDIT" }],
+    }),
   }),
 });
 
 export const {
   useLoginMutation,
   useChangePasswordMutation,
+  useAcceptInviteMutation,
   useCreateOrganisationMutation,
   useListOrganisationsQuery,
   useGetOrganisationQuery,
@@ -303,4 +377,10 @@ export const {
   useGetMyWorkforceProfileQuery,
   useUpdateMyWorkforceProfileMutation,
   useApproveTeamMemberMutation,
+  useReopenTeamMemberMutation,
+  useGetPlatformHealthQuery,
+  useListPlatformModulesQuery,
+  useListPlatformEntitlementsQuery,
+  useListPlatformInvitesQuery,
+  useListPlatformAuditQuery,
 } = api;

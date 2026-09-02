@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { moduleCatalogue } from "@/lib/dashboard/content/super-admin";
-import { ASSIGNABLE_MODULE_CODES } from "@/lib/dashboard/content/module-templates";
 import {
   useGetOrganisationQuery,
+  useListPlatformModulesQuery,
   useUpdateModuleCeilingMutation,
   useUpdateOrganisationMutation,
 } from "@/lib/api/api";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { ASSIGNABLE_MODULE_CODES } from "@/lib/dashboard/content/module-templates";
 import type { OrgStatus } from "@/lib/api/types";
 import { OrgStatusBadge } from "@/components/dashboard/StatusBadge";
 
@@ -33,15 +33,16 @@ function formatDate(value: string) {
 
 export function OrganisationDetailContent({ organisationId }: { organisationId: string }) {
   const { data, isLoading, error } = useGetOrganisationQuery(organisationId);
+  const { data: platformModules = [] } = useListPlatformModulesQuery();
   const [updateOrganisation, { isLoading: isSavingDetails }] = useUpdateOrganisationMutation();
   const [updateModuleCeiling, { isLoading: isSavingCeiling }] = useUpdateModuleCeilingMutation();
 
   const assignableModules = useMemo(
     () =>
-      moduleCatalogue.filter((module) =>
+      platformModules.filter((module) =>
         ASSIGNABLE_MODULE_CODES.includes(module.code as (typeof ASSIGNABLE_MODULE_CODES)[number]),
       ),
-    [],
+    [platformModules],
   );
 
   const [legalName, setLegalName] = useState("");

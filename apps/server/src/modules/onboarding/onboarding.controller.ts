@@ -3,21 +3,21 @@ import {
   Body,
   Controller,
   Get,
+  Inject,
   Param,
+  Patch,
   Post,
   Put,
-  Patch,
   Req,
   Res,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
-import { createReadStream, existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { SkipWorkforceGate } from '../../common/decorators/skip-workforce-gate.decorator';
+import { FILE_STORAGE, type FileStorage } from '../../common/storage/file-storage.interface';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { SaveOnboardingDto } from './dto/save-onboarding.dto';
@@ -25,7 +25,6 @@ import { UpdateMyProfileDto } from './dto/update-my-profile.dto';
 import {
   assertOnboardingDocType,
   onboardingUploadOptions,
-  UPLOADS_DIR,
 } from './onboarding-upload.config';
 import { OnboardingService } from './onboarding.service';
 
@@ -34,9 +33,13 @@ type AuthRequest = {
 };
 
 @Controller('onboarding')
-@UseGuards(AuthGuard('jwt'), RolesGuard)
+@SkipWorkforceGate()
+@UseGuards(RolesGuard)
 export class OnboardingController {
-  constructor(private onboardingService: OnboardingService) {}
+  constructor(
+    private onboardingService: OnboardingService,
+    @Inject(FILE_STORAGE) private fileStorage: FileStorage,
+  ) {}
 
   @Get('me')
   @Roles('MANAGER', 'ROSTERING_EXPERT', 'EMPLOYEE')
@@ -101,12 +104,11 @@ export class OnboardingController {
       req.user.organisationId,
     );
 
-    const filePath = join(UPLOADS_DIR, storedName);
-    if (!existsSync(filePath)) {
+    if (!this.fileStorage.exists(storedName)) {
       res.status(404).send('File not found');
       return;
     }
 
-    createReadStream(filePath).pipe(res);
+    this.fileStorage.openReadStream(storedName).pipe(res);
   }
 }

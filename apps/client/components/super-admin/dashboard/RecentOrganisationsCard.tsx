@@ -1,5 +1,7 @@
+"use client";
+
 import Link from "next/link";
-import { recentOrganisations } from "@/lib/dashboard/content/super-admin";
+import { useListOrganisationsQuery } from "@/lib/api/api";
 
 const statusStyles = {
   ACTIVE: "bg-primary/10 text-primary",
@@ -7,7 +9,20 @@ const statusStyles = {
   CLOSED: "bg-surface-muted text-muted",
 } as const;
 
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString("en-AU", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 export function RecentOrganisationsCard() {
+  const { data: organisations = [] } = useListOrganisationsQuery();
+  const recent = [...organisations]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 5);
+
   return (
     <div className="dashboard-card overflow-hidden">
       <div className="flex items-center justify-between border-b border-border/70 px-6 py-5">
@@ -31,23 +46,33 @@ export function RecentOrganisationsCard() {
             </tr>
           </thead>
           <tbody>
-            {recentOrganisations.map((org) => (
-              <tr key={org.id} className="border-t border-border/60">
-                <td className="px-6 py-4">
-                  <p className="font-medium">{org.tradingName}</p>
-                  <p className="text-xs text-muted">{org.legalName}</p>
+            {recent.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="px-6 py-8 text-center text-muted">
+                  No organisations registered yet.
                 </td>
-                <td className="px-6 py-4">
-                  <span
-                    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusStyles[org.status]}`}
-                  >
-                    {org.status}
-                  </span>
-                </td>
-                  <td className="px-6 py-4 text-muted">{org.modulesGranted} granted</td>
-                <td className="px-6 py-4 text-muted">{org.createdAt}</td>
               </tr>
-            ))}
+            ) : (
+              recent.map((org) => (
+                <tr key={org.id} className="border-t border-border/60">
+                  <td className="px-6 py-4">
+                    <p className="font-medium">{org.tradingName ?? org.legalName}</p>
+                    <p className="text-xs text-muted">{org.legalName}</p>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span
+                      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${statusStyles[org.status]}`}
+                    >
+                      {org.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-muted">
+                    {org.modulesEnabled}/{org.modulesGranted} enabled
+                  </td>
+                  <td className="px-6 py-4 text-muted">{formatDate(org.createdAt)}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

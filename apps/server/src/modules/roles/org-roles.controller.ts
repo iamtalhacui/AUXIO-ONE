@@ -9,14 +9,13 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { UpdateOrgRolesDto } from './dto/update-org-roles.dto';
 import { OrgRolesService } from './org-roles.service';
 
 @Controller('organisations/:organisationId/roles')
-@UseGuards(AuthGuard('jwt'), RolesGuard)
+@UseGuards(RolesGuard)
 @Roles('ORG_ADMIN')
 export class OrgRolesController {
   constructor(private orgRolesService: OrgRolesService) {}

@@ -1,16 +1,30 @@
 "use client";
 
 import { useState } from "react";
-import { moduleCatalogue } from "@/lib/dashboard/content/super-admin";
+import { useListPlatformModulesQuery } from "@/lib/api/api";
+import { getErrorMessage } from "@/lib/api/getErrorMessage";
 
 export function ModuleCataloguePageContent() {
+  const { data: moduleCatalogue = [], isLoading, error } = useListPlatformModulesQuery();
   const [filter, setFilter] = useState<"ALL" | "OPERATIONAL" | "PLATFORM">("ALL");
 
   const filtered = moduleCatalogue.filter((module) => {
-    if (filter === "OPERATIONAL") return module.operational;
-    if (filter === "PLATFORM") return !module.operational;
+    if (filter === "OPERATIONAL") return module.isOperational;
+    if (filter === "PLATFORM") return !module.isOperational;
     return true;
   });
+
+  if (isLoading) {
+    return <div className="dashboard-card p-6 text-sm text-muted">Loading modules...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="dashboard-card p-6 text-sm text-red-700">
+        {getErrorMessage(error, "Could not load module catalogue")}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -22,13 +36,13 @@ export function ModuleCataloguePageContent() {
         <div className="dashboard-card p-5">
           <p className="text-sm text-muted">Operational</p>
           <p className="mt-2 text-3xl font-semibold text-primary">
-            {moduleCatalogue.filter((m) => m.operational).length}
+            {moduleCatalogue.filter((m) => m.isOperational).length}
           </p>
         </div>
         <div className="dashboard-card p-5">
           <p className="text-sm text-muted">Platform-only</p>
           <p className="mt-2 text-3xl font-semibold text-primary">
-            {moduleCatalogue.filter((m) => !m.operational).length}
+            {moduleCatalogue.filter((m) => !m.isOperational).length}
           </p>
         </div>
       </div>
@@ -42,37 +56,37 @@ export function ModuleCataloguePageContent() {
             className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
               filter === item
                 ? "bg-primary text-white"
-                : "border border-border bg-surface text-muted hover:text-foreground"
+                : "border border-border bg-background text-muted hover:border-primary/30"
             }`}
           >
-            {item === "ALL" ? "All modules" : item.charAt(0) + item.slice(1).toLowerCase()}
+            {item === "ALL" ? "All modules" : item === "OPERATIONAL" ? "Operational" : "Platform"}
           </button>
         ))}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {filtered.map((module) => (
-          <article key={module.code} className="dashboard-card p-5 transition hover:-translate-y-0.5">
-            <div className="flex items-center justify-between gap-3">
-              <span className="font-mono text-sm font-semibold text-primary">{module.code}</span>
-              <span
-                className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${
-                  module.operational
-                    ? "bg-primary/10 text-primary"
-                    : "bg-surface-muted text-muted"
-                }`}
-              >
-                {module.operational ? "Operational" : "Platform"}
-              </span>
-            </div>
-            <h3 className="mt-4 text-base font-semibold">{module.name}</h3>
-            <p className="mt-2 text-sm text-muted">
-              {module.operational
-                ? "Can be granted in an organisation module ceiling."
-                : "Platform-level module — not part of tenant ceiling toggles."}
-            </p>
-          </article>
-        ))}
+      <div className="dashboard-card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-left text-sm">
+            <thead className="bg-[#faf9f7] text-xs uppercase tracking-wide text-muted">
+              <tr>
+                <th className="px-6 py-3 font-semibold">Code</th>
+                <th className="px-6 py-3 font-semibold">Name</th>
+                <th className="px-6 py-3 font-semibold">Type</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((module) => (
+                <tr key={module.code} className="border-t border-border/60">
+                  <td className="px-6 py-4 font-mono text-xs">{module.code}</td>
+                  <td className="px-6 py-4 font-medium">{module.name}</td>
+                  <td className="px-6 py-4 text-muted">
+                    {module.isOperational ? "Operational" : "Platform"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

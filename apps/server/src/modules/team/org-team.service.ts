@@ -4,13 +4,14 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import * as bcrypt from 'bcryptjs';
 import type { ConfigurableRoleCode } from '../roles/org-permissions.constants';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { OrgRolesService } from '../roles/org-roles.service';
 import { RegisterTeamMemberDto } from './dto/register-team-member.dto';
 import { UpdateTeamMemberDto } from './dto/update-team-member.dto';
-import { TeamCredentialEmailService } from './team-credential-email.service';
+import { InviteEmailService } from '../../common/mail/invite-email.service';
+import { InviteTokenService } from '../../common/invite/invite-token.service';
+import { buildInviteUrl } from '../../common/config/client-url';
 import { assertCanRegisterTeamMembers } from './team-registration.policy';
 
 @Injectable()
@@ -20,7 +21,8 @@ export class OrgTeamService {
   constructor(
     private prisma: PrismaService,
     private orgRolesService: OrgRolesService,
-    private credentialEmailService: TeamCredentialEmailService,
+    private inviteEmailService: InviteEmailService,
+    private inviteTokenService: InviteTokenService,
   ) {}
 
   async listMembers(organisationId: string) {
@@ -33,11 +35,12 @@ export class OrgTeamService {
     });
 
     return {
-      members: members.map((member) => ({
+        members: members.map((member) => ({
         id: member.id,
         name: member.name,
         email: member.email,
         status: member.status,
+        serviceLine: member.serviceLine,
         role: member.role
           ? { code: member.role.code, name: member.role.name }
           : null,
@@ -84,7 +87,7 @@ export class OrgTeamService {
       );
     }
 
-    const passwordHash = await bcrypt.hash(dto.password, 10);
+    const invite = this.inviteTokenService.generate();
 
     const user = await this.prisma.$transaction(async (tx) => {
       const created = await tx.user.create({
@@ -93,9 +96,10 @@ export class OrgTeamService {
           roleId: role.id,
           email: dto.email,
           name: dto.name,
-          passwordHash,
           status: 'INVITED',
-          pendingPasswordChange: true,
+          serviceLine: dto.serviceLine,
+          inviteTokenHash: invite.hash,
+          inviteExpiresAt: invite.expiresAt,
         },
         include: { role: true },
       });
@@ -111,6 +115,7 @@ export class OrgTeamService {
             email: created.email,
             name: created.name,
             role: roleCode,
+            serviceLine: dto.serviceLine,
             status: created.status,
           },
         },
@@ -121,16 +126,14 @@ export class OrgTeamService {
 
     const organisationName =
       organisation.tradingName ?? organisation.legalName;
-    const loginUrl =
-      process.env.CLIENT_URL?.replace(/\/$/, '') ?? 'http://localhost:3000';
 
-    this.queueCredentialEmail({
+    const emailResult = await this.inviteEmailService.sendInvite({
       to: user.email,
-      memberName: user.name,
+      recipientName: user.name,
       roleName: role.name,
       organisationName,
-      password: dto.password,
-      loginUrl: `${loginUrl}/login`,
+      inviteUrl: buildInviteUrl(invite.token),
+      expiresAt: invite.expiresAt,
     });
 
     return {
@@ -141,28 +144,12 @@ export class OrgTeamService {
       role: user.role
         ? { code: user.role.code, name: user.role.name }
         : { code: roleCode, name: role.name },
-      credentialEmail: { queued: true },
+      inviteEmail: {
+        queued: true,
+        sent: emailResult.sent,
+        ...(emailResult.error ? { error: emailResult.error } : {}),
+      },
     };
-  }
-
-  private queueCredentialEmail(
-    payload: Parameters<TeamCredentialEmailService['sendTeamMemberCredentials']>[0],
-  ) {
-    void this.credentialEmailService
-      .sendTeamMemberCredentials(payload)
-      .then((result) => {
-        if (!result.sent) {
-          this.logger.warn(
-            `Credential email for ${payload.to} was not sent (${result.mode})`,
-          );
-        }
-      })
-      .catch((error) => {
-        this.logger.error(
-          `Failed to send credential email to ${payload.to}`,
-          error instanceof Error ? error.stack : String(error),
-        );
-      });
   }
 
   private async assertOrganisationExists(organisationId: string) {
@@ -193,6 +180,7 @@ export class OrgTeamService {
       name: member.name,
       email: member.email,
       status: member.status,
+      serviceLine: member.serviceLine,
       role: member.role
         ? { code: member.role.code, name: member.role.name }
         : null,
@@ -255,6 +243,9 @@ export class OrgTeamService {
           email: dto.email,
           status: dto.status,
           roleId,
+          ...(dto.serviceLine !== undefined
+            ? { serviceLine: dto.serviceLine }
+            : {}),
         },
         include: { role: true },
       });
@@ -271,12 +262,14 @@ export class OrgTeamService {
             email: member.email,
             status: member.status,
             role: member.role?.code,
+            serviceLine: member.serviceLine,
           },
           afterJson: {
             name: result.name,
             email: result.email,
             status: result.status,
             role: result.role?.code,
+            serviceLine: result.serviceLine,
           },
         },
       });
@@ -289,6 +282,7 @@ export class OrgTeamService {
       name: updated.name,
       email: updated.email,
       status: updated.status,
+      serviceLine: updated.serviceLine,
       role: updated.role
         ? { code: updated.role.code, name: updated.role.name }
         : null,
@@ -296,4 +290,58 @@ export class OrgTeamService {
       updatedAt: updated.updatedAt.toISOString(),
     };
   }
+
+  async reopenMember(
+    organisationId: string,
+    memberId: string,
+    actorUserId: string,
+    reason: string,
+  ) {
+    const member = await this.prisma.user.findFirst({
+      where: { id: memberId, organisationId },
+      include: { role: true },
+    });
+
+    if (!member) {
+      throw new NotFoundException('Team member not found');
+    }
+
+    if (!['SUBMITTED', 'VERIFIED'].includes(member.status)) {
+      throw new ConflictException('Only submitted or verified members can be reopened');
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const result = await tx.user.update({
+        where: { id: memberId },
+        data: { status: 'PROCESSING' },
+        include: { role: true },
+      });
+
+      await tx.auditEntry.create({
+        data: {
+          organisationId,
+          actorUserId,
+          action: 'WORKER_ONBOARDING_REOPEN',
+          entityType: 'User',
+          entityId: memberId,
+          beforeJson: { status: member.status },
+          afterJson: { status: 'PROCESSING', reason },
+        },
+      });
+
+      return result;
+    });
+
+    return {
+      id: updated.id,
+      name: updated.name,
+      email: updated.email,
+      status: updated.status,
+      serviceLine: updated.serviceLine,
+      role: updated.role
+        ? { code: updated.role.code, name: updated.role.name }
+        : null,
+    };
+  }
 }
+

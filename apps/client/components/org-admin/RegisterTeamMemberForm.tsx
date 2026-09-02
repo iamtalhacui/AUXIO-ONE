@@ -6,8 +6,9 @@ import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { useRegisterTeamMemberMutation } from "@/lib/api/api";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
-import type { ConfigurableRoleCode } from "@/lib/api/types";
+import type { ConfigurableRoleCode, RegisterTeamMemberRequest } from "@/lib/api/types";
 import { REGISTERABLE_ROLES } from "@/lib/dashboard/content/org-admin-team";
+import { SERVICE_LINE_OPTIONS } from "@/lib/onboarding/constants";
 
 const inputClass = "input-field";
 
@@ -17,9 +18,9 @@ export function RegisterTeamMemberForm() {
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [passwordConfirm, setPasswordConfirm] = useState("");
   const [role, setRole] = useState<ConfigurableRoleCode>("EMPLOYEE");
+  const [serviceLine, setServiceLine] =
+    useState<RegisterTeamMemberRequest["serviceLine"]>("NDIS");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -28,26 +29,18 @@ export function RegisterTeamMemberForm() {
     setError("");
     setSuccess("");
 
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
-      return;
-    }
-
-    if (password !== passwordConfirm) {
-      setError("Passwords do not match.");
-      return;
-    }
-
     try {
       const result = await registerMember({
         name,
         email,
-        password,
         role,
+        serviceLine,
       }).unwrap();
 
       setSuccess(
-        `${result.name} (${result.role.name}) registered as ${result.status}. Credential email is being sent to ${result.email}.`,
+        result.inviteEmail?.sent
+          ? `Invitation email sent to ${result.email}. Ask them to check their inbox and spam folder.`
+          : `Account created for ${result.email}, but the invitation email could not be sent. Check server Gmail settings.`,
       );
 
       router.push("/org-admin/team");
@@ -60,7 +53,7 @@ export function RegisterTeamMemberForm() {
     <div className="space-y-6">
       <PageHeader
         title="Register team member"
-        description="Create an account for a manager, rostering expert, or employee. Share the email and password securely — they will use these to sign in."
+        description="Invite a manager, rostering expert, or employee. They will receive an email link to set their password and sign in."
         action={
           <Link href="/org-admin/team" className="btn-secondary">
             Back to team
@@ -72,7 +65,7 @@ export function RegisterTeamMemberForm() {
         <section className="dashboard-card p-6">
           <h2 className="text-lg font-semibold">Account details</h2>
           <p className="mt-1 text-sm text-muted">
-            The member signs in with this email and password. Profile and documents are completed on first login.
+            The member will set their own password from the invitation email.
           </p>
 
           <div className="mt-6 grid gap-5 sm:grid-cols-2">
@@ -95,31 +88,6 @@ export function RegisterTeamMemberForm() {
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="sarah@example.com"
                 required
-                className={inputClass}
-              />
-            </label>
-
-            <label className="block">
-              <span className="mb-2 block text-sm font-medium">Password</span>
-              <input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="Minimum 8 characters"
-                required
-                minLength={8}
-                className={inputClass}
-              />
-            </label>
-
-            <label className="block">
-              <span className="mb-2 block text-sm font-medium">Confirm password</span>
-              <input
-                type="password"
-                value={passwordConfirm}
-                onChange={(event) => setPasswordConfirm(event.target.value)}
-                required
-                minLength={8}
                 className={inputClass}
               />
             </label>
@@ -153,6 +121,34 @@ export function RegisterTeamMemberForm() {
                     {option.label}
                   </span>
                   <p className="mt-3 text-sm leading-6 text-muted">{option.description}</p>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="dashboard-card p-6">
+          <h2 className="text-lg font-semibold">Service line</h2>
+          <p className="mt-1 text-sm text-muted">
+            Set the worker&apos;s service line. This determines their compliance checklist and cannot be chosen by the worker.
+          </p>
+
+          <div className="mt-6 grid gap-3 md:grid-cols-3">
+            {SERVICE_LINE_OPTIONS.map((option) => {
+              const active = serviceLine === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setServiceLine(option.value)}
+                  className={`rounded-2xl border px-4 py-4 text-left transition ${
+                    active
+                      ? "border-primary bg-primary/5 ring-2 ring-primary/10"
+                      : "border-border bg-background hover:border-primary/20"
+                  }`}
+                >
+                  <p className="font-semibold">{option.label}</p>
+                  <p className="mt-2 text-sm leading-6 text-muted">{option.description}</p>
                 </button>
               );
             })}

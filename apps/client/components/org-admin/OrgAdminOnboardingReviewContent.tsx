@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/dashboard/PageHeader";
 import {
   useApproveTeamMemberMutation,
   useGetMemberOnboardingQuery,
+  useReopenTeamMemberMutation,
 } from "@/lib/api/api";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
 import { SERVICE_LINE_OPTIONS } from "@/lib/onboarding/constants";
@@ -43,8 +44,10 @@ export function OrgAdminOnboardingReviewContent({ memberId }: OrgAdminOnboarding
   const router = useRouter();
   const { data, isLoading, error } = useGetMemberOnboardingQuery(memberId);
   const [approveMember, { isLoading: isApproving }] = useApproveTeamMemberMutation();
+  const [reopenMember, { isLoading: isReopening }] = useReopenTeamMemberMutation();
   const [actionError, setActionError] = useState("");
   const [success, setSuccess] = useState("");
+  const [reopenReason, setReopenReason] = useState("");
 
   async function handleApprove() {
     setActionError("");
@@ -55,6 +58,22 @@ export function OrgAdminOnboardingReviewContent({ memberId }: OrgAdminOnboarding
       setTimeout(() => router.push("/org-admin/team"), 1200);
     } catch (err) {
       setActionError(getErrorMessage(err, "Could not approve member"));
+    }
+  }
+
+  async function handleReopen() {
+    setActionError("");
+    setSuccess("");
+    if (reopenReason.trim().length < 3) {
+      setActionError("A reopen reason is required.");
+      return;
+    }
+    try {
+      await reopenMember({ memberId, reason: reopenReason.trim() }).unwrap();
+      setSuccess("Member sent back to complete onboarding.");
+      setReopenReason("");
+    } catch (err) {
+      setActionError(getErrorMessage(err, "Could not reopen member"));
     }
   }
 
@@ -75,7 +94,12 @@ export function OrgAdminOnboardingReviewContent({ memberId }: OrgAdminOnboarding
     ? new Date(data.profile.submittedAt).toLocaleString("en-AU")
     : null;
 
-  const serviceLineLabels = onboarding.compliance.serviceLines
+  const assignedLineLabel =
+    SERVICE_LINE_OPTIONS.find((opt) => opt.value === data.member.serviceLine)?.label ??
+    data.member.serviceLine ??
+    "—";
+
+  const selectedLineLabels = onboarding.compliance.serviceLines
     .map((line) => SERVICE_LINE_OPTIONS.find((opt) => opt.value === line)?.label ?? line)
     .join(", ");
 
@@ -188,11 +212,12 @@ export function OrgAdminOnboardingReviewContent({ memberId }: OrgAdminOnboarding
           </section>
 
           <section className="dashboard-card p-6">
-            <h3 className="text-lg font-semibold">Service & availability</h3>
+            <h3 className="text-lg font-semibold">Service lines & availability</h3>
             <div className="mt-5">
               <DetailGrid
                 items={[
-                  { label: "Service lines", value: serviceLineLabels },
+                  { label: "Assigned service line (admin)", value: assignedLineLabel },
+                  { label: "Can work in (employee)", value: selectedLineLabels || "—" },
                   { label: "Availability", value: onboarding.compliance.availabilityNotes },
                   { label: "Preferred hours", value: onboarding.compliance.preferredHours },
                   {
@@ -227,15 +252,39 @@ export function OrgAdminOnboardingReviewContent({ memberId }: OrgAdminOnboarding
       ) : null}
 
       {data.member.status === "SUBMITTED" && data.profile ? (
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={handleApprove}
-            disabled={isApproving}
-            className="rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white transition hover:bg-primary-light disabled:opacity-60"
-          >
-            {isApproving ? "Approving..." : "Approve & verify employee"}
-          </button>
+        <div className="space-y-4">
+          <div className="dashboard-card p-6">
+            <h3 className="text-sm font-semibold">Reopen with reason</h3>
+            <p className="mt-1 text-sm text-muted">
+              Send the member back to fix specific items. A reason is mandatory.
+            </p>
+            <textarea
+              value={reopenReason}
+              onChange={(event) => setReopenReason(event.target.value)}
+              rows={3}
+              placeholder="Explain what needs to be corrected..."
+              className="mt-4 w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary"
+            />
+            <button
+              type="button"
+              onClick={handleReopen}
+              disabled={isReopening}
+              className="mt-4 rounded-xl border border-border px-5 py-2.5 text-sm font-semibold text-muted transition hover:border-primary/30 hover:text-foreground disabled:opacity-60"
+            >
+              {isReopening ? "Reopening..." : "Reopen for corrections"}
+            </button>
+          </div>
+
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={handleApprove}
+              disabled={isApproving}
+              className="rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white transition hover:bg-primary-light disabled:opacity-60"
+            >
+              {isApproving ? "Approving..." : "Approve & verify employee"}
+            </button>
+          </div>
         </div>
       ) : null}
     </div>

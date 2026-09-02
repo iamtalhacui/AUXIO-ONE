@@ -38,6 +38,7 @@ export class OnboardingService {
         status: user.status,
         role: user.role?.code ?? null,
         roleName: user.role?.name ?? null,
+        serviceLine: user.serviceLine,
       },
       organisation: user.organisation,
       profile: user.onboardingProfile
@@ -211,7 +212,7 @@ export class OnboardingService {
     }
 
     const data = user.onboardingProfile.data as Record<string, unknown>;
-    this.validateSubmission(data);
+    this.validateSubmission(data, user.serviceLine);
 
     const [profile, updatedUser] = await this.prisma.$transaction([
       this.prisma.workerOnboardingProfile.update({
@@ -329,6 +330,7 @@ export class OnboardingService {
         name: member.name,
         email: member.email,
         status: member.status,
+        serviceLine: member.serviceLine,
         role: member.role
           ? { code: member.role.code, name: member.role.name }
           : null,
@@ -402,7 +404,10 @@ export class OnboardingService {
     }
   }
 
-  private validateSubmission(data: Record<string, unknown>) {
+  private validateSubmission(
+    data: Record<string, unknown>,
+    assignedServiceLine?: string | null,
+  ) {
     const contact = data.contact as Record<string, string> | undefined;
     const personal = data.personal as Record<string, string> | undefined;
     const documents = data.documents as Record<string, unknown> | undefined;
@@ -426,7 +431,13 @@ export class OnboardingService {
 
     const serviceLines = compliance?.serviceLines as string[] | undefined;
     if (!serviceLines?.length) {
-      throw new BadRequestException('Select at least one service line');
+      throw new BadRequestException('Select at least one service line you can work in');
+    }
+
+    if (assignedServiceLine && !serviceLines.includes(assignedServiceLine)) {
+      throw new BadRequestException(
+        `Your assigned service line (${assignedServiceLine}) must be included in your selections`,
+      );
     }
 
     if (!compliance?.availabilityNotes) {

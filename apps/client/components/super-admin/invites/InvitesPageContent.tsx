@@ -1,32 +1,57 @@
-import { pendingInvites } from "@/lib/dashboard/content/super-admin";
+"use client";
+
+import { useListPlatformInvitesQuery } from "@/lib/api/api";
+import { getErrorMessage } from "@/lib/api/getErrorMessage";
 import { InviteStatusBadge } from "@/components/dashboard/StatusBadge";
 
+function formatDate(value: string) {
+  return new Date(value).toLocaleDateString("en-AU", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 export function InvitesPageContent() {
+  const { data: invites = [], isLoading, error } = useListPlatformInvitesQuery();
+
+  if (isLoading) {
+    return <div className="dashboard-card p-6 text-sm text-muted">Loading invites...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="dashboard-card p-6 text-sm text-red-700">
+        {getErrorMessage(error, "Could not load invites")}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="dashboard-card p-5">
-          <p className="text-sm text-muted">Pending</p>
+          <p className="text-sm text-muted">Invited</p>
           <p className="mt-2 text-3xl font-semibold text-primary">
-            {pendingInvites.filter((i) => i.status === "INVITED").length}
+            {invites.filter((i) => i.status === "INVITED").length}
           </p>
         </div>
         <div className="dashboard-card p-5">
-          <p className="text-sm text-muted">Expired</p>
+          <p className="text-sm text-muted">Onboarding</p>
           <p className="mt-2 text-3xl font-semibold text-accent">
-            {pendingInvites.filter((i) => i.status === "EXPIRED").length}
+            {invites.filter((i) => i.status === "PROCESSING").length}
           </p>
         </div>
         <div className="dashboard-card p-5">
-          <p className="text-sm text-muted">Total sent</p>
-          <p className="mt-2 text-3xl font-semibold text-primary">{pendingInvites.length}</p>
+          <p className="text-sm text-muted">Total pending</p>
+          <p className="mt-2 text-3xl font-semibold text-primary">{invites.length}</p>
         </div>
       </div>
 
       <div className="dashboard-card overflow-hidden">
         <div className="border-b border-border/70 px-6 py-5">
-          <h2 className="text-lg font-semibold">Org Admin invitations</h2>
-          <p className="text-sm text-muted">First Org Admin accounts awaiting activation</p>
+          <h2 className="text-lg font-semibold">Pending workforce accounts</h2>
+          <p className="text-sm text-muted">Users invited but not yet verified</p>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
@@ -35,30 +60,32 @@ export function InvitesPageContent() {
                 <th className="px-6 py-3 font-semibold">Name</th>
                 <th className="px-6 py-3 font-semibold">Email</th>
                 <th className="px-6 py-3 font-semibold">Organisation</th>
+                <th className="px-6 py-3 font-semibold">Role</th>
                 <th className="px-6 py-3 font-semibold">Invited</th>
-                <th className="px-6 py-3 font-semibold">Expires</th>
                 <th className="px-6 py-3 font-semibold">Status</th>
-                <th className="px-6 py-3 font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {pendingInvites.map((invite) => (
-                <tr key={invite.id} className="border-t border-border/60">
-                  <td className="px-6 py-4 font-medium">{invite.name}</td>
-                  <td className="px-6 py-4 text-muted">{invite.email}</td>
-                  <td className="px-6 py-4">{invite.organisation}</td>
-                  <td className="px-6 py-4 text-muted">{invite.invitedAt}</td>
-                  <td className="px-6 py-4 text-muted">{invite.expiresAt}</td>
-                  <td className="px-6 py-4">
-                    <InviteStatusBadge status={invite.status} />
-                  </td>
-                  <td className="px-6 py-4">
-                    <button type="button" className="text-sm font-semibold text-primary">
-                      Resend
-                    </button>
+              {invites.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-6 py-8 text-center text-muted">
+                    No pending invites.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                invites.map((invite) => (
+                  <tr key={invite.id} className="border-t border-border/60">
+                    <td className="px-6 py-4 font-medium">{invite.name}</td>
+                    <td className="px-6 py-4 text-muted">{invite.email}</td>
+                    <td className="px-6 py-4">{invite.organisation}</td>
+                    <td className="px-6 py-4">{invite.role}</td>
+                    <td className="px-6 py-4 text-muted">{formatDate(invite.invitedAt)}</td>
+                    <td className="px-6 py-4">
+                      <InviteStatusBadge status={invite.status as "INVITED" | "EXPIRED"} />
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

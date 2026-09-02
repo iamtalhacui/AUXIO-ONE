@@ -5,6 +5,7 @@ export type AuthUser = {
   role?: string;
   organisationId?: string | null;
   status?: string;
+  serviceLine?: string | null;
 };
 
 export type LoginRequest = {
@@ -41,7 +42,6 @@ export type CreateOrganisationRequest = {
   moduleCeilingCodes?: string[];
   orgAdminEmail: string;
   orgAdminName: string;
-  orgAdminPassword: string;
 };
 
 export type ModuleEntitlementSummary = {
@@ -65,6 +65,7 @@ export type CreateOrganisationResponse = {
     name: string;
   };
   moduleEntitlements: ModuleEntitlementSummary[];
+  inviteEmail?: { queued: boolean; sent?: boolean; error?: string };
 };
 
 export type OrgModuleEntitlement = {
@@ -191,6 +192,7 @@ export type TeamMember = {
     | "RESTRICTED"
     | "ACTIVE"
     | "DEACTIVATED";
+  serviceLine?: string | null;
   role: TeamMemberRole | null;
   createdAt: string;
 };
@@ -202,8 +204,8 @@ export type TeamMembersResponse = {
 export type RegisterTeamMemberRequest = {
   name: string;
   email: string;
-  password: string;
   role: ConfigurableRoleCode;
+  serviceLine: "NDIS" | "AGED_CARE" | "FIELD_SERVICES";
 };
 
 export type RegisterTeamMemberResponse = {
@@ -212,7 +214,17 @@ export type RegisterTeamMemberResponse = {
   email: string;
   status: string;
   role: TeamMemberRole;
-  credentialEmail?: { queued: boolean };
+  inviteEmail?: { queued: boolean; sent?: boolean; error?: string };
+};
+
+export type AcceptInviteRequest = {
+  token: string;
+  password: string;
+};
+
+export type AcceptInviteResponse = {
+  success: boolean;
+  email: string;
 };
 
 export type ApiErrorBody = {
@@ -228,6 +240,7 @@ export type OnboardingProfileResponse = {
     status: string;
     role: string | null;
     roleName: string | null;
+    serviceLine?: string | null;
   };
   organisation: {
     id: string;
@@ -258,6 +271,7 @@ export type MemberOnboardingReviewResponse = {
     name: string;
     email: string;
     status: TeamMember["status"];
+    serviceLine?: string | null;
     role: TeamMemberRole | null;
     createdAt: string;
   };
@@ -273,6 +287,62 @@ export type UpdateTeamMemberRequest = {
   email?: string;
   role?: ConfigurableRoleCode;
   status?: TeamMember["status"];
+  serviceLine?: RegisterTeamMemberRequest["serviceLine"];
+};
+
+export type PlatformModule = {
+  code: string;
+  name: string;
+  isOperational: boolean;
+  sortOrder: number;
+};
+
+export type PlatformEntitlement = {
+  id: string;
+  organisationId: string;
+  organisationName: string;
+  moduleCode: string;
+  moduleName: string;
+  ceilingGranted: boolean;
+  enabled: boolean;
+  grantedAt: string;
+};
+
+export type PlatformInvite = {
+  id: string;
+  name: string;
+  email: string;
+  status: string;
+  organisation: string;
+  role: string;
+  invitedAt: string;
+  pendingPasswordChange: boolean;
+};
+
+export type PlatformHealth = {
+  status: string;
+  services: {
+    api: string;
+    database: string;
+    email: string;
+  };
+  checkedAt: string;
+};
+
+export type AuditEntry = {
+  id: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  beforeJson: unknown;
+  afterJson: unknown;
+  createdAt: string;
+  actor: { id: string; name: string; email: string } | null;
+  organisation?: {
+    id: string;
+    legalName: string;
+    tradingName: string | null;
+  } | null;
 };
 
 export type WorkforceProfile = {

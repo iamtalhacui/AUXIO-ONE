@@ -8,26 +8,50 @@ import * as bcrypt from 'bcryptjs';
 import type { UserStatus } from '@repo/database';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { isWorkforceLifecycleRole } from '../../common/user-lifecycle';
+import { InviteTokenService } from '../../common/invite/invite-token.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
+    private inviteTokenService: InviteTokenService,
   ) {}
 
   async login(email: string, password: string) {
-    const user = await this.prisma.user.findFirst({
+    const matches = await this.prisma.user.findMany({
       where: { email },
-      include: { role: true },
+      include: { role: true, organisation: true },
     });
 
-    if (!user || !user.passwordHash) {
+    if (matches.length === 0) {
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (matches.length > 1) {
+      throw new UnauthorizedException(
+        'This email is linked to multiple organisations. Contact support.',
+      );
+    }
+
+    const user = matches[0];
+
+    if (!user.passwordHash) {
+      throw new UnauthorizedException(
+        'Please accept your invitation and set a password before signing in',
+      );
     }
 
     if (user.status === 'DEACTIVATED') {
       throw new UnauthorizedException('Account deactivated');
+    }
+
+    if (user.organisation?.status === 'SUSPENDED') {
+      throw new UnauthorizedException('Organisation suspended');
+    }
+
+    if (user.organisation?.status === 'CLOSED') {
+      throw new UnauthorizedException('Organisation closed');
     }
 
     const valid = await bcrypt.compare(password, user.passwordHash);
@@ -62,7 +86,40 @@ export class AuthService {
         role: user.role?.code,
         organisationId: user.organisationId,
         status,
+        serviceLine: user.serviceLine,
       },
+    };
+  }
+
+  async acceptInvite(token: string, password: string) {
+    const inviteTokenHash = this.inviteTokenService.hashToken(token);
+
+    const user = await this.prisma.user.findFirst({
+      where: { inviteTokenHash },
+      include: { role: true },
+    });
+
+    if (!user?.inviteExpiresAt || user.inviteExpiresAt.getTime() < Date.now()) {
+      throw new UnauthorizedException('Invitation link is invalid or has expired');
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const isOrgAdmin = user.role?.code === 'ORG_ADMIN';
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        inviteTokenHash: null,
+        inviteExpiresAt: null,
+        pendingPasswordChange: false,
+        status: isOrgAdmin ? 'ACTIVE' : 'INVITED',
+      },
+    });
+
+    return {
+      success: true,
+      email: user.email,
     };
   }
 
@@ -118,6 +175,7 @@ export class AuthService {
         name: true,
         organisationId: true,
         status: true,
+        serviceLine: true,
         role: { select: { code: true } },
       },
     });
@@ -132,6 +190,7 @@ export class AuthService {
         role: updated.role?.code,
         organisationId: updated.organisationId,
         status: updated.status,
+        serviceLine: updated.serviceLine,
       },
     };
   }

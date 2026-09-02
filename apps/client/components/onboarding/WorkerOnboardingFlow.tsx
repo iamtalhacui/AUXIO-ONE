@@ -21,7 +21,7 @@ import {
   ONBOARDING_STEPS,
 } from "@/lib/onboarding/constants";
 import { mergeOnboardingData } from "@/lib/onboarding/types";
-import type { OnboardingData } from "@/lib/onboarding/types";
+import type { OnboardingData, ServiceLine } from "@/lib/onboarding/types";
 import { updateUser } from "@/lib/features/auth/authSlice";
 import {
   getWorkforceLifecyclePath,
@@ -313,12 +313,17 @@ export function WorkerOnboardingFlow() {
           {currentStep === 3 ? (
             <ComplianceStep
               value={formData.compliance}
+              assignedServiceLine={data?.user.serviceLine as ServiceLine | null | undefined}
               onChange={(compliance) => updateFormData((prev) => ({ ...prev, compliance }))}
             />
           ) : null}
 
           {currentStep === 4 ? (
-            <ReviewStep data={formData} onEditStep={setCurrentStep} />
+            <ReviewStep
+              data={formData}
+              assignedServiceLine={data?.user.serviceLine}
+              onEditStep={setCurrentStep}
+            />
           ) : null}
 
           {error ? (
