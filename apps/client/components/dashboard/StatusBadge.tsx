@@ -1,12 +1,12 @@
-import type { OrgStatus } from "@/lib/mocks/data";
+type BadgeStatus = "ACTIVE" | "SUSPENDED" | "CLOSED";
 
-const styles: Record<OrgStatus, string> = {
+const styles: Record<BadgeStatus, string> = {
   ACTIVE: "bg-primary/10 text-primary",
-  SUSPENDED: "bg-accent/10 text-accent",
+  SUSPENDED: "bg-surface-muted text-muted",
   CLOSED: "bg-surface-muted text-muted",
 };
 
-export function OrgStatusBadge({ status }: { status: OrgStatus }) {
+export function OrgStatusBadge({ status }: { status: BadgeStatus }) {
   return (
     <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${styles[status]}`}>
       {status}

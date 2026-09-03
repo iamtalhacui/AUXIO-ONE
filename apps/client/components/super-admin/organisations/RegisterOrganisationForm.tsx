@@ -1,12 +1,10 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
-import { mockModules } from "@/lib/mocks/data";
-import {
-  getModuleCodesForTemplate,
-  MODULE_CEILING_TEMPLATES,
-  type ModuleCeilingTemplate,
-} from "@/lib/dashboard/content/module-templates";
+import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useRegisterOrganisationMutation } from "@/lib/api/platformAuthApi";
+import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import type { OrgPlan } from "@/lib/api/types";
 
 const timeZones = [
   "Australia/Sydney",
@@ -16,92 +14,66 @@ const timeZones = [
   "Australia/Adelaide",
 ];
 
+const PLANS: { value: OrgPlan; label: string; modules: string }[] = [
+  { value: "BASIC", label: "Basic", modules: "Home, CRM, Customers, Workforce, Schedule" },
+  { value: "ADVANCED", label: "Advanced", modules: "All 9 modules" },
+];
+
+const inputClass = "input-field";
+
 export function RegisterOrganisationForm() {
-  const assignableModules = mockModules;
-
-  const moduleNameByCode = useMemo(
-    () => Object.fromEntries(mockModules.map((module) => [module.code, module.name])),
-    [],
-  );
-
-  const [legalName, setLegalName] = useState("");
-  const [tradingName, setTradingName] = useState("");
-  const [timeZone, setTimeZone] = useState(timeZones[0]);
+  const router = useRouter();
+  const [register, { isLoading, error, reset }] = useRegisterOrganisationMutation();
+  const [name, setName] = useState("");
+  const [timezone, setTimezone] = useState(timeZones[0]);
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
-  const [template, setTemplate] = useState<ModuleCeilingTemplate>("BASIC");
-  const [customModules, setCustomModules] = useState<string[]>(
-    mockModules.slice(0, 3).map((m) => m.code),
-  );
-  const [orgAdminName, setOrgAdminName] = useState("");
-  const [orgAdminEmail, setOrgAdminEmail] = useState("");
-  const [error, setError] = useState("");
+  const [plan, setPlan] = useState<OrgPlan>("BASIC");
+  const [adminFirstName, setAdminFirstName] = useState("");
+  const [adminLastName, setAdminLastName] = useState("");
+  const [adminEmail, setAdminEmail] = useState("");
   const [success, setSuccess] = useState("");
 
-  const resolvedModules =
-    template === "CUSTOM" ? customModules : getModuleCodesForTemplate(template);
-
-  function selectTemplate(next: ModuleCeilingTemplate) {
-    setTemplate(next);
-    if (next !== "CUSTOM") {
-      setCustomModules(getModuleCodesForTemplate(next));
-    }
-  }
-
-  function toggleCustomModule(code: string) {
-    setCustomModules((current) =>
-      current.includes(code) ? current.filter((item) => item !== code) : [...current, code],
-    );
-  }
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError("");
+    reset();
     setSuccess("");
 
-    if (resolvedModules.length === 0) {
-      setError("Select at least one module for the custom ceiling.");
-      return;
-    }
+    try {
+      const result = await register({
+        name,
+        timezone,
+        contactEmail,
+        contactPhone: contactPhone || undefined,
+        plan,
+        adminFirstName,
+        adminLastName,
+        adminEmail,
+      }).unwrap();
 
-    setSuccess("Organisation registration is unavailable in demo mode.");
+      setSuccess(
+        `${result.organisation.name} created. Setup email sent to ${result.admin.email}.`,
+      );
+      router.push("/super-admin/organisations");
+    } catch {
+      // error from RTK Query
+    }
   }
 
+  const errorMessage = error ? getErrorMessage(error, "Could not register organisation") : null;
+
   return (
-    <form className="space-y-6" onSubmit={handleSubmit}>
-      <section className="dashboard-card p-6">
-        <h2 className="text-lg font-semibold">Organisation details</h2>
-        <p className="mt-1 text-sm text-muted">Legal identity and primary contact for the tenant.</p>
-
-        <div className="mt-6 grid gap-5 sm:grid-cols-2">
+    <form className="mx-auto max-w-2xl space-y-5" onSubmit={handleSubmit}>
+      <section className="dashboard-card p-5">
+        <h2 className="text-base font-semibold">Organisation</h2>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <label className="block sm:col-span-2">
-            <span className="mb-2 block text-sm font-medium">Legal name</span>
-            <input
-              value={legalName}
-              onChange={(event) => setLegalName(event.target.value)}
-              placeholder="Demo NDIS Provider Pty Ltd"
-              required
-              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
-            />
+            <span className="input-label">Name</span>
+            <input value={name} onChange={(e) => setName(e.target.value)} required className={inputClass} />
           </label>
-
           <label className="block">
-            <span className="mb-2 block text-sm font-medium">Trading name</span>
-            <input
-              value={tradingName}
-              onChange={(event) => setTradingName(event.target.value)}
-              placeholder="Demo Care Services"
-              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
-            />
-          </label>
-
-          <label className="block">
-            <span className="mb-2 block text-sm font-medium">Time zone</span>
-            <select
-              value={timeZone}
-              onChange={(event) => setTimeZone(event.target.value)}
-              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
-            >
+            <span className="input-label">Timezone</span>
+            <select value={timezone} onChange={(e) => setTimezone(e.target.value)} className={inputClass}>
               {timeZones.map((zone) => (
                 <option key={zone} value={zone}>
                   {zone}
@@ -109,157 +81,93 @@ export function RegisterOrganisationForm() {
               ))}
             </select>
           </label>
-
           <label className="block">
-            <span className="mb-2 block text-sm font-medium">Contact email</span>
+            <span className="input-label">Phone</span>
+            <input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} className={inputClass} />
+          </label>
+          <label className="block sm:col-span-2">
+            <span className="input-label">Contact email</span>
             <input
               type="email"
               value={contactEmail}
-              onChange={(event) => setContactEmail(event.target.value)}
-              placeholder="contact@demo-provider.com.au"
+              onChange={(e) => setContactEmail(e.target.value)}
               required
-              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
-            />
-          </label>
-
-          <label className="block">
-            <span className="mb-2 block text-sm font-medium">Contact phone</span>
-            <input
-              value={contactPhone}
-              onChange={(event) => setContactPhone(event.target.value)}
-              placeholder="+61 400 000 000"
-              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
+              className={inputClass}
             />
           </label>
         </div>
       </section>
 
-      <section className="dashboard-card p-6">
-        <h2 className="text-lg font-semibold">Module ceiling template</h2>
-        <p className="mt-1 text-sm text-muted">
-          Choose a preset or build a custom ceiling. Selected modules are saved to the organisation and define what the Org Admin may enable later.
-        </p>
-
-        <div className="mt-6 grid gap-3 lg:grid-cols-3">
-          {MODULE_CEILING_TEMPLATES.map((option) => {
-            const active = template === option.value;
-
-            return (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => selectTemplate(option.value)}
-                className={`rounded-2xl border px-4 py-4 text-left transition ${
-                  active
-                    ? "border-primary bg-primary/5 ring-2 ring-primary/10"
-                    : "border-border bg-background hover:border-primary/20"
-                }`}
-              >
-                <p className="text-sm font-semibold">{option.label}</p>
-                <p className="mt-2 text-sm text-muted">{option.description}</p>
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="mt-6">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <p className="text-sm font-medium">
-              {template === "CUSTOM" ? "Choose modules" : "Modules in this ceiling"}
-            </p>
-            <span className="rounded-full bg-surface-muted px-3 py-1 text-xs font-semibold text-muted">
-              {resolvedModules.length} selected
-            </span>
-          </div>
-
-          {template === "CUSTOM" ? (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {assignableModules.map((module) => (
-                <label
-                  key={module.code}
-                  className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-background px-4 py-3 transition hover:border-primary/20"
-                >
-                  <input
-                    type="checkbox"
-                    checked={customModules.includes(module.code)}
-                    onChange={() => toggleCustomModule(module.code)}
-                    className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary/20"
-                  />
-                  <span>
-                    <span className="block text-sm font-medium">{module.name}</span>
-                    <span className="text-xs text-muted">Code {module.code}</span>
-                  </span>
-                </label>
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {resolvedModules.map((code) => (
-                <span
-                  key={code}
-                  className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-sm"
-                >
-                  <span className="font-semibold text-primary">{code}</span>
-                  <span className="text-muted">{moduleNameByCode[code]}</span>
-                </span>
-              ))}
-            </div>
-          )}
+      <section className="dashboard-card p-5">
+        <h2 className="text-base font-semibold">Plan</h2>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {PLANS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setPlan(option.value)}
+              className={`rounded-lg border px-4 py-3 text-left ${
+                plan === option.value
+                  ? "border-primary bg-primary/5"
+                  : "border-border hover:border-primary/30"
+              }`}
+            >
+              <p className="text-sm font-semibold">{option.label}</p>
+              <p className="mt-1 text-xs text-muted">{option.modules}</p>
+            </button>
+          ))}
         </div>
       </section>
 
-      <section className="dashboard-card p-6">
-        <h2 className="text-lg font-semibold">First Org Admin</h2>
-        <p className="mt-1 text-sm text-muted">
-          We will email this person an invitation link to set their password and activate their account.
-        </p>
-
-        <div className="mt-6 grid gap-5 sm:grid-cols-2">
+      <section className="dashboard-card p-5">
+        <h2 className="text-base font-semibold">Organisation admin</h2>
+        <p className="mt-1 text-sm text-muted">They receive a setup link by email.</p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <label className="block">
-            <span className="mb-2 block text-sm font-medium">Full name</span>
+            <span className="input-label">First name</span>
             <input
-              value={orgAdminName}
-              onChange={(event) => setOrgAdminName(event.target.value)}
-              placeholder="Demo Org Admin"
+              value={adminFirstName}
+              onChange={(e) => setAdminFirstName(e.target.value)}
               required
-              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
+              className={inputClass}
             />
           </label>
-
           <label className="block">
-            <span className="mb-2 block text-sm font-medium">Email address</span>
+            <span className="input-label">Last name</span>
+            <input
+              value={adminLastName}
+              onChange={(e) => setAdminLastName(e.target.value)}
+              required
+              className={inputClass}
+            />
+          </label>
+          <label className="block sm:col-span-2">
+            <span className="input-label">Email</span>
             <input
               type="email"
-              value={orgAdminEmail}
-              onChange={(event) => setOrgAdminEmail(event.target.value)}
-              placeholder="orgadmin@demo-provider.com.au"
+              value={adminEmail}
+              onChange={(e) => setAdminEmail(e.target.value)}
               required
-              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
+              className={inputClass}
             />
           </label>
         </div>
       </section>
 
-      {error ? (
-        <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
+      {errorMessage ? (
+        <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {errorMessage}
         </p>
       ) : null}
-
       {success ? (
-        <p className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">
+        <p className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">
           {success}
         </p>
       ) : null}
 
-      <div className="dashboard-card flex flex-wrap gap-3 p-6">
-        <button
-          type="submit"
-          className="inline-flex items-center justify-center rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:bg-primary-light disabled:opacity-70"
-        >
-          Register organisation
-        </button>
-      </div>
+      <button type="submit" disabled={isLoading} className="btn-primary disabled:opacity-70">
+        {isLoading ? "Registering…" : "Register organisation"}
+      </button>
     </form>
   );
 }

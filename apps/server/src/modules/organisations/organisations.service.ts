@@ -1,0 +1,204 @@
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import { randomBytes, createHash } from 'crypto';
+import { PrismaService } from '../../common/prisma/prisma.service';
+import { MailService } from '../../common/mail/mail.service';
+import { getEntitledModuleCodes } from './plan-modules';
+import type { RegisterOrganisationDto } from './dto/register-organisation.dto';
+
+@Injectable()
+export class OrganisationsService {
+  private readonly logger = new Logger(OrganisationsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mail: MailService,
+  ) {}
+
+  /**
+   * Registers a new organisation with its admin and module entitlements.
+   * Returns the created org, admin user, and the raw setup token.
+   */
+  async register(dto: RegisterOrganisationDto) {
+    // Check for duplicate admin email
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: dto.adminEmail.trim().toLowerCase() },
+    });
+
+    if (existingUser) {
+      throw new ConflictException('A user with this email already exists');
+    }
+
+    // Generate setup token: raw token goes in the email link, hash goes in the DB
+    const rawToken = randomBytes(32).toString('hex');
+    const setupTokenHash = createHash('sha256').update(rawToken).digest('hex');
+    const setupTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+
+    // Get module codes for the selected plan
+    const entitledCodes = getEntitledModuleCodes(dto.plan);
+
+    // Fetch matching module records
+    const modules = await this.prisma.module.findMany({
+      where: { code: { in: [...entitledCodes] } },
+    });
+
+    // Create everything in a transaction
+    const { organisation, user } = await this.prisma.$transaction(async (tx) => {
+      const organisation = await tx.organisation.create({
+        data: {
+          name: dto.name,
+          timezone: dto.timezone,
+          email: dto.contactEmail.trim().toLowerCase(),
+          phone: dto.contactPhone || null,
+          plan: dto.plan,
+        },
+      });
+
+      const user = await tx.user.create({
+        data: {
+          organisationId: organisation.id,
+          firstName: dto.adminFirstName.trim(),
+          lastName: dto.adminLastName.trim(),
+          email: dto.adminEmail.trim().toLowerCase(),
+          role: 'ORG_ADMIN',
+          status: 'INVITED',
+          setupTokenHash,
+          setupTokenExpiresAt,
+        },
+      });
+
+      // Create module entitlements (all enabled by default)
+      await tx.organisationModule.createMany({
+        data: modules.map((mod: { id: string }) => ({
+          organisationId: organisation.id,
+          moduleId: mod.id,
+          enabled: true,
+        })),
+      });
+
+      return { organisation, user };
+    });
+
+    // Send setup email (don't block registration if email fails)
+    const adminName = `${user.firstName} ${user.lastName}`;
+    try {
+      await this.mail.sendSetupEmail(user.email, adminName, rawToken);
+    } catch (error) {
+      this.logger.error(`Failed to send setup email to ${user.email}`, error);
+    }
+
+    return {
+      organisation: {
+        id: organisation.id,
+        name: organisation.name,
+        plan: organisation.plan,
+        status: organisation.status,
+      },
+      admin: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+        status: user.status,
+      },
+      modulesEntitled: entitledCodes.length,
+    };
+  }
+
+  async list() {
+    const organisations = await this.prisma.organisation.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        users: {
+          where: { role: 'ORG_ADMIN' },
+          take: 1,
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+            status: true,
+          },
+        },
+        organisationModules: { select: { enabled: true } },
+      },
+    });
+
+    return organisations.map((org) => {
+      const admin = org.users[0] ?? null;
+      return {
+        id: org.id,
+        name: org.name,
+        timezone: org.timezone,
+        email: org.email,
+        phone: org.phone,
+        plan: org.plan,
+        status: org.status,
+        createdAt: org.createdAt,
+        modulesEnabled: org.organisationModules.filter((m) => m.enabled).length,
+        modulesGranted: org.organisationModules.length,
+        admin,
+      };
+    });
+  }
+
+  /**
+   * Returns the module codes that an organisation is entitled to
+   * based on its current plan.
+   */
+  async getEntitledModules(organisationId: string) {
+    const org = await this.prisma.organisation.findUnique({
+      where: { id: organisationId },
+      select: { plan: true },
+    });
+
+    if (!org) {
+      throw new NotFoundException('Organisation not found');
+    }
+
+    return getEntitledModuleCodes(org.plan);
+  }
+
+  /**
+   * Checks whether a module is both entitled by the org's plan
+   * AND enabled for the organisation. Throws if not.
+   */
+  async assertModuleAccess(organisationId: string, moduleCode: string) {
+    const org = await this.prisma.organisation.findUnique({
+      where: { id: organisationId },
+      select: { id: true, plan: true },
+    });
+
+    if (!org) {
+      throw new NotFoundException('Organisation not found');
+    }
+
+    // 1. Is the module in the org's plan?
+    const entitled = getEntitledModuleCodes(org.plan);
+    if (!entitled.includes(moduleCode)) {
+      throw new ForbiddenException(
+        `Module "${moduleCode}" is not included in your organisation's plan`,
+      );
+    }
+
+    // 2. Is the module enabled for this org?
+    const orgModule = await this.prisma.organisationModule.findFirst({
+      where: {
+        organisationId,
+        module: { code: moduleCode },
+      },
+      select: { enabled: true },
+    });
+
+    if (!orgModule || !orgModule.enabled) {
+      throw new ForbiddenException(
+        `Module "${moduleCode}" is not enabled for your organisation`,
+      );
+    }
+  }
+}

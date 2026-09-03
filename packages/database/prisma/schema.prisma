@@ -7,6 +7,8 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// ─── Platform ────────────────────────────────────────────
+
 model SuperAdmin {
   id           String   @id @default(uuid())
   email        String   @unique
@@ -14,4 +16,95 @@ model SuperAdmin {
   passwordHash String
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+}
+
+// ─── Organisation ────────────────────────────────────────
+
+enum OrgPlan {
+  BASIC
+  ADVANCED
+}
+
+enum OrgStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+model Organisation {
+  id        String    @id @default(uuid())
+  name      String
+  timezone  String
+  email     String
+  phone     String?
+  plan      OrgPlan
+  status    OrgStatus @default(ACTIVE)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  users              User[]
+  organisationModules OrganisationModule[]
+}
+
+// ─── User (organisation-scoped) ──────────────────────────
+
+enum UserRole {
+  ORG_ADMIN
+  MANAGER
+  ROSTERING_EXPERT
+  EMPLOYEE
+}
+
+enum UserStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+}
+
+model User {
+  id                  String    @id @default(uuid())
+  organisationId      String
+  firstName           String
+  lastName            String
+  email               String    @unique
+  passwordHash        String?
+  role                UserRole
+  status              UserStatus @default(INVITED)
+  setupTokenHash      String?
+  setupTokenExpiresAt DateTime?
+  emailVerifiedAt     DateTime?
+  lastLoginAt         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id])
+
+  @@index([organisationId])
+}
+
+// ─── Modules ─────────────────────────────────────────────
+
+model Module {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  description String   @default("")
+  isCore      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  organisationModules OrganisationModule[]
+}
+
+model OrganisationModule {
+  id             String   @id @default(uuid())
+  organisationId String
+  moduleId       String
+  enabled        Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id])
+  module       Module       @relation(fields: [moduleId], references: [id])
+
+  @@unique([organisationId, moduleId])
+  @@index([organisationId])
 }

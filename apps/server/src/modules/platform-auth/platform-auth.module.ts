@@ -21,5 +21,6 @@ import { PlatformJwtGuard } from './platform-jwt.guard';
   ],
   controllers: [PlatformAuthController],
   providers: [PlatformAuthService, PlatformJwtGuard],
+  exports: [PlatformJwtGuard, JwtModule],
 })
 export class PlatformAuthModule {}

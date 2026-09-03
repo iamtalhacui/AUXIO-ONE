@@ -6,7 +6,7 @@ export default function RegisterOrganisationPage() {
     <>
       <PageHeader
         title="Register organisation"
-        description="W-01 — create a new tenant, grant module ceiling, and invite the first Org Admin."
+        description="Create a tenant, choose a plan, and invite the Organisation Admin."
       />
       <RegisterOrganisationForm />
     </>

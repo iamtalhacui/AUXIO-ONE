@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { DashboardConfig, NavItem } from "@/lib/dashboard/config";
 import { isNavItemActive } from "@/lib/dashboard/config";
 import { site } from "@/lib/content";
+import { logoutOrg } from "@/lib/store/orgAuthSlice";
+import { logoutPlatform } from "@/lib/store/platformAuthSlice";
+import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
 import {
   IconBell,
   IconBuilding,
@@ -148,13 +151,35 @@ type DashboardSidebarProps = {
 
 export function DashboardSidebar({ config }: DashboardSidebarProps) {
   const pathname = usePathname();
-  const displayName = "Alex Chen";
+  const router = useRouter();
+  const dispatch = useAppDispatch();
+  const platformUser = useAppSelector((state) => state.platformAuth.user);
+  const orgUser = useAppSelector((state) => state.orgAuth.user);
+  const isPlatform = pathname.startsWith("/super-admin");
+  const isOrg = pathname.startsWith("/org-admin");
+  const displayName = isPlatform
+    ? (platformUser?.name ?? config.roleLabel)
+    : isOrg && orgUser
+      ? `${orgUser.firstName} ${orgUser.lastName}`
+      : config.roleLabel;
   const initials = displayName
     .split(" ")
     .map((part) => part[0])
     .join("")
     .slice(0, 2)
     .toUpperCase();
+
+  function handleSignOut() {
+    if (isPlatform) {
+      dispatch(logoutPlatform());
+      router.replace("/platform/login");
+      return;
+    }
+    if (isOrg) {
+      dispatch(logoutOrg());
+    }
+    router.replace("/login");
+  }
 
   return (
     <aside className="dashboard-sidebar">
@@ -190,10 +215,10 @@ export function DashboardSidebar({ config }: DashboardSidebarProps) {
             <p className="truncate text-xs text-muted">{config.roleLabel}</p>
           </div>
         </div>
-        <Link href="/login" className="nav-signout">
+        <button type="button" onClick={handleSignOut} className="nav-signout">
           <IconLogout className="h-4 w-4" />
           Sign out
-        </Link>
+        </button>
       </div>
     </aside>
   );

@@ -1,17 +1,17 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f6f5f2;
-  --foreground: #23201c;
-  --muted: #6f6659;
+  --background: #f7f8fa;
+  --foreground: #111827;
+  --muted: #6b7280;
   --surface: #ffffff;
-  --surface-muted: #efece5;
-  --border: #ddd7cd;
-  --primary: #115e59;
-  --primary-light: #0f766e;
-  --accent: #b07d3e;
-  --accent-light: #d4a574;
-  --hero-glow: rgba(17, 94, 89, 0.12);
+  --surface-muted: #f3f4f6;
+  --border: #e5e7eb;
+  --primary: #0f766e;
+  --primary-light: #0d9488;
+  --accent: #0f766e;
+  --accent-light: #5eead4;
+  --hero-glow: rgba(15, 118, 110, 0.1);
 }
 
 @theme inline {
@@ -120,11 +120,11 @@ body {
 }
 
 .dashboard-shell {
-  @apply flex h-screen overflow-hidden bg-[#eef2f6];
+  @apply flex h-screen overflow-hidden bg-[#f7f8fa];
 }
 
 .dashboard-sidebar {
-  @apply flex h-screen w-[260px] shrink-0 flex-col bg-[#f8fafc];
+  @apply flex h-screen w-[240px] shrink-0 flex-col border-r border-border bg-surface;
 }
 
 .dashboard-sidebar-brand {
@@ -165,7 +165,7 @@ body {
 }
 
 .nav-link-active {
-  @apply bg-[#e8f0fe] font-semibold text-primary;
+  @apply bg-primary/8 font-semibold text-primary;
 }
 
 .nav-link-active .nav-link-icon {
@@ -209,7 +209,7 @@ body {
 }
 
 .btn-primary {
-  @apply inline-flex items-center justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-light;
+  @apply inline-flex items-center justify-center rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-light;
 }
 
 .btn-secondary {

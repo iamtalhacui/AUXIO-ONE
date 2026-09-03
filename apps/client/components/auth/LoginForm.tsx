@@ -1,78 +1,86 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { loginCopy } from "@/lib/content/auth";
+import { useOrgLoginMutation } from "@/lib/api/authApi";
+import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { setOrgCredentials } from "@/lib/store/orgAuthSlice";
+import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
 
 export function LoginForm() {
+  const router = useRouter();
+  const dispatch = useAppDispatch();
+  const accessToken = useAppSelector((state) => state.orgAuth.accessToken);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [login, { isLoading, error, reset }] = useOrgLoginMutation();
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  useEffect(() => {
+    if (accessToken) router.replace("/org-admin");
+  }, [accessToken, router]);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    reset();
+
+    try {
+      const result = await login({ email, password }).unwrap();
+      dispatch(setOrgCredentials(result));
+      router.replace("/org-admin");
+    } catch {
+      // RTK error
+    }
   }
+
+  const errorMessage = error ? getErrorMessage(error, "Invalid email or password") : null;
 
   return (
     <div className="flex flex-1 items-center justify-center px-6 py-12 sm:px-10">
-      <div className="w-full max-w-md animate-fade-in-up">
+      <div className="w-full max-w-md">
         <div className="mb-8 lg:hidden">
-          <Link href="/" className="inline-flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-sm font-bold text-white">
-              A1
-            </span>
-            <span className="text-lg font-semibold">AUXIO One</span>
+          <Link href="/" className="text-lg font-semibold">
+            AUXIO One
           </Link>
         </div>
 
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent">
-          {loginCopy.eyebrow}
-        </p>
-        <h2 className="mt-3 text-3xl font-semibold tracking-tight">Sign in to your account</h2>
-        <p className="mt-3 text-sm leading-6 text-muted">
-          Use your Super Admin or organisation account credentials.
-        </p>
+        <p className="text-xs font-medium uppercase tracking-wide text-muted">{loginCopy.eyebrow}</p>
+        <h2 className="mt-2 text-2xl font-semibold tracking-tight">Sign in</h2>
+        <p className="mt-2 text-sm text-muted">Use your organisation account credentials.</p>
 
-        <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
+        <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
           <label className="block">
-            <span className="mb-2 block text-sm font-medium">Email address</span>
+            <span className="input-label">Email</span>
             <input
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              placeholder="superadmin@auxio.local"
               required
               autoComplete="email"
-              className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
+              className="input-field"
             />
           </label>
-
           <label className="block">
-            <span className="mb-2 block text-sm font-medium">Password</span>
+            <span className="input-label">Password</span>
             <input
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              placeholder="Enter your password"
               required
               autoComplete="current-password"
-              className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/10"
+              className="input-field"
             />
           </label>
-
-          <button
-            type="submit"
-            className="flex w-full items-center justify-center rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:bg-primary-light disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            Sign in
+          {errorMessage ? (
+            <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {errorMessage}
+            </p>
+          ) : null}
+          <button type="submit" disabled={isLoading} className="btn-primary w-full disabled:opacity-70">
+            {isLoading ? "Signing in…" : "Sign in"}
           </button>
         </form>
-
-        <p className="mt-8 text-center text-sm text-muted">
-          Need an organisation account?{" "}
-          <Link href="/get-started" className="font-medium text-primary hover:text-primary-light">
-            Request access
-          </Link>
-        </p>
       </div>
     </div>
   );
