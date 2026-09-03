@@ -19,22 +19,14 @@ export class AuthService {
   ) {}
 
   async login(email: string, password: string) {
-    const matches = await this.prisma.user.findMany({
+    const user = await this.prisma.user.findUnique({
       where: { email },
       include: { role: true, organisation: true },
     });
 
-    if (matches.length === 0) {
+    if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
-
-    if (matches.length > 1) {
-      throw new UnauthorizedException(
-        'This email is linked to multiple organisations. Contact support.',
-      );
-    }
-
-    const user = matches[0];
 
     if (!user.passwordHash) {
       throw new UnauthorizedException(

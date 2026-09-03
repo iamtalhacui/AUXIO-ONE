@@ -122,8 +122,8 @@ async function main() {
     );
   }
 
-  const existingSuperAdmin = await prisma.user.findFirst({
-    where: { organisationId: null, email },
+  const existingSuperAdmin = await prisma.user.findUnique({
+    where: { email },
   });
 
   if (!existingSuperAdmin) {

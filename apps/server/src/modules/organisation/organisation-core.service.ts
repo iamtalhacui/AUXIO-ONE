@@ -23,6 +23,18 @@ export class OrganisationCoreService {
     return organisation;
   }
 
+  async assertUserEmailAvailable(email: string, excludeUserId?: string) {
+    const existing = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (existing && existing.id !== excludeUserId) {
+      throw new ConflictException(
+        `A user with email ${email} already exists on the platform`,
+      );
+    }
+  }
+
   async assertContactEmailAvailable(
     contactEmail: string,
     excludeOrganisationId?: string,

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import type { ConfigurableRoleCode } from '@repo/database';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { OrganisationCoreService } from '../organisation/organisation-core.service';
 import { OrgRolesService } from '../roles/org-roles.service';
 import { RegisterTeamMemberDto } from './dto/register-team-member.dto';
 import { UpdateTeamMemberDto } from './dto/update-team-member.dto';
@@ -20,6 +21,7 @@ export class OrgTeamService {
 
   constructor(
     private prisma: PrismaService,
+    private core: OrganisationCoreService,
     private orgRolesService: OrgRolesService,
     private inviteEmailService: InviteEmailService,
     private inviteTokenService: InviteTokenService,
@@ -77,15 +79,7 @@ export class OrgTeamService {
       );
     }
 
-    const existing = await this.prisma.user.findFirst({
-      where: { organisationId, email: dto.email },
-    });
-
-    if (existing) {
-      throw new ConflictException(
-        `A user with email ${dto.email} already exists in this organisation`,
-      );
-    }
+    await this.core.assertUserEmailAvailable(dto.email);
 
     const invite = this.inviteTokenService.generate();
 
@@ -215,12 +209,7 @@ export class OrgTeamService {
     }
 
     if (dto.email && dto.email !== member.email) {
-      const existing = await this.prisma.user.findFirst({
-        where: { organisationId, email: dto.email, NOT: { id: memberId } },
-      });
-      if (existing) {
-        throw new ConflictException(`Email ${dto.email} is already in use`);
-      }
+      await this.core.assertUserEmailAvailable(dto.email, memberId);
     }
 
     let roleId = member.roleId;

@@ -1,23 +1,23 @@
 import { PageShell } from "@/components/layout/PageShell";
 import {
+  BenefitsSection,
   CtaSection,
+  FaqSection,
   FeaturesSection,
   HeroSection,
-  ModulesSection,
   RolesSection,
   StagesSection,
-  WorkflowSection,
 } from "@/components/landing";
 
 export default function HomePage() {
   return (
     <PageShell>
       <HeroSection />
+      <BenefitsSection />
       <StagesSection />
       <FeaturesSection />
       <RolesSection />
-      <WorkflowSection />
-      <ModulesSection />
+      <FaqSection />
       <CtaSection />
     </PageShell>
   );
