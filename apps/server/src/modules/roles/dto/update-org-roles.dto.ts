@@ -1,6 +1,6 @@
 import { Type } from 'class-transformer';
 import { IsIn, IsObject, IsString, ValidateNested } from 'class-validator';
-import { CONFIGURABLE_ROLE_CODES } from '../org-permissions.constants';
+import { CONFIGURABLE_ROLE_CODES } from '@repo/database';
 
 export class UpdateOrgRoleItemDto {
   @IsString()

@@ -1,5 +1,5 @@
 import { IsEmail, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
-import type { ConfigurableRoleCode } from '../../roles/org-permissions.constants';
+import type { ConfigurableRoleCode } from '@repo/database';
 
 const ADMIN_EDITABLE_STATUSES = [
   'VERIFIED',

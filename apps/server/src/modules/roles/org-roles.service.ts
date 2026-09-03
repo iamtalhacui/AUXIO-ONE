@@ -8,7 +8,7 @@ import {
   CONFIGURABLE_ROLE_NAMES,
   ORG_PERMISSION_CODES,
   type ConfigurableRoleCode,
-} from './org-permissions.constants';
+} from '@repo/database';
 import type { Prisma } from '@repo/database';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { UpdateOrgRolesDto } from './dto/update-org-roles.dto';

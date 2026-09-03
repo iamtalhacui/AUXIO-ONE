@@ -1,9 +1,9 @@
 {
-  "name": "@repo/client",
+  "name": "client",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3001",
+    "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"

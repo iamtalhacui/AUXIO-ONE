@@ -1,4 +1,3 @@
-import '../load-env';
 import type { JwtSignOptions } from '@nestjs/jwt';
 
 const defaultSessionDuration = '8h' as const satisfies JwtSignOptions['expiresIn'];

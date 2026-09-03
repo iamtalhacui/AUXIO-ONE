@@ -4,7 +4,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import type { ConfigurableRoleCode } from '../roles/org-permissions.constants';
+import type { ConfigurableRoleCode } from '@repo/database';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { OrgRolesService } from '../roles/org-roles.service';
 import { RegisterTeamMemberDto } from './dto/register-team-member.dto';

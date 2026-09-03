@@ -3,7 +3,7 @@ import {
   IsIn,
   IsString,
 } from 'class-validator';
-import { CONFIGURABLE_ROLE_CODES } from '../../roles/org-permissions.constants';
+import { CONFIGURABLE_ROLE_CODES } from '@repo/database';
 
 const SERVICE_LINES = ['NDIS', 'AGED_CARE', 'FIELD_SERVICES'] as const;
 

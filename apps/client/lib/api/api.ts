@@ -47,7 +47,7 @@ import type {
 import type { RootState } from "@/lib/store/store";
 import { logout } from "@/lib/features/auth/authSlice";
 
-const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
+const baseUrl = process.env.SERVER_URL ?? "http://localhost:4000";
 
 const rawBaseQuery = fetchBaseQuery({
   baseUrl,
