@@ -1,24 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useAppSelector } from "@/lib/store/hooks";
-import { useListOrgModulesQuery } from "@/lib/api/api";
+import { mockEntitlements, mockUser } from "@/lib/mocks/data";
 
 export function OrgAdminOverview() {
-  const user = useAppSelector((state) => state.auth.user);
-  const organisationId = user?.organisationId;
-  const { data: modules } = useListOrgModulesQuery(organisationId ?? "", {
-    skip: !organisationId,
-  });
-
-  const enabledCount = modules?.filter((module) => module.enabled).length ?? 0;
-  const ceilingCount = modules?.length ?? 0;
+  const enabledCount = mockEntitlements.filter((module) => module.enabled).length;
+  const ceilingCount = mockEntitlements.length;
 
   return (
     <div className="space-y-6">
       <div className="dashboard-card p-8">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent">Org Admin</p>
-        <h1 className="mt-3 text-2xl font-semibold">Welcome, {user?.name ?? "Admin"}</h1>
+        <h1 className="mt-3 text-2xl font-semibold">Welcome, {mockUser.name}</h1>
         <p className="mt-3 max-w-2xl text-sm leading-6 text-muted">
           Manage your organisation workspace. Open configuration to update branding, enable modules, or change your password.
         </p>

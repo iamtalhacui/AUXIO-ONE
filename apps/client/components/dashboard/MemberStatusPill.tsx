@@ -1,16 +1,12 @@
-import type { TeamMember } from "@/lib/api/types";
+import type { TeamMember, TeamMemberStatus } from "@/lib/mocks/data";
 
-const STATUS_MAP: Record<
-  TeamMember["status"],
-  { label: string; className: string }
-> = {
+const STATUS_MAP: Record<TeamMemberStatus, { label: string; className: string }> = {
   VERIFIED: { label: "Active", className: "status-pill-active" },
-  ACTIVE: { label: "Active", className: "status-pill-active" },
   INVITED: { label: "Invited", className: "status-pill-pending" },
-  PROCESSING: { label: "Onboarding", className: "status-pill-pending" },
-  SUBMITTED: { label: "Pending review", className: "status-pill-review" },
-  RESTRICTED: { label: "Restricted", className: "status-pill-inactive" },
-  DEACTIVATED: { label: "Inactive", className: "status-pill-inactive" },
+  MUST_CHANGE_PASSWORD: { label: "Must change password", className: "status-pill-pending" },
+  ONBOARDING: { label: "Onboarding", className: "status-pill-pending" },
+  PENDING_APPROVAL: { label: "Pending review", className: "status-pill-review" },
+  SUSPENDED: { label: "Suspended", className: "status-pill-inactive" },
 };
 
 export function MemberStatusPill({ status }: { status: TeamMember["status"] }) {
@@ -19,7 +15,7 @@ export function MemberStatusPill({ status }: { status: TeamMember["status"] }) {
 }
 
 export function getMemberTabCategory(status: TeamMember["status"]): "active" | "inactive" | "all" {
-  if (status === "DEACTIVATED" || status === "RESTRICTED") return "inactive";
-  if (status === "VERIFIED" || status === "ACTIVE") return "active";
+  if (status === "SUSPENDED") return "inactive";
+  if (status === "VERIFIED") return "active";
   return "all";
 }

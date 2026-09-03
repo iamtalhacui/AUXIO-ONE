@@ -1,11 +1,8 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useCreateOrganisationMutation, useListPlatformModulesQuery } from "@/lib/api/api";
-import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { mockModules } from "@/lib/mocks/data";
 import {
-  ASSIGNABLE_MODULE_CODES,
   getModuleCodesForTemplate,
   MODULE_CEILING_TEMPLATES,
   type ModuleCeilingTemplate,
@@ -20,21 +17,11 @@ const timeZones = [
 ];
 
 export function RegisterOrganisationForm() {
-  const router = useRouter();
-  const [createOrganisation, { isLoading }] = useCreateOrganisationMutation();
-  const { data: platformModules = [] } = useListPlatformModulesQuery();
-
-  const assignableModules = useMemo(
-    () =>
-      platformModules.filter((module) =>
-        ASSIGNABLE_MODULE_CODES.includes(module.code as (typeof ASSIGNABLE_MODULE_CODES)[number]),
-      ),
-    [platformModules],
-  );
+  const assignableModules = mockModules;
 
   const moduleNameByCode = useMemo(
-    () => Object.fromEntries(platformModules.map((module) => [module.code, module.name])),
-    [platformModules],
+    () => Object.fromEntries(mockModules.map((module) => [module.code, module.name])),
+    [],
   );
 
   const [legalName, setLegalName] = useState("");
@@ -43,7 +30,9 @@ export function RegisterOrganisationForm() {
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [template, setTemplate] = useState<ModuleCeilingTemplate>("BASIC");
-  const [customModules, setCustomModules] = useState<string[]>(["03", "05", "06"]);
+  const [customModules, setCustomModules] = useState<string[]>(
+    mockModules.slice(0, 3).map((m) => m.code),
+  );
   const [orgAdminName, setOrgAdminName] = useState("");
   const [orgAdminEmail, setOrgAdminEmail] = useState("");
   const [error, setError] = useState("");
@@ -65,7 +54,7 @@ export function RegisterOrganisationForm() {
     );
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
     setSuccess("");
@@ -75,29 +64,7 @@ export function RegisterOrganisationForm() {
       return;
     }
 
-    try {
-      const result = await createOrganisation({
-        legalName,
-        tradingName: tradingName || undefined,
-        contactEmail,
-        contactPhone: contactPhone || undefined,
-        timeZone,
-        moduleCeilingTemplate: template,
-        moduleCeilingCodes: template === "CUSTOM" ? customModules : undefined,
-        orgAdminEmail,
-        orgAdminName,
-      }).unwrap();
-
-      setSuccess(
-        result.inviteEmail?.sent
-          ? `Organisation created. Invitation email sent to ${result.orgAdmin.email}. Ask them to check inbox and spam.`
-          : `Organisation created, but the invitation email to ${result.orgAdmin.email} could not be sent. Check server Gmail settings.`,
-      );
-
-      setTimeout(() => router.push("/super-admin/organisations"), 2000);
-    } catch (err) {
-      setError(getErrorMessage(err, "Could not register organisation"));
-    }
+    setSuccess("Organisation registration is unavailable in demo mode.");
   }
 
   return (
@@ -288,10 +255,9 @@ export function RegisterOrganisationForm() {
       <div className="dashboard-card flex flex-wrap gap-3 p-6">
         <button
           type="submit"
-          disabled={isLoading}
           className="inline-flex items-center justify-center rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:bg-primary-light disabled:opacity-70"
         >
-          {isLoading ? "Registering..." : "Register organisation"}
+          Register organisation
         </button>
       </div>
     </form>

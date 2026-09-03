@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useListOrganisationsQuery } from "@/lib/api/api";
+import { mockOrganisations } from "@/lib/mocks/data";
 
 const statusStyles = {
   ACTIVE: "bg-primary/10 text-primary",
@@ -18,8 +18,7 @@ function formatDate(value: string) {
 }
 
 export function RecentOrganisationsCard() {
-  const { data: organisations = [] } = useListOrganisationsQuery();
-  const recent = [...organisations]
+  const recent = [...mockOrganisations]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 5);
 

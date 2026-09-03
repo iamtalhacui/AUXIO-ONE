@@ -1,15 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { PermissionPill } from "@/components/org-admin/roles/PermissionPill";
-import {
-  useGetOrgRolesQuery,
-  useResetOrgRolesMutation,
-  useUpdateOrgRolesMutation,
-} from "@/lib/api/api";
-import { getErrorMessage } from "@/lib/api/getErrorMessage";
-import { useAppSelector } from "@/lib/store/hooks";
 import {
   CONFIGURABLE_ROLES,
   countGrantedPermissions,
@@ -20,73 +13,19 @@ import {
   type RolePermissionMatrix,
 } from "@/lib/dashboard/content/org-admin-roles";
 
-function matrixFromApiRoles(
-  roles: Array<{ code: string; capabilities: Record<string, boolean> }>,
-): RolePermissionMatrix {
-  const matrix = structuredClone(DEFAULT_PERMISSION_MATRIX);
-
-  for (const role of roles) {
-    const roleId = role.code as ConfigurableRoleId;
-    if (!matrix[roleId]) continue;
-
-    for (const [key, allowed] of Object.entries(role.capabilities)) {
-      matrix[roleId][key as PermissionId] = allowed;
-    }
-  }
-
-  return matrix;
-}
-
 export function OrgAdminRolesContent() {
-  const organisationId = useAppSelector((state) => state.auth.user?.organisationId);
-  const { data, isLoading, error } = useGetOrgRolesQuery(organisationId ?? "", {
-    skip: !organisationId,
-  });
-  const [updateRoles, { isLoading: isSaving }] = useUpdateOrgRolesMutation();
-  const [resetRoles, { isLoading: isResetting }] = useResetOrgRolesMutation();
-
-  const [permissions, setPermissions] = useState<RolePermissionMatrix>(DEFAULT_PERMISSION_MATRIX);
+  const [permissions, setPermissions] = useState<RolePermissionMatrix>(
+    () => structuredClone(DEFAULT_PERMISSION_MATRIX),
+  );
   const [savedSnapshot, setSavedSnapshot] = useState<string>(
-    JSON.stringify(DEFAULT_PERMISSION_MATRIX),
+    () => JSON.stringify(DEFAULT_PERMISSION_MATRIX),
   );
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!data?.roles) return;
-    const matrix = matrixFromApiRoles(data.roles);
-    setPermissions(matrix);
-    setSavedSnapshot(JSON.stringify(matrix));
-    setSaveMessage(null);
-    setActionError(null);
-  }, [data]);
 
   const isDirty = useMemo(
     () => JSON.stringify(permissions) !== savedSnapshot,
     [permissions, savedSnapshot],
   );
-
-  if (!organisationId) {
-    return (
-      <div className="dashboard-card p-6 text-sm text-muted">
-        No organisation is linked to your account.
-      </div>
-    );
-  }
-
-  const orgId = organisationId;
-
-  if (isLoading) {
-    return <div className="dashboard-card p-6 text-sm text-muted">Loading roles...</div>;
-  }
-
-  if (error) {
-    return (
-      <div className="dashboard-card p-6 text-sm text-red-700">
-        {getErrorMessage(error, "Could not load role permissions")}
-      </div>
-    );
-  }
 
   function togglePermission(roleId: ConfigurableRoleId, permissionId: PermissionId) {
     setPermissions((current) => ({
@@ -97,44 +36,18 @@ export function OrgAdminRolesContent() {
       },
     }));
     setSaveMessage(null);
-    setActionError(null);
   }
 
-  async function handleSave() {
-    setActionError(null);
-
-    try {
-      const result = await updateRoles({
-        organisationId: orgId,
-        roles: CONFIGURABLE_ROLES.map((role) => ({
-          code: role.id,
-          capabilities: permissions[role.id],
-        })),
-      }).unwrap();
-
-      const matrix = matrixFromApiRoles(result.roles);
-      setPermissions(matrix);
-      setSavedSnapshot(JSON.stringify(matrix));
-      setSaveMessage("Role permissions saved.");
-    } catch (err) {
-      setSaveMessage(null);
-      setActionError(getErrorMessage(err, "Could not save role permissions"));
-    }
+  function handleSave() {
+    setSavedSnapshot(JSON.stringify(permissions));
+    setSaveMessage("Role permissions saved.");
   }
 
-  async function handleReset() {
-    setActionError(null);
-
-    try {
-      const result = await resetRoles(orgId).unwrap();
-      const matrix = matrixFromApiRoles(result.roles);
-      setPermissions(matrix);
-      setSavedSnapshot(JSON.stringify(matrix));
-      setSaveMessage("Role permissions reset to defaults.");
-    } catch (err) {
-      setSaveMessage(null);
-      setActionError(getErrorMessage(err, "Could not reset role permissions"));
-    }
+  function handleReset() {
+    const defaults = structuredClone(DEFAULT_PERMISSION_MATRIX);
+    setPermissions(defaults);
+    setSavedSnapshot(JSON.stringify(defaults));
+    setSaveMessage("Role permissions reset to defaults.");
   }
 
   return (
@@ -152,18 +65,17 @@ export function OrgAdminRolesContent() {
             <button
               type="button"
               onClick={handleReset}
-              disabled={isResetting || isSaving}
-              className="rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-muted transition hover:border-primary/30 hover:text-foreground disabled:opacity-45"
+              className="rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-muted transition hover:border-primary/30 hover:text-foreground"
             >
               Reset defaults
             </button>
             <button
               type="button"
               onClick={handleSave}
-              disabled={!isDirty || isSaving || isResetting}
+              disabled={!isDirty}
               className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-light disabled:cursor-not-allowed disabled:opacity-45"
             >
-              {isSaving ? "Saving..." : "Save configuration"}
+              Save configuration
             </button>
           </div>
         }
@@ -172,12 +84,6 @@ export function OrgAdminRolesContent() {
       {saveMessage ? (
         <div className="rounded-2xl border border-primary/20 bg-primary/5 px-5 py-4 text-sm text-primary">
           {saveMessage}
-        </div>
-      ) : null}
-
-      {actionError ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
-          {actionError}
         </div>
       ) : null}
 

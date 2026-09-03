@@ -2,9 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { useListOrganisationsQuery } from "@/lib/api/api";
-import { getErrorMessage } from "@/lib/api/getErrorMessage";
-import type { OrgStatus } from "@/lib/api/types";
+import { mockOrganisations, type OrgStatus } from "@/lib/mocks/data";
 import { OrgStatusBadge } from "@/components/dashboard/StatusBadge";
 
 function formatDate(value: string) {
@@ -16,7 +14,7 @@ function formatDate(value: string) {
 }
 
 export function OrganisationsPageContent() {
-  const { data: organisations = [], isLoading, error } = useListOrganisationsQuery();
+  const organisations = mockOrganisations;
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
 
@@ -32,18 +30,6 @@ export function OrganisationsPageContent() {
       return matchesQuery && matchesStatus;
     });
   }, [organisations, query, statusFilter]);
-
-  if (isLoading) {
-    return <div className="dashboard-card p-6 text-sm text-muted">Loading organisations...</div>;
-  }
-
-  if (error) {
-    return (
-      <div className="dashboard-card p-6 text-sm text-red-700">
-        {getErrorMessage(error, "Could not load organisations")}
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">

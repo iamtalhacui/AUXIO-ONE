@@ -2,48 +2,13 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { useAcceptInviteMutation } from "@/lib/api/api";
-import { getErrorMessage } from "@/lib/api/getErrorMessage";
 
 export function AcceptInviteForm() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const token = searchParams.get("token") ?? "";
-
-  const [acceptInvite, { isLoading }] = useAcceptInviteMutation();
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError("");
-    setSuccess("");
-
-    if (!token) {
-      setError("This invitation link is missing a token. Ask your administrator to resend the invite.");
-      return;
-    }
-
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
-      return;
-    }
-
-    if (password !== passwordConfirm) {
-      setError("Passwords do not match.");
-      return;
-    }
-
-    try {
-      const result = await acceptInvite({ token, password }).unwrap();
-      setSuccess(`Account activated for ${result.email}. You can now sign in.`);
-      setTimeout(() => router.replace("/login"), 2000);
-    } catch (err) {
-      setError(getErrorMessage(err, "Could not accept invitation"));
-    }
   }
 
   return (
@@ -94,24 +59,11 @@ export function AcceptInviteForm() {
             />
           </label>
 
-          {error ? (
-            <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
-            </p>
-          ) : null}
-
-          {success ? (
-            <p className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">
-              {success}
-            </p>
-          ) : null}
-
           <button
             type="submit"
-            disabled={isLoading}
             className="flex w-full items-center justify-center rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:bg-primary-light disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {isLoading ? "Activating..." : "Activate account"}
+            Activate account
           </button>
         </form>
 

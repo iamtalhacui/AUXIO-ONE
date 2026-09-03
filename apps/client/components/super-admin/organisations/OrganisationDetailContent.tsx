@@ -1,16 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import {
-  useGetOrganisationQuery,
-  useListPlatformModulesQuery,
-  useUpdateModuleCeilingMutation,
-  useUpdateOrganisationMutation,
-} from "@/lib/api/api";
-import { getErrorMessage } from "@/lib/api/getErrorMessage";
-import { ASSIGNABLE_MODULE_CODES } from "@/lib/dashboard/content/module-templates";
-import type { OrgStatus } from "@/lib/api/types";
+  mockEntitlements,
+  mockModules,
+  mockOrganisations,
+  type OrgStatus,
+} from "@/lib/mocks/data";
 import { OrgStatusBadge } from "@/components/dashboard/StatusBadge";
 
 const timeZones = [
@@ -32,42 +29,34 @@ function formatDate(value: string) {
 }
 
 export function OrganisationDetailContent({ organisationId }: { organisationId: string }) {
-  const { data, isLoading, error } = useGetOrganisationQuery(organisationId);
-  const { data: platformModules = [] } = useListPlatformModulesQuery();
-  const [updateOrganisation, { isLoading: isSavingDetails }] = useUpdateOrganisationMutation();
-  const [updateModuleCeiling, { isLoading: isSavingCeiling }] = useUpdateModuleCeilingMutation();
+  const org =
+    mockOrganisations.find((item) => item.id === organisationId) ?? mockOrganisations[0];
 
-  const assignableModules = useMemo(
+  const moduleEntitlements = useMemo(
     () =>
-      platformModules.filter((module) =>
-        ASSIGNABLE_MODULE_CODES.includes(module.code as (typeof ASSIGNABLE_MODULE_CODES)[number]),
-      ),
-    [platformModules],
+      mockEntitlements.map((item, index) => ({
+        ...item,
+        enabled: index < org.modulesEnabled,
+        ceilingGranted: index < org.modulesGranted,
+      })),
+    [org.modulesEnabled, org.modulesGranted],
   );
 
-  const [legalName, setLegalName] = useState("");
-  const [tradingName, setTradingName] = useState("");
-  const [contactEmail, setContactEmail] = useState("");
-  const [contactPhone, setContactPhone] = useState("");
-  const [timeZone, setTimeZone] = useState(timeZones[0]);
-  const [status, setStatus] = useState<OrgStatus>("ACTIVE");
-  const [selectedModules, setSelectedModules] = useState<string[]>([]);
+  const assignableModules = mockModules;
+
+  const [legalName, setLegalName] = useState(org.legalName);
+  const [tradingName, setTradingName] = useState(org.tradingName ?? "");
+  const [contactEmail, setContactEmail] = useState(org.contactEmail);
+  const [contactPhone, setContactPhone] = useState(org.contactPhone ?? "");
+  const [timeZone, setTimeZone] = useState(org.timeZone);
+  const [status, setStatus] = useState<OrgStatus>(org.status);
+  const [selectedModules, setSelectedModules] = useState<string[]>(
+    moduleEntitlements.filter((item) => item.ceilingGranted).map((item) => item.moduleCode),
+  );
   const [detailsMessage, setDetailsMessage] = useState("");
   const [detailsError, setDetailsError] = useState("");
   const [ceilingMessage, setCeilingMessage] = useState("");
   const [ceilingError, setCeilingError] = useState("");
-
-  useEffect(() => {
-    if (!data) return;
-
-    setLegalName(data.legalName);
-    setTradingName(data.tradingName ?? "");
-    setContactEmail(data.contactEmail);
-    setContactPhone(data.contactPhone ?? "");
-    setTimeZone(data.timeZone);
-    setStatus(data.status);
-    setSelectedModules(data.moduleEntitlements.map((item) => item.moduleCode));
-  }, [data]);
 
   function toggleModule(code: string) {
     setSelectedModules((current) =>
@@ -75,30 +64,13 @@ export function OrganisationDetailContent({ organisationId }: { organisationId: 
     );
   }
 
-  async function handleSaveDetails(event: FormEvent<HTMLFormElement>) {
+  function handleSaveDetails(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setDetailsMessage("");
     setDetailsError("");
-
-    try {
-      await updateOrganisation({
-        id: organisationId,
-        body: {
-          legalName,
-          tradingName: tradingName || undefined,
-          contactEmail,
-          contactPhone: contactPhone || undefined,
-          timeZone,
-          status,
-        },
-      }).unwrap();
-      setDetailsMessage("Organisation details saved.");
-    } catch (err) {
-      setDetailsError(getErrorMessage(err, "Could not save organisation details"));
-    }
+    setDetailsMessage("Organisation details saved.");
   }
 
-  async function handleSaveCeiling(event: FormEvent<HTMLFormElement>) {
+  function handleSaveCeiling(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setCeilingMessage("");
     setCeilingError("");
@@ -108,30 +80,10 @@ export function OrganisationDetailContent({ organisationId }: { organisationId: 
       return;
     }
 
-    try {
-      await updateModuleCeiling({
-        id: organisationId,
-        body: { moduleCeilingCodes: selectedModules },
-      }).unwrap();
-      setCeilingMessage("Module ceiling updated.");
-    } catch (err) {
-      setCeilingError(getErrorMessage(err, "Could not update module ceiling"));
-    }
+    setCeilingMessage("Module ceiling updated.");
   }
 
-  if (isLoading) {
-    return <div className="dashboard-card p-6 text-sm text-muted">Loading organisation...</div>;
-  }
-
-  if (error || !data) {
-    return (
-      <div className="dashboard-card p-6 text-sm text-red-700">
-        {getErrorMessage(error, "Organisation not found")}
-      </div>
-    );
-  }
-
-  const enabledModules = data.moduleEntitlements.filter((item) => item.enabled);
+  const enabledModules = moduleEntitlements.filter((item) => item.enabled);
 
   return (
     <div className="space-y-6">
@@ -147,14 +99,14 @@ export function OrganisationDetailContent({ organisationId }: { organisationId: 
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-accent">Tenant</p>
             <h1 className="mt-2 text-2xl font-semibold">
-              {data.tradingName ?? data.legalName}
+              {org.tradingName ?? org.legalName}
             </h1>
-            <p className="mt-1 text-sm text-muted">{data.legalName}</p>
+            <p className="mt-1 text-sm text-muted">{org.legalName}</p>
           </div>
-          <OrgStatusBadge status={data.status} />
+          <OrgStatusBadge status={org.status} />
         </div>
         <p className="mt-4 text-sm text-muted">
-          Registered {formatDate(data.createdAt)} · Last updated {formatDate(data.updatedAt)}
+          Registered {formatDate(org.createdAt)} · Last updated {formatDate(org.createdAt)}
         </p>
       </div>
 
@@ -246,28 +198,27 @@ export function OrganisationDetailContent({ organisationId }: { organisationId: 
 
         <button
           type="submit"
-          disabled={isSavingDetails}
           className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-light disabled:opacity-70"
         >
-          {isSavingDetails ? "Saving..." : "Save details"}
+          Save details
         </button>
       </form>
 
       <div className="dashboard-card p-6">
         <h2 className="text-lg font-semibold">Org Admin</h2>
-        {data.orgAdmin ? (
+        {org.orgAdminEmail ? (
           <dl className="mt-4 grid gap-4 sm:grid-cols-2">
             <div>
               <dt className="text-xs uppercase tracking-wide text-muted">Name</dt>
-              <dd className="mt-1 text-sm font-medium">{data.orgAdmin.name}</dd>
+              <dd className="mt-1 text-sm font-medium">{org.orgAdminName ?? "—"}</dd>
             </div>
             <div>
               <dt className="text-xs uppercase tracking-wide text-muted">Email</dt>
-              <dd className="mt-1 text-sm font-medium">{data.orgAdmin.email}</dd>
+              <dd className="mt-1 text-sm font-medium">{org.orgAdminEmail}</dd>
             </div>
             <div>
               <dt className="text-xs uppercase tracking-wide text-muted">Account status</dt>
-              <dd className="mt-1 text-sm font-medium">{data.orgAdmin.status}</dd>
+              <dd className="mt-1 text-sm font-medium">VERIFIED</dd>
             </div>
           </dl>
         ) : (
@@ -281,7 +232,7 @@ export function OrganisationDetailContent({ organisationId }: { organisationId: 
             <h2 className="text-lg font-semibold">Module ceiling</h2>
             <p className="mt-1 text-sm text-muted">
               Modules granted here define what the Org Admin may enable. Currently{" "}
-              {enabledModules.length} of {data.moduleEntitlements.length} granted modules are enabled.
+              {enabledModules.length} of {moduleEntitlements.length} granted modules are enabled.
             </p>
           </div>
           <span className="rounded-full bg-surface-muted px-3 py-1 text-xs font-semibold text-muted">
@@ -298,7 +249,7 @@ export function OrganisationDetailContent({ organisationId }: { organisationId: 
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {assignableModules.map((module) => {
-            const isEnabled = data.moduleEntitlements.some(
+            const isEnabled = moduleEntitlements.some(
               (item) => item.moduleCode === module.code && item.enabled,
             );
             const checked = selectedModules.includes(module.code);
@@ -344,10 +295,9 @@ export function OrganisationDetailContent({ organisationId }: { organisationId: 
 
         <button
           type="submit"
-          disabled={isSavingCeiling}
           className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-light disabled:opacity-70"
         >
-          {isSavingCeiling ? "Saving..." : "Save module ceiling"}
+          Save module ceiling
         </button>
       </form>
     </div>

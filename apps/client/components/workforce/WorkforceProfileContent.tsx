@@ -1,91 +1,31 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
-import {
-  useGetMyWorkforceProfileQuery,
-  useUpdateMyWorkforceProfileMutation,
-} from "@/lib/api/api";
-import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { mockOrganisations, mockUser } from "@/lib/mocks/data";
 import { AU_STATES } from "@/lib/onboarding/constants";
 import { inputClass, labelClass } from "@/lib/onboarding/form-styles";
-import { updateUser } from "@/lib/features/auth/authSlice";
-import { useAppDispatch } from "@/lib/store/hooks";
 
 const GENDER_OPTIONS = ["Female", "Male", "Non-binary", "Prefer not to say", "Other"];
 
 export function WorkforceProfileContent() {
-  const dispatch = useAppDispatch();
-  const { data, isLoading, error } = useGetMyWorkforceProfileQuery();
-  const [updateProfile, { isLoading: isSaving }] = useUpdateMyWorkforceProfileMutation();
-
   const [form, setForm] = useState({
-    name: "",
+    name: mockUser.name,
     phone: "",
     addressLine1: "",
     addressLine2: "",
     suburb: "",
     state: "",
     postcode: "",
-    preferredName: "",
+    preferredName: mockUser.name.split(" ")[0] ?? "",
     dateOfBirth: "",
     gender: "",
     languages: "",
     bio: "",
   });
-  const [saveError, setSaveError] = useState("");
-  const [success, setSuccess] = useState("");
 
-  useEffect(() => {
-    if (!data) return;
-    setForm({
-      name: data.name,
-      phone: data.phone,
-      addressLine1: data.addressLine1,
-      addressLine2: data.addressLine2,
-      suburb: data.suburb,
-      state: data.state,
-      postcode: data.postcode,
-      preferredName: data.preferredName,
-      dateOfBirth: data.dateOfBirth,
-      gender: data.gender,
-      languages: data.languages,
-      bio: data.bio,
-    });
-  }, [data]);
-
-  async function handleSubmit(event: FormEvent) {
+  function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    setSaveError("");
-    setSuccess("");
-
-    try {
-      const result = await updateProfile(form).unwrap();
-      dispatch(
-        updateUser({
-          id: result.id,
-          email: result.email,
-          name: result.name,
-          role: result.role ?? undefined,
-          status: result.status,
-        }),
-      );
-      setSuccess("Profile updated.");
-    } catch (err) {
-      setSaveError(getErrorMessage(err, "Could not update profile"));
-    }
-  }
-
-  if (isLoading) {
-    return <div className="dashboard-card p-6 text-sm text-muted">Loading profile...</div>;
-  }
-
-  if (error || !data) {
-    return (
-      <div className="dashboard-card p-6 text-sm text-red-700">
-        {getErrorMessage(error, "Could not load profile")}
-      </div>
-    );
   }
 
   return (
@@ -110,18 +50,18 @@ export function WorkforceProfileContent() {
             </label>
             <label className="block">
               <span className={labelClass}>Email</span>
-              <input className={`${inputClass} bg-surface-muted text-muted`} value={data.email} readOnly />
+              <input className={`${inputClass} bg-surface-muted text-muted`} value={mockUser.email} readOnly />
             </label>
             <div className="block">
               <span className={labelClass}>Role</span>
               <p className="rounded-xl border border-border bg-surface-muted px-4 py-3 text-sm">
-                {data.roleName ?? data.role ?? "—"}
+                {mockUser.role}
               </p>
             </div>
             <div className="block">
               <span className={labelClass}>Organisation</span>
               <p className="rounded-xl border border-border bg-surface-muted px-4 py-3 text-sm">
-                {data.organisationName ?? "—"}
+                {mockOrganisations[0].tradingName ?? mockOrganisations[0].legalName}
               </p>
             </div>
           </div>
@@ -243,24 +183,12 @@ export function WorkforceProfileContent() {
           </div>
         </section>
 
-        {saveError ? (
-          <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {saveError}
-          </p>
-        ) : null}
-        {success ? (
-          <p className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">
-            {success}
-          </p>
-        ) : null}
-
         <div className="flex justify-end">
           <button
             type="submit"
-            disabled={isSaving}
-            className="rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white hover:bg-primary-light disabled:opacity-60"
+            className="rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white hover:bg-primary-light"
           >
-            {isSaving ? "Saving..." : "Save profile"}
+            Save profile
           </button>
         </div>
       </form>

@@ -1,55 +1,15 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import Link from "next/link";
-import { useLoginMutation } from "@/lib/api/api";
-import { getErrorMessage } from "@/lib/api/getErrorMessage";
-import { setCredentials } from "@/lib/features/auth/authSlice";
-import { useAppDispatch } from "@/lib/store/hooks";
 import { loginCopy } from "@/lib/content/auth";
-import { getDashboardHomeForRole } from "@/lib/dashboard/roles";
-import { getPostAuthPath } from "@/lib/dashboard/user-lifecycle";
-
-function getRedirectPath(
-  role?: string,
-  status?: string,
-  mustChangePassword?: boolean,
-) {
-  return getPostAuthPath(
-    role,
-    status,
-    mustChangePassword,
-    getDashboardHomeForRole(role),
-  );
-}
 
 export function LoginForm() {
-  const router = useRouter();
-  const dispatch = useAppDispatch();
-  const [login, { isLoading }] = useLoginMutation();
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError("");
-
-    try {
-      const result = await login({ email, password }).unwrap();
-      dispatch(setCredentials(result));
-      router.replace(
-        getRedirectPath(
-          result.user.role,
-          result.user.status,
-          result.mustChangePassword,
-        ),
-      );
-    } catch (err) {
-      setError(getErrorMessage(err, "Login failed"));
-    }
   }
 
   return (
@@ -99,18 +59,11 @@ export function LoginForm() {
             />
           </label>
 
-          {error ? (
-            <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
-            </p>
-          ) : null}
-
           <button
             type="submit"
-            disabled={isLoading}
             className="flex w-full items-center justify-center rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:bg-primary-light disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {isLoading ? "Signing in..." : "Sign in"}
+            Sign in
           </button>
         </form>
 

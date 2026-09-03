@@ -1,6 +1,6 @@
 "use client";
 
-import { useListOrganisationsQuery } from "@/lib/api/api";
+import { mockOrganisations } from "@/lib/mocks/data";
 
 function MiniBars({ bars }: { bars: number[] }) {
   const max = Math.max(...bars, 1);
@@ -19,7 +19,7 @@ function MiniBars({ bars }: { bars: number[] }) {
 }
 
 export function OverviewStatCards() {
-  const { data: organisations = [] } = useListOrganisationsQuery();
+  const organisations = mockOrganisations;
 
   const active = organisations.filter((org) => org.status === "ACTIVE").length;
   const pendingInvites = organisations.filter((org) => org.orgAdminEmail).length;

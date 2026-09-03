@@ -1,7 +1,6 @@
 "use client";
 
-import { useListPlatformEntitlementsQuery } from "@/lib/api/api";
-import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { mockEntitlements, mockOrganisations } from "@/lib/mocks/data";
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString("en-AU", {
@@ -11,21 +10,19 @@ function formatDate(value: string) {
   });
 }
 
+const entitlements = mockOrganisations.flatMap((org) =>
+  mockEntitlements.map((entitlement, index) => ({
+    id: `${org.id}-${entitlement.moduleCode}`,
+    organisationName: org.tradingName ?? org.legalName,
+    moduleName: entitlement.moduleName,
+    moduleCode: entitlement.moduleCode,
+    ceilingGranted: index < org.modulesGranted,
+    enabled: index < org.modulesEnabled,
+    grantedAt: org.createdAt,
+  })),
+);
+
 export function EntitlementsPageContent() {
-  const { data: entitlements = [], isLoading, error } = useListPlatformEntitlementsQuery();
-
-  if (isLoading) {
-    return <div className="dashboard-card p-6 text-sm text-muted">Loading entitlements...</div>;
-  }
-
-  if (error) {
-    return (
-      <div className="dashboard-card p-6 text-sm text-red-700">
-        {getErrorMessage(error, "Could not load entitlements")}
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-3">

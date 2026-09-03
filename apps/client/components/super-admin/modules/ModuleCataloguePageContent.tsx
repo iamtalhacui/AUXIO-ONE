@@ -1,11 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { useListPlatformModulesQuery } from "@/lib/api/api";
-import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { mockModules } from "@/lib/mocks/data";
+
+const moduleCatalogue = mockModules.map((module, index) => ({
+  ...module,
+  isOperational: index < 3,
+}));
 
 export function ModuleCataloguePageContent() {
-  const { data: moduleCatalogue = [], isLoading, error } = useListPlatformModulesQuery();
   const [filter, setFilter] = useState<"ALL" | "OPERATIONAL" | "PLATFORM">("ALL");
 
   const filtered = moduleCatalogue.filter((module) => {
@@ -13,18 +16,6 @@ export function ModuleCataloguePageContent() {
     if (filter === "PLATFORM") return !module.isOperational;
     return true;
   });
-
-  if (isLoading) {
-    return <div className="dashboard-card p-6 text-sm text-muted">Loading modules...</div>;
-  }
-
-  if (error) {
-    return (
-      <div className="dashboard-card p-6 text-sm text-red-700">
-        {getErrorMessage(error, "Could not load module catalogue")}
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">

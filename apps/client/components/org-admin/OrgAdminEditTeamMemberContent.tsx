@@ -1,75 +1,45 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { FormEvent, useState } from "react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
-import { useGetTeamMemberQuery, useUpdateTeamMemberMutation } from "@/lib/api/api";
-import { getErrorMessage } from "@/lib/api/getErrorMessage";
-import type { ConfigurableRoleCode, TeamMember } from "@/lib/api/types";
+import type { ConfigurableRoleId } from "@/lib/dashboard/content/org-admin-roles";
 import { REGISTERABLE_ROLES } from "@/lib/dashboard/content/org-admin-team";
+import { mockTeamMembers, type TeamMember, type TeamMemberStatus } from "@/lib/mocks/data";
 import { inputClass, labelClass } from "@/lib/onboarding/form-styles";
 
 type OrgAdminEditTeamMemberContentProps = {
   memberId: string;
 };
 
-const STATUS_OPTIONS: Array<{ value: TeamMember["status"]; label: string }> = [
+const STATUS_OPTIONS: Array<{ value: TeamMemberStatus; label: string }> = [
   { value: "VERIFIED", label: "Verified — full access" },
-  { value: "ACTIVE", label: "Active" },
-  { value: "SUBMITTED", label: "Submitted — pending review" },
-  { value: "PROCESSING", label: "Processing — onboarding in progress" },
-  { value: "RESTRICTED", label: "Restricted" },
-  { value: "DEACTIVATED", label: "Deactivated — no system access" },
+  { value: "PENDING_APPROVAL", label: "Pending approval — awaiting review" },
+  { value: "ONBOARDING", label: "Onboarding — in progress" },
+  { value: "INVITED", label: "Invited" },
+  { value: "MUST_CHANGE_PASSWORD", label: "Must change password" },
+  { value: "SUSPENDED", label: "Suspended — no system access" },
 ];
 
+function mapRoleToConfigurable(role: string): ConfigurableRoleId {
+  if (role === "MANAGER" || role === "ROSTERING_EXPERT" || role === "EMPLOYEE") {
+    return role;
+  }
+  if (role === "TEAM_LEADER") return "MANAGER";
+  return "EMPLOYEE";
+}
+
 export function OrgAdminEditTeamMemberContent({ memberId }: OrgAdminEditTeamMemberContentProps) {
-  const router = useRouter();
-  const { data, isLoading, error } = useGetTeamMemberQuery(memberId);
-  const [updateMember, { isLoading: isSaving }] = useUpdateTeamMemberMutation();
+  const member: TeamMember =
+    mockTeamMembers.find((item) => item.id === memberId) ?? mockTeamMembers[0];
 
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState<ConfigurableRoleCode>("EMPLOYEE");
-  const [status, setStatus] = useState<TeamMember["status"]>("VERIFIED");
-  const [saveError, setSaveError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [name, setName] = useState(member.name);
+  const [email, setEmail] = useState(member.email);
+  const [role, setRole] = useState<ConfigurableRoleId>(mapRoleToConfigurable(member.role));
+  const [status, setStatus] = useState<TeamMemberStatus>(member.status);
 
-  useEffect(() => {
-    if (!data) return;
-    setName(data.name);
-    setEmail(data.email);
-    setRole((data.role?.code as ConfigurableRoleCode) ?? "EMPLOYEE");
-    setStatus(data.status);
-  }, [data]);
-
-  async function handleSubmit(event: FormEvent) {
+  function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    setSaveError("");
-    setSuccess("");
-
-    try {
-      await updateMember({
-        memberId,
-        body: { name, email, role, status },
-      }).unwrap();
-      setSuccess("Member updated.");
-      setTimeout(() => router.push("/org-admin/team"), 900);
-    } catch (err) {
-      setSaveError(getErrorMessage(err, "Could not update member"));
-    }
-  }
-
-  if (isLoading) {
-    return <div className="dashboard-card p-6 text-sm text-muted">Loading member...</div>;
-  }
-
-  if (error || !data) {
-    return (
-      <div className="dashboard-card p-6 text-sm text-red-700">
-        {getErrorMessage(error, "Could not load team member")}
-      </div>
-    );
   }
 
   return (
@@ -105,7 +75,7 @@ export function OrgAdminEditTeamMemberContent({ memberId }: OrgAdminEditTeamMemb
           </label>
           <label className="block">
             <span className={labelClass}>Role</span>
-            <select className={inputClass} value={role} onChange={(e) => setRole(e.target.value as ConfigurableRoleCode)}>
+            <select className={inputClass} value={role} onChange={(e) => setRole(e.target.value as ConfigurableRoleId)}>
               {REGISTERABLE_ROLES.map((item) => (
                 <option key={item.code} value={item.code}>
                   {item.label}
@@ -118,7 +88,7 @@ export function OrgAdminEditTeamMemberContent({ memberId }: OrgAdminEditTeamMemb
             <select
               className={inputClass}
               value={status}
-              onChange={(e) => setStatus(e.target.value as TeamMember["status"])}
+              onChange={(e) => setStatus(e.target.value as TeamMemberStatus)}
             >
               {STATUS_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -129,32 +99,24 @@ export function OrgAdminEditTeamMemberContent({ memberId }: OrgAdminEditTeamMemb
           </label>
         </div>
 
-        {status === "DEACTIVATED" ? (
+        {status === "SUSPENDED" ? (
           <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
             This member will be unable to sign in. Their onboarding records and history are retained.
           </p>
         ) : null}
 
-        {saveError ? (
-          <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{saveError}</p>
-        ) : null}
-        {success ? (
-          <p className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">{success}</p>
-        ) : null}
-
         <div className="flex justify-end gap-3">
           <Link
-            href={`/org-admin/team/${memberId}/review`}
+            href={`/org-admin/team/${member.id}/review`}
             className="rounded-xl border border-border px-5 py-2.5 text-sm font-semibold text-muted hover:border-primary/30"
           >
             View profile
           </Link>
           <button
             type="submit"
-            disabled={isSaving}
-            className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-light disabled:opacity-60"
+            className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-light"
           >
-            {isSaving ? "Saving..." : "Save changes"}
+            Save changes
           </button>
         </div>
       </form>

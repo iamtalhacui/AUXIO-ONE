@@ -2,51 +2,22 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/dashboard/PageHeader";
-import { useRegisterTeamMemberMutation } from "@/lib/api/api";
-import { getErrorMessage } from "@/lib/api/getErrorMessage";
-import type { ConfigurableRoleCode, RegisterTeamMemberRequest } from "@/lib/api/types";
+import type { ConfigurableRoleId } from "@/lib/dashboard/content/org-admin-roles";
 import { REGISTERABLE_ROLES } from "@/lib/dashboard/content/org-admin-team";
 import { SERVICE_LINE_OPTIONS } from "@/lib/onboarding/constants";
 
 const inputClass = "input-field";
 
 export function RegisterTeamMemberForm() {
-  const router = useRouter();
-  const [registerMember, { isLoading }] = useRegisterTeamMemberMutation();
-
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<ConfigurableRoleCode>("EMPLOYEE");
+  const [role, setRole] = useState<ConfigurableRoleId>("EMPLOYEE");
   const [serviceLine, setServiceLine] =
-    useState<RegisterTeamMemberRequest["serviceLine"]>("NDIS");
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+    useState<(typeof SERVICE_LINE_OPTIONS)[number]["value"]>("NDIS");
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError("");
-    setSuccess("");
-
-    try {
-      const result = await registerMember({
-        name,
-        email,
-        role,
-        serviceLine,
-      }).unwrap();
-
-      setSuccess(
-        result.inviteEmail?.sent
-          ? `Invitation email sent to ${result.email}. Ask them to check their inbox and spam folder.`
-          : `Account created for ${result.email}, but the invitation email could not be sent. Check server Gmail settings.`,
-      );
-
-      router.push("/org-admin/team");
-    } catch (err) {
-      setError(getErrorMessage(err, "Could not register team member"));
-    }
   }
 
   return (
@@ -155,25 +126,12 @@ export function RegisterTeamMemberForm() {
           </div>
         </section>
 
-        {error ? (
-          <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
-            {error}
-          </div>
-        ) : null}
-
-        {success ? (
-          <div className="rounded-2xl border border-primary/20 bg-primary/5 px-5 py-4 text-sm text-primary">
-            {success}
-          </div>
-        ) : null}
-
         <div className="flex flex-wrap gap-3">
           <button
             type="submit"
-            disabled={isLoading}
-            className="rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white transition hover:bg-primary-light disabled:opacity-50"
+            className="rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white transition hover:bg-primary-light"
           >
-            {isLoading ? "Sending..." : "Send Invite"}
+            Send Invite
           </button>
           <Link
             href="/org-admin/team"

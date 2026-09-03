@@ -1,34 +1,10 @@
 "use client";
 
-import { useListPlatformAuditQuery } from "@/lib/api/api";
-import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { mockAuditLog } from "@/lib/mocks/data";
 import { ActionBadge } from "@/components/dashboard/StatusBadge";
 
-function formatAuditDetails(entry: {
-  afterJson: unknown;
-  entityType: string;
-  organisation?: { tradingName: string | null; legalName: string } | null;
-}) {
-  const orgName =
-    entry.organisation?.tradingName ?? entry.organisation?.legalName ?? null;
-  if (orgName) return `${entry.entityType} · ${orgName}`;
-  return entry.entityType;
-}
-
 export function AuditLogPageContent() {
-  const { data: auditLog = [], isLoading, error } = useListPlatformAuditQuery();
-
-  if (isLoading) {
-    return <div className="dashboard-card p-6 text-sm text-muted">Loading audit log...</div>;
-  }
-
-  if (error) {
-    return (
-      <div className="dashboard-card p-6 text-sm text-red-700">
-        {getErrorMessage(error, "Could not load audit log")}
-      </div>
-    );
-  }
+  const auditLog = mockAuditLog;
 
   return (
     <div className="space-y-6">
@@ -63,9 +39,11 @@ export function AuditLogPageContent() {
                     <td className="px-6 py-4">
                       <ActionBadge action={entry.action} />
                     </td>
-                    <td className="px-6 py-4 font-medium">{entry.entityType}</td>
-                    <td className="px-6 py-4 text-muted">{formatAuditDetails(entry)}</td>
-                    <td className="px-6 py-4">{entry.actor?.name ?? "System"}</td>
+                    <td className="px-6 py-4 font-medium">
+                      {entry.organisationName ?? "Platform"}
+                    </td>
+                    <td className="px-6 py-4 text-muted">{entry.action}</td>
+                    <td className="px-6 py-4">{entry.actorEmail}</td>
                     <td className="px-6 py-4 text-muted">
                       {new Date(entry.createdAt).toLocaleString("en-AU")}
                     </td>

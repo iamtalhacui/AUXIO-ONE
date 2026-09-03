@@ -1,4 +1,4 @@
-import type { OrgStatus } from "@/lib/api/types";
+import type { OrgStatus } from "@/lib/mocks/data";
 
 const styles: Record<OrgStatus, string> = {
   ACTIVE: "bg-primary/10 text-primary",

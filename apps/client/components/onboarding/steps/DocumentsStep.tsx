@@ -1,9 +1,6 @@
 "use client";
 
 import type { ChangeEvent } from "react";
-import { useState } from "react";
-import { useUploadOnboardingDocumentMutation } from "@/lib/api/api";
-import { getErrorMessage } from "@/lib/api/getErrorMessage";
 import { sectionClass } from "@/lib/onboarding/form-styles";
 import type { OnboardingDocuments, UploadedFileMeta } from "@/lib/onboarding/types";
 
@@ -59,27 +56,20 @@ function formatFileSize(bytes: number) {
 }
 
 export function DocumentsStep({ value, onChange }: DocumentsStepProps) {
-  const [uploadDocument] = useUploadOnboardingDocumentMutation();
-  const [uploadingKey, setUploadingKey] = useState<string | null>(null);
-  const [error, setError] = useState("");
-
   function handleFile(key: keyof OnboardingDocuments) {
-    return async (event: ChangeEvent<HTMLInputElement>) => {
+    return (event: ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
       if (!file) return;
 
-      setError("");
-      setUploadingKey(key);
-
-      try {
-        const meta = await uploadDocument({ docType: key, file }).unwrap();
-        onChange({ ...value, [key]: meta as UploadedFileMeta });
-      } catch (err) {
-        setError(getErrorMessage(err, "Could not upload file"));
-      } finally {
-        setUploadingKey(null);
-        event.target.value = "";
-      }
+      const meta: UploadedFileMeta = {
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        uploadedAt: new Date().toISOString(),
+        storedName: file.name,
+      };
+      onChange({ ...value, [key]: meta });
+      event.target.value = "";
     };
   }
 
@@ -96,16 +86,9 @@ export function DocumentsStep({ value, onChange }: DocumentsStepProps) {
         </p>
       </div>
 
-      {error ? (
-        <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </p>
-      ) : null}
-
       <div className="space-y-4">
         {DOCUMENT_FIELDS.map((field) => {
           const uploaded = value[field.key];
-          const isUploading = uploadingKey === field.key;
 
           return (
             <div
@@ -149,18 +132,17 @@ export function DocumentsStep({ value, onChange }: DocumentsStepProps) {
                     </button>
                   </div>
                 ) : (
-                  <label className={`cursor-pointer ${isUploading ? "pointer-events-none opacity-60" : ""}`}>
+                  <label className="cursor-pointer">
                     <span className="inline-flex items-center gap-2 rounded-xl border border-dashed border-primary/30 bg-surface px-4 py-2.5 text-sm font-semibold text-primary transition hover:border-primary hover:bg-primary/5">
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                       </svg>
-                      {isUploading ? "Uploading..." : "Upload file"}
+                      Upload file
                     </span>
                     <input
                       type="file"
                       accept=".pdf,.jpg,.jpeg,.png"
                       className="hidden"
-                      disabled={isUploading}
                       onChange={handleFile(field.key)}
                     />
                   </label>

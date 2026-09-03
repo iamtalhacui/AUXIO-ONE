@@ -1,7 +1,6 @@
 "use client";
 
-import { useListPlatformInvitesQuery } from "@/lib/api/api";
-import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { mockInvites } from "@/lib/mocks/data";
 import { InviteStatusBadge } from "@/components/dashboard/StatusBadge";
 
 function formatDate(value: string) {
@@ -12,21 +11,18 @@ function formatDate(value: string) {
   });
 }
 
+const invites = mockInvites.map((invite) => ({
+  id: invite.id,
+  name: invite.email.split("@")[0] ?? invite.email,
+  email: invite.email,
+  organisation: invite.organisationName,
+  role: "ORG_ADMIN",
+  invitedAt: invite.createdAt,
+  rawStatus: invite.status,
+  status: (invite.status === "PENDING" ? "INVITED" : "EXPIRED") as "INVITED" | "EXPIRED",
+}));
+
 export function InvitesPageContent() {
-  const { data: invites = [], isLoading, error } = useListPlatformInvitesQuery();
-
-  if (isLoading) {
-    return <div className="dashboard-card p-6 text-sm text-muted">Loading invites...</div>;
-  }
-
-  if (error) {
-    return (
-      <div className="dashboard-card p-6 text-sm text-red-700">
-        {getErrorMessage(error, "Could not load invites")}
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-3">
@@ -39,7 +35,7 @@ export function InvitesPageContent() {
         <div className="dashboard-card p-5">
           <p className="text-sm text-muted">Onboarding</p>
           <p className="mt-2 text-3xl font-semibold text-accent">
-            {invites.filter((i) => i.status === "PROCESSING").length}
+            {invites.filter((i) => i.rawStatus === "PROCESSING").length}
           </p>
         </div>
         <div className="dashboard-card p-5">
@@ -81,7 +77,7 @@ export function InvitesPageContent() {
                     <td className="px-6 py-4">{invite.role}</td>
                     <td className="px-6 py-4 text-muted">{formatDate(invite.invitedAt)}</td>
                     <td className="px-6 py-4">
-                      <InviteStatusBadge status={invite.status as "INVITED" | "EXPIRED"} />
+                      <InviteStatusBadge status={invite.status} />
                     </td>
                   </tr>
                 ))

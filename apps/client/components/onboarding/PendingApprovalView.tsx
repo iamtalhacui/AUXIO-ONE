@@ -1,65 +1,18 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { OnboardingShell } from "@/components/onboarding/OnboardingShell";
-import { useGetMyOnboardingQuery } from "@/lib/api/api";
-import {
-  getWorkforceLifecyclePath,
-  isWorkforceOperationalStatus,
-} from "@/lib/dashboard/user-lifecycle";
-import { getDashboardHomeForRole } from "@/lib/dashboard/roles";
-import { useHasMounted } from "@/lib/hooks/useHasMounted";
-import { useAppSelector } from "@/lib/store/hooks";
+import { mockOrganisations } from "@/lib/mocks/data";
 
 export function PendingApprovalView() {
-  const mounted = useHasMounted();
-  const router = useRouter();
-  const { accessToken, mustChangePassword, user } = useAppSelector((state) => state.auth);
-  const { data } = useGetMyOnboardingQuery(undefined, {
-    skip: !accessToken || mustChangePassword,
+  const org = mockOrganisations[0];
+  const submittedAt = new Date("2026-04-10T00:00:00.000Z").toLocaleDateString("en-AU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
   });
 
-  useEffect(() => {
-    if (!mounted) return;
-
-    if (!accessToken) {
-      router.replace("/login");
-      return;
-    }
-
-    if (mustChangePassword) {
-      router.replace("/change-password");
-      return;
-    }
-
-    const lifecyclePath = getWorkforceLifecyclePath(user?.role, user?.status);
-    if (lifecyclePath === "/onboarding") {
-      router.replace("/onboarding");
-      return;
-    }
-
-    if (isWorkforceOperationalStatus(user?.status)) {
-      router.replace(getDashboardHomeForRole(user?.role));
-    }
-  }, [mounted, accessToken, mustChangePassword, router, user?.role, user?.status]);
-
-  if (!mounted || !accessToken) {
-    return <div className="min-h-screen bg-background" />;
-  }
-
-  const submittedAt = data?.profile.submittedAt
-    ? new Date(data.profile.submittedAt).toLocaleDateString("en-AU", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      })
-    : null;
-
   return (
-    <OnboardingShell
-      organisationName={data?.organisation?.tradingName ?? data?.organisation?.legalName}
-    >
+    <OnboardingShell organisationName={org.tradingName ?? org.legalName}>
       <div className="mx-auto max-w-2xl">
         <div className="dashboard-card overflow-hidden">
           <div className="bg-gradient-to-br from-primary/10 via-surface to-accent/5 px-8 py-10 text-center">
@@ -90,12 +43,10 @@ export function PendingApprovalView() {
                   Submitted
                 </span>
               </div>
-              {submittedAt ? (
-                <div className="mt-3 flex items-center justify-between border-t border-border/50 pt-3">
-                  <span className="text-sm text-muted">Submitted on</span>
-                  <span className="text-sm font-medium">{submittedAt}</span>
-                </div>
-              ) : null}
+              <div className="mt-3 flex items-center justify-between border-t border-border/50 pt-3">
+                <span className="text-sm text-muted">Submitted on</span>
+                <span className="text-sm font-medium">{submittedAt}</span>
+              </div>
             </div>
 
             <div className="rounded-xl border border-primary/15 bg-primary/5 px-5 py-4">

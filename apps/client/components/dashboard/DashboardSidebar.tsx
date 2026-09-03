@@ -1,13 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import type { DashboardConfig, NavItem } from "@/lib/dashboard/config";
 import { isNavItemActive } from "@/lib/dashboard/config";
 import { site } from "@/lib/content";
-import { logout } from "@/lib/features/auth/authSlice";
-import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
 import {
   IconBell,
   IconBuilding,
@@ -150,11 +148,8 @@ type DashboardSidebarProps = {
 
 export function DashboardSidebar({ config }: DashboardSidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
-  const dispatch = useAppDispatch();
-  const user = useAppSelector((state) => state.auth.user);
-
-  const initials = (user?.name ?? config.roleLabel)
+  const displayName = "Alex Chen";
+  const initials = displayName
     .split(" ")
     .map((part) => part[0])
     .join("")
@@ -191,21 +186,14 @@ export function DashboardSidebar({ config }: DashboardSidebarProps) {
             {initials}
           </span>
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">{user?.name ?? config.roleLabel}</p>
+            <p className="truncate text-sm font-semibold">{displayName}</p>
             <p className="truncate text-xs text-muted">{config.roleLabel}</p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            dispatch(logout());
-            router.replace("/login");
-          }}
-          className="nav-signout"
-        >
+        <Link href="/login" className="nav-signout">
           <IconLogout className="h-4 w-4" />
           Sign out
-        </button>
+        </Link>
       </div>
     </aside>
   );

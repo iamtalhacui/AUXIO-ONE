@@ -10,13 +10,7 @@
     "build": "turbo run build",
     "build:client": "turbo run build --filter=client",
     "build:server": "turbo run build --filter=server",
-    "lint": "turbo run lint",
-    "db:generate": "pnpm --filter database exec prisma generate",
-    "db:push": "pnpm --filter database exec prisma db push",
-    "db:build": "pnpm --filter database build",
-    "db:seed": "pnpm --filter database db:seed",
-    "db:setup": "pnpm db:push && pnpm db:generate && pnpm db:build && pnpm db:seed",
-    "server:dev": "pnpm db:build && pnpm --filter server dev"
+    "lint": "turbo run lint"
   },
   "packageManager": "pnpm@11.24.0",
   "devEngines": {

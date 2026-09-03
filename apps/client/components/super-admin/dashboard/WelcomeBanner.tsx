@@ -2,11 +2,9 @@
 
 import Link from "next/link";
 import { featuredWorkflow } from "@/lib/dashboard/content/super-admin";
-import { useAppSelector } from "@/lib/store/hooks";
+import { mockUser } from "@/lib/mocks/data";
 
 export function WelcomeBanner() {
-  const user = useAppSelector((state) => state.auth.user);
-
   return (
     <div className="dashboard-card relative overflow-hidden bg-[linear-gradient(135deg,#1f2937_0%,#115e59_55%,#0f766e_100%)] p-6 text-white sm:p-8">
       <div className="absolute -right-8 top-0 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
@@ -19,7 +17,7 @@ export function WelcomeBanner() {
       <div className="relative max-w-xl">
         <p className="text-sm text-white/75">Welcome back 👋</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
-          {user?.name ?? "Super Admin"}
+          {mockUser.name}
         </h1>
         <p className="mt-3 max-w-lg text-sm leading-7 text-white/80">
           Monitor organisations, module entitlements, and onboarding activity across the
