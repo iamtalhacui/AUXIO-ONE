@@ -147,6 +147,7 @@ export class AuthService {
     email: string;
     role: string;
     status: string;
+    onboardingStatus: string;
     organisationId: string;
   }) {
     return {
@@ -156,6 +157,7 @@ export class AuthService {
       email: user.email,
       role: user.role,
       status: user.status,
+      onboardingStatus: user.onboardingStatus,
       organisationId: user.organisationId,
     };
   }

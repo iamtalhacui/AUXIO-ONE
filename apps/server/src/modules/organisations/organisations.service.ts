@@ -69,6 +69,7 @@ export class OrganisationsService {
           email: dto.adminEmail.trim().toLowerCase(),
           role: 'ORG_ADMIN',
           status: 'INVITED',
+          onboardingStatus: 'VERIFIED',
           setupTokenHash,
           setupTokenExpiresAt,
         },

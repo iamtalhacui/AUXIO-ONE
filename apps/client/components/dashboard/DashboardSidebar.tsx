@@ -12,7 +12,9 @@ import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
 import {
   IconBell,
   IconBuilding,
+  IconClipboard,
   IconGrid,
+  IconLock,
   IconLogout,
   IconOverview,
   IconPlus,
@@ -21,6 +23,8 @@ import {
 
 const labelIconMap: Record<string, typeof IconOverview> = {
   Dashboard: IconOverview,
+  Overview: IconOverview,
+  Onboarding: IconClipboard,
   Organisations: IconBuilding,
   "All organisations": IconBuilding,
   "Register organisation": IconPlus,
@@ -80,8 +84,26 @@ function NavLink({
 }) {
   if (!item.href) return null;
 
-  const active = isNavItemActive(pathname, item, basePath);
+  const active =
+    item.label === "Onboarding" &&
+    (pathname === basePath || pathname.startsWith(`${basePath}/onboarding`))
+      ? true
+      : isNavItemActive(pathname, item, basePath);
   const Icon = nested ? null : getIcon(item.label);
+
+  if (item.locked) {
+    return (
+      <span
+        className={`nav-link cursor-not-allowed opacity-45 ${nested ? "nav-link-nested" : ""}`}
+        aria-disabled="true"
+        title="Complete onboarding to unlock"
+      >
+        {!nested && Icon ? <Icon className="nav-link-icon" /> : null}
+        <span className="flex-1">{item.label}</span>
+        <IconLock className="h-3.5 w-3.5 shrink-0 text-muted" />
+      </span>
+    );
+  }
 
   return (
     <Link
@@ -146,9 +168,10 @@ function NavBranch({
 
 type DashboardSidebarProps = {
   config: DashboardConfig;
+  lockedOnboarding?: boolean;
 };
 
-export function DashboardSidebar({ config }: DashboardSidebarProps) {
+export function DashboardSidebar({ config, lockedOnboarding }: DashboardSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const dispatch = useAppDispatch();
@@ -160,6 +183,7 @@ export function DashboardSidebar({ config }: DashboardSidebarProps) {
     : orgUser
       ? `${orgUser.firstName} ${orgUser.lastName}`
       : config.roleLabel;
+  const email = isPlatform ? platformUser?.email : orgUser?.email;
   const initials = displayName
     .split(" ")
     .map((part) => part[0])
@@ -202,13 +226,24 @@ export function DashboardSidebar({ config }: DashboardSidebarProps) {
       </nav>
 
       <div className="dashboard-sidebar-footer">
+        {lockedOnboarding ? (
+          <div className="mb-2 rounded-xl border border-border/60 bg-[#f4f6f8] px-3 py-3">
+            <p className="text-sm font-semibold text-foreground">Need a hand?</p>
+            <a
+              href={`mailto:${site.contactEmail}`}
+              className="mt-1 block text-sm font-medium text-primary hover:underline"
+            >
+              Contact support
+            </a>
+          </div>
+        ) : null}
         <div className="flex items-center gap-3 px-2 py-2">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-white">
             {initials}
           </span>
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold">{displayName}</p>
-            <p className="truncate text-xs text-muted">{config.roleLabel}</p>
+            <p className="truncate text-xs text-muted">{email ?? config.roleLabel}</p>
           </div>
         </div>
         <button type="button" onClick={handleSignOut} className="nav-signout">

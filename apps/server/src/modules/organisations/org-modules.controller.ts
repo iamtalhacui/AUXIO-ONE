@@ -6,6 +6,7 @@ import {
   Patch,
   UseGuards,
 } from '@nestjs/common';
+import { VerifiedOnboardingGuard } from '../../common/guards/verified-onboarding.guard';
 import { CurrentOrgUser } from '../auth/current-org-user.decorator';
 import type { OrgJwtPayload } from '../auth/current-org-user.decorator';
 import { OrgJwtGuard } from '../auth/org-jwt.guard';
@@ -18,6 +19,7 @@ import { OrganisationsService } from './organisations.service';
 export class OrgModulesController {
   constructor(private readonly organisationsService: OrganisationsService) {}
 
+  // Allowed before onboarding is verified (sidebar / entitlement reads).
   @Get()
   list(@CurrentOrgUser() user: OrgJwtPayload) {
     return this.organisationsService.listOrgModules(user.organisationId);
@@ -25,6 +27,7 @@ export class OrgModulesController {
 
   // Enable or disable one plan-included module for this organisation.
   @Patch(':code')
+  @UseGuards(VerifiedOnboardingGuard)
   setEnabled(
     @CurrentOrgUser() user: OrgJwtPayload,
     @Param('code') code: string,

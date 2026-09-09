@@ -61,6 +61,11 @@ const orgAuthSlice = createSlice({
       state.organisation = action.payload.organisation;
       persist(state);
     },
+    patchOrgUser(state, action: PayloadAction<Partial<OrgUser>>) {
+      if (!state.user) return;
+      state.user = { ...state.user, ...action.payload };
+      persist(state);
+    },
     logoutOrg(state) {
       state.accessToken = null;
       state.user = null;
@@ -70,5 +75,6 @@ const orgAuthSlice = createSlice({
   },
 });
 
-export const { hydrateOrgAuth, setOrgCredentials, logoutOrg } = orgAuthSlice.actions;
+export const { hydrateOrgAuth, setOrgCredentials, patchOrgUser, logoutOrg } =
+  orgAuthSlice.actions;
 export default orgAuthSlice.reducer;

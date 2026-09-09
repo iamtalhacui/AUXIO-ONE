@@ -2,17 +2,24 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import type { OnboardingStatus } from "@/lib/api/types";
 
 type TeamMemberActionsMenuProps = {
   memberId: string;
   memberRoleCode?: string | null;
+  onboardingStatus?: OnboardingStatus | null;
 };
 
-// View / Edit shortcuts. Org Admin rows only get View.
-export function TeamMemberActionsMenu({ memberId, memberRoleCode }: TeamMemberActionsMenuProps) {
+// View / Edit / Review (Review only when onboarding is pending review).
+export function TeamMemberActionsMenu({
+  memberId,
+  memberRoleCode,
+  onboardingStatus,
+}: TeamMemberActionsMenuProps) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const isOrgAdmin = memberRoleCode === "ORG_ADMIN";
+  const canReview = onboardingStatus === "PENDING_REVIEW";
 
   useEffect(() => {
     function handleClick(event: MouseEvent) {
@@ -27,7 +34,7 @@ export function TeamMemberActionsMenu({ memberId, memberRoleCode }: TeamMemberAc
   if (isOrgAdmin) return null;
 
   return (
-    <div className="relative" ref={menuRef}>
+    <div className="relative inline-flex justify-end" ref={menuRef}>
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
@@ -40,11 +47,22 @@ export function TeamMemberActionsMenu({ memberId, memberRoleCode }: TeamMemberAc
       </button>
 
       {open ? (
-        <div className="absolute right-0 z-20 mt-2 w-44 overflow-hidden rounded-xl border border-border bg-surface shadow-lg">
+        <div className="absolute right-0 z-20 mt-2 w-48 overflow-hidden rounded-xl border border-border bg-surface shadow-lg">
+          {canReview ? (
+            <Link
+              href={`/org-admin/team/${memberId}/onboarding`}
+              onClick={() => setOpen(false)}
+              className="block px-4 py-2.5 text-sm font-semibold text-primary transition hover:bg-primary/5"
+            >
+              Review
+            </Link>
+          ) : null}
           <Link
             href={`/org-admin/team/${memberId}/review`}
             onClick={() => setOpen(false)}
-            className="block px-4 py-2.5 text-sm font-medium transition hover:bg-surface-muted"
+            className={`block px-4 py-2.5 text-sm font-medium transition hover:bg-surface-muted ${
+              canReview ? "border-t border-border/60" : ""
+            }`}
           >
             View
           </Link>
