@@ -6,8 +6,14 @@ import {
   type FetchBaseQueryError,
 } from "@reduxjs/toolkit/query/react";
 import type {
+  PlatformAuditEntry,
+  PlatformEntitlement,
+  PlatformInvite,
   PlatformLoginResponse,
+  PlatformModule,
   PlatformOrganisation,
+  PlatformOrganisationDetail,
+  PlatformSettings,
   PlatformUser,
   RegisterOrganisationRequest,
   RegisterOrganisationResponse,
@@ -40,7 +46,7 @@ const baseQueryWithAuth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQuery
 export const platformAuthApi = createApi({
   reducerPath: "platformAuthApi",
   baseQuery: baseQueryWithAuth,
-  tagTypes: ["Organisations"],
+  tagTypes: ["Organisations", "Audit", "Modules", "Entitlements", "Invites", "Settings"],
   endpoints: (builder) => ({
     platformLogin: builder.mutation<
       PlatformLoginResponse,
@@ -59,6 +65,10 @@ export const platformAuthApi = createApi({
       query: () => "/platform/organisations",
       providesTags: ["Organisations"],
     }),
+    getOrganisation: builder.query<PlatformOrganisationDetail, string>({
+      query: (id) => `/platform/organisations/${id}`,
+      providesTags: (_result, _error, id) => [{ type: "Organisations", id }],
+    }),
     registerOrganisation: builder.mutation<
       RegisterOrganisationResponse,
       RegisterOrganisationRequest
@@ -68,7 +78,35 @@ export const platformAuthApi = createApi({
         method: "POST",
         body,
       }),
-      invalidatesTags: ["Organisations"],
+      invalidatesTags: ["Organisations", "Audit", "Invites", "Entitlements"],
+    }),
+    listPlatformModules: builder.query<PlatformModule[], void>({
+      query: () => "/platform/modules",
+      providesTags: ["Modules"],
+    }),
+    listPlatformAudit: builder.query<PlatformAuditEntry[], void>({
+      query: () => "/platform/audit",
+      providesTags: ["Audit"],
+    }),
+    listPlatformEntitlements: builder.query<PlatformEntitlement[], void>({
+      query: () => "/platform/entitlements",
+      providesTags: ["Entitlements"],
+    }),
+    listPlatformInvites: builder.query<PlatformInvite[], void>({
+      query: () => "/platform/invites",
+      providesTags: ["Invites"],
+    }),
+    getPlatformSettings: builder.query<PlatformSettings, void>({
+      query: () => "/platform/settings",
+      providesTags: ["Settings"],
+    }),
+    updatePlatformSettings: builder.mutation<PlatformSettings, { maintenanceMode: boolean }>({
+      query: (body) => ({
+        url: "/platform/settings",
+        method: "PATCH",
+        body,
+      }),
+      invalidatesTags: ["Settings", "Audit"],
     }),
   }),
 });
@@ -77,5 +115,12 @@ export const {
   usePlatformLoginMutation,
   usePlatformMeQuery,
   useListOrganisationsQuery,
+  useGetOrganisationQuery,
   useRegisterOrganisationMutation,
+  useListPlatformModulesQuery,
+  useListPlatformAuditQuery,
+  useListPlatformEntitlementsQuery,
+  useListPlatformInvitesQuery,
+  useGetPlatformSettingsQuery,
+  useUpdatePlatformSettingsMutation,
 } = platformAuthApi;

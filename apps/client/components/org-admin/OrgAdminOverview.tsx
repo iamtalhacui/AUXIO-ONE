@@ -1,11 +1,13 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useOrgMeQuery } from "@/lib/api/authApi";
 import { useAppSelector } from "@/lib/store/hooks";
 
 export function OrgAdminOverview() {
+  const pathname = usePathname();
   const stored = useAppSelector((state) => state.orgAuth);
-  const { data, isLoading, error } = useOrgMeQuery();
+  const { data, isLoading, error } = useOrgMeQuery(pathname);
 
   const user = data?.user ?? stored.user;
   const organisation = data?.organisation ?? stored.organisation;

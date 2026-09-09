@@ -8,6 +8,7 @@ import {
 import { randomBytes, createHash } from 'crypto';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { MailService } from '../../common/mail/mail.service';
+import { PlatformService } from '../platform/platform.service';
 import { getEntitledModuleCodes } from './plan-modules';
 import type { RegisterOrganisationDto } from './dto/register-organisation.dto';
 
@@ -18,13 +19,14 @@ export class OrganisationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
+    private readonly platform: PlatformService,
   ) {}
 
   /**
    * Registers a new organisation with its admin and module entitlements.
    * Returns the created org, admin user, and the raw setup token.
    */
-  async register(dto: RegisterOrganisationDto) {
+  async register(dto: RegisterOrganisationDto, actorEmail: string) {
     // Check for duplicate admin email
     const existingUser = await this.prisma.user.findUnique({
       where: { email: dto.adminEmail.trim().toLowerCase() },
@@ -92,6 +94,14 @@ export class OrganisationsService {
       this.logger.error(`Failed to send setup email to ${user.email}`, error);
     }
 
+    // Super Admin action — keep a platform audit row for this registration.
+    await this.platform.writeAudit({
+      action: 'ORGANISATION_CREATED',
+      actorEmail,
+      organisationName: organisation.name,
+      details: `Plan ${organisation.plan}, ${entitledCodes.length} modules granted`,
+    });
+
     return {
       organisation: {
         id: organisation.id,
@@ -111,6 +121,7 @@ export class OrganisationsService {
     };
   }
 
+  // Super Admin organisation list — tenant metadata only, no org operational records.
   async list() {
     const organisations = await this.prisma.organisation.findMany({
       orderBy: { createdAt: 'desc' },
@@ -145,6 +156,69 @@ export class OrganisationsService {
         admin,
       };
     });
+  }
+
+  // One organisation for the Super Admin tenant detail page (not org operational data).
+  async getById(id: string) {
+    const org = await this.prisma.organisation.findUnique({
+      where: { id },
+      include: {
+        users: {
+          where: { role: 'ORG_ADMIN' },
+          take: 1,
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+            status: true,
+          },
+        },
+        organisationModules: {
+          include: {
+            module: {
+              select: {
+                code: true,
+                name: true,
+                description: true,
+                isCore: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!org) {
+      throw new NotFoundException('Organisation not found');
+    }
+
+    const modules = [...org.organisationModules]
+      .sort((a, b) => a.module.name.localeCompare(b.module.name))
+      .map((row) => ({
+        code: row.module.code,
+        name: row.module.name,
+        description: row.module.description,
+        isCore: row.module.isCore,
+        enabled: row.enabled,
+      }));
+
+    const admin = org.users[0] ?? null;
+
+    return {
+      id: org.id,
+      name: org.name,
+      timezone: org.timezone,
+      email: org.email,
+      phone: org.phone,
+      plan: org.plan,
+      status: org.status,
+      createdAt: org.createdAt,
+      updatedAt: org.updatedAt,
+      modulesEnabled: modules.filter((row) => row.enabled).length,
+      modulesGranted: modules.length,
+      admin,
+      modules,
+    };
   }
 
   /**

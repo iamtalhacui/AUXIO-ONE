@@ -4,6 +4,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { PlatformAuthModule } from './modules/platform-auth/platform-auth.module';
+import { PlatformModule } from './modules/platform/platform.module';
 import { OrganisationsModule } from './modules/organisations/organisations.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { TeamModule } from './modules/team/team.module';
@@ -15,6 +16,7 @@ import { MailModule } from './common/mail/mail.module';
     PrismaModule,
     MailModule,
     PlatformAuthModule,
+    PlatformModule,
     OrganisationsModule,
     AuthModule,
     TeamModule,

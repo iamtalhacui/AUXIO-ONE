@@ -6,7 +6,7 @@ export default function AdminSettingsPage() {
     <>
       <PageHeader
         title="Platform settings"
-        description="Global configuration for the AUXIO One platform."
+        description="Turn maintenance mode on or off for organisation users."
       />
       <SettingsPageContent />
     </>

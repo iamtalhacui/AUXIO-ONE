@@ -1,6 +1,7 @@
 "use client";
 
-import { mockEntitlements, mockOrganisations } from "@/lib/mocks/data";
+import { useListPlatformEntitlementsQuery } from "@/lib/api/platformAuthApi";
+import { getErrorMessage } from "@/lib/api/getErrorMessage";
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString("en-AU", {
@@ -10,19 +11,21 @@ function formatDate(value: string) {
   });
 }
 
-const entitlements = mockOrganisations.flatMap((org) =>
-  mockEntitlements.map((entitlement, index) => ({
-    id: `${org.id}-${entitlement.moduleCode}`,
-    organisationName: org.tradingName ?? org.legalName,
-    moduleName: entitlement.moduleName,
-    moduleCode: entitlement.moduleCode,
-    ceilingGranted: index < org.modulesGranted,
-    enabled: index < org.modulesEnabled,
-    grantedAt: org.createdAt,
-  })),
-);
-
 export function EntitlementsPageContent() {
+  const { data: entitlements = [], isLoading, error } = useListPlatformEntitlementsQuery();
+
+  if (isLoading) {
+    return <p className="text-sm text-muted">Loading entitlements…</p>;
+  }
+
+  if (error) {
+    return (
+      <p className="text-sm text-red-600">
+        {getErrorMessage(error, "Could not load entitlements.")}
+      </p>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-3">
@@ -33,13 +36,13 @@ export function EntitlementsPageContent() {
         <div className="dashboard-card p-5">
           <p className="text-sm text-muted">Enabled</p>
           <p className="mt-2 text-3xl font-semibold text-primary">
-            {entitlements.filter((e) => e.enabled).length}
+            {entitlements.filter((row) => row.enabled).length}
           </p>
         </div>
         <div className="dashboard-card p-5">
-          <p className="text-sm text-muted">Ceiling only</p>
+          <p className="text-sm text-muted">Disabled</p>
           <p className="mt-2 text-3xl font-semibold text-primary">
-            {entitlements.filter((e) => !e.enabled).length}
+            {entitlements.filter((row) => !row.enabled).length}
           </p>
         </div>
       </div>
@@ -47,7 +50,7 @@ export function EntitlementsPageContent() {
       <div className="dashboard-card overflow-hidden">
         <div className="border-b border-border/70 px-6 py-5">
           <h2 className="text-lg font-semibold">Module entitlements</h2>
-          <p className="text-sm text-muted">Ceiling grants and enabled status per organisation</p>
+          <p className="text-sm text-muted">Plan grants and enabled status per organisation</p>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
@@ -55,24 +58,30 @@ export function EntitlementsPageContent() {
               <tr>
                 <th className="px-6 py-3 font-semibold">Organisation</th>
                 <th className="px-6 py-3 font-semibold">Module</th>
-                <th className="px-6 py-3 font-semibold">Ceiling</th>
                 <th className="px-6 py-3 font-semibold">Enabled</th>
                 <th className="px-6 py-3 font-semibold">Granted</th>
               </tr>
             </thead>
             <tbody>
-              {entitlements.map((row) => (
-                <tr key={row.id} className="border-t border-border/60">
-                  <td className="px-6 py-4 font-medium">{row.organisationName}</td>
-                  <td className="px-6 py-4">
-                    <p>{row.moduleName}</p>
-                    <p className="text-xs text-muted">{row.moduleCode}</p>
+              {entitlements.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-6 py-8 text-center text-muted">
+                    No entitlements yet.
                   </td>
-                  <td className="px-6 py-4">{row.ceilingGranted ? "Yes" : "No"}</td>
-                  <td className="px-6 py-4">{row.enabled ? "Yes" : "No"}</td>
-                  <td className="px-6 py-4 text-muted">{formatDate(row.grantedAt)}</td>
                 </tr>
-              ))}
+              ) : (
+                entitlements.map((row) => (
+                  <tr key={row.id} className="border-t border-border/60">
+                    <td className="px-6 py-4 font-medium">{row.organisationName}</td>
+                    <td className="px-6 py-4">
+                      <p>{row.moduleName}</p>
+                      <p className="text-xs text-muted">{row.moduleCode}</p>
+                    </td>
+                    <td className="px-6 py-4">{row.enabled ? "Yes" : "No"}</td>
+                    <td className="px-6 py-4 text-muted">{formatDate(row.grantedAt)}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

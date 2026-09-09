@@ -1,87 +1,99 @@
 "use client";
 
-import { platformSettings } from "@/lib/dashboard/content/super-admin";
+import { FormEvent, useEffect, useState } from "react";
+import {
+  useGetPlatformSettingsQuery,
+  useUpdatePlatformSettingsMutation,
+} from "@/lib/api/platformAuthApi";
+import { getErrorMessage } from "@/lib/api/getErrorMessage";
 
 export function SettingsPageContent() {
+  const { data, isLoading, error } = useGetPlatformSettingsQuery();
+  const [updateSettings, { isLoading: isSaving, error: saveError, reset }] =
+    useUpdatePlatformSettingsMutation();
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [success, setSuccess] = useState("");
+
+  useEffect(() => {
+    if (data) setMaintenanceMode(data.maintenanceMode);
+  }, [data]);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSuccess("");
+    reset();
+
+    try {
+      await updateSettings({ maintenanceMode }).unwrap();
+      setSuccess(
+        maintenanceMode
+          ? "Maintenance mode is on. Organisation logins are blocked."
+          : "Maintenance mode is off. Organisation logins are allowed.",
+      );
+    } catch {
+      // RTK error
+    }
+  }
+
+  if (isLoading) {
+    return <p className="text-sm text-muted">Loading settings…</p>;
+  }
+
+  if (error || !data) {
+    return (
+      <p className="text-sm text-red-600">
+        {getErrorMessage(error, "Could not load platform settings.")}
+      </p>
+    );
+  }
+
+  const errorMessage = saveError
+    ? getErrorMessage(saveError, "Could not save platform settings.")
+    : null;
+
   return (
-    <div className="space-y-6">
-      <section className="dashboard-card p-6">
-        <h2 className="text-lg font-semibold">General</h2>
-        <p className="mt-1 text-sm text-muted">Platform-wide defaults for new organisations.</p>
-
-        <div className="mt-6 grid gap-5 sm:grid-cols-2">
-          <label className="block">
-            <span className="mb-2 block text-sm font-medium">Default time zone</span>
-            <select
-              defaultValue={platformSettings.defaultTimeZone}
-              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary"
-            >
-              <option>Australia/Sydney</option>
-              <option>Australia/Melbourne</option>
-              <option>Australia/Brisbane</option>
-            </select>
-          </label>
-
-          <label className="block">
-            <span className="mb-2 block text-sm font-medium">Invite expiry (days)</span>
-            <input
-              type="number"
-              defaultValue={platformSettings.inviteExpiryDays}
-              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary"
-            />
-          </label>
-
-          <label className="block">
-            <span className="mb-2 block text-sm font-medium">Max modules per org</span>
-            <input
-              type="number"
-              defaultValue={platformSettings.maxModulesPerOrg}
-              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary"
-            />
-          </label>
-
-          <label className="block">
-            <span className="mb-2 block text-sm font-medium">Support contact email</span>
-            <input
-              type="email"
-              defaultValue={platformSettings.supportEmail}
-              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary"
-            />
-          </label>
-        </div>
-      </section>
-
+    <form className="space-y-6" onSubmit={handleSubmit}>
       <section className="dashboard-card p-6">
         <h2 className="text-lg font-semibold">Maintenance</h2>
-        <p className="mt-1 text-sm text-muted">Control platform availability for all tenants.</p>
+        <p className="mt-1 text-sm text-muted">
+          When this is on, organisation users cannot sign in. Super Admin stays available.
+        </p>
 
         <label className="mt-6 flex items-center justify-between rounded-xl border border-border bg-background px-4 py-4">
           <span>
             <span className="block text-sm font-medium">Maintenance mode</span>
-            <span className="text-xs text-muted">Blocks all org logins except Super Admin</span>
+            <span className="text-xs text-muted">Blocks all organisation logins</span>
           </span>
           <input
             type="checkbox"
-            defaultChecked={platformSettings.maintenanceMode}
+            checked={maintenanceMode}
+            onChange={(event) => setMaintenanceMode(event.target.checked)}
             className="h-5 w-5 rounded border-border text-primary focus:ring-primary/20"
           />
         </label>
       </section>
 
+      {errorMessage ? (
+        <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {errorMessage}
+        </p>
+      ) : null}
+
+      {success ? (
+        <p className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">
+          {success}
+        </p>
+      ) : null}
+
       <div className="dashboard-card flex flex-wrap gap-3 p-6">
         <button
-          type="button"
-          className="rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white hover:bg-primary-light"
+          type="submit"
+          disabled={isSaving}
+          className="rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white hover:bg-primary-light disabled:opacity-70"
         >
-          Save changes
-        </button>
-        <button
-          type="button"
-          className="rounded-xl border border-border bg-background px-6 py-3 text-sm font-semibold hover:bg-surface-muted"
-        >
-          Reset defaults
+          {isSaving ? "Saving…" : "Save changes"}
         </button>
       </div>
-    </div>
+    </form>
   );
 }

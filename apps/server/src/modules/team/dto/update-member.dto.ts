@@ -2,6 +2,7 @@ import { IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validat
 import { UserStatus } from 'database';
 import { WorkforceRole } from './register-member.dto';
 
+// All fields optional so the edit form can send only what changed.
 export class UpdateMemberDto {
   @IsOptional()
   @IsString()

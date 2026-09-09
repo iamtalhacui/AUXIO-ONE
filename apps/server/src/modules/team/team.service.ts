@@ -39,6 +39,7 @@ export class TeamService {
     private readonly mail: MailService,
   ) {}
 
+  // All users in this organisation, including the Org Admin.
   async list(organisationId: string) {
     const users = await this.prisma.user.findMany({
       where: { organisationId },
@@ -49,6 +50,7 @@ export class TeamService {
     return users;
   }
 
+  // Single member, still limited to the caller's organisation.
   async getById(organisationId: string, memberId: string) {
     const user = await this.prisma.user.findFirst({
       where: { id: memberId, organisationId },
@@ -62,6 +64,7 @@ export class TeamService {
     return user;
   }
 
+  // Creates an INVITED user and emails the setup link.
   async register(
     organisationId: string,
     actorRole: string,
@@ -115,6 +118,7 @@ export class TeamService {
     return user;
   }
 
+  // Org Admin can edit workforce members, but not the Org Admin account itself.
   async update(
     organisationId: string,
     actorRole: string,

@@ -138,3 +138,58 @@ export type UpdateTeamMemberRequest = {
   role?: WorkforceRole;
   status?: UserStatus;
 };
+
+// ── Super Admin platform views ──
+
+export type PlatformModule = {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  isCore: boolean;
+};
+
+export type PlatformAuditEntry = {
+  id: string;
+  action: string;
+  actorEmail: string;
+  organisationName: string | null;
+  details: string;
+  createdAt: string;
+};
+
+export type PlatformEntitlement = {
+  id: string;
+  organisationName: string;
+  moduleCode: string;
+  moduleName: string;
+  enabled: boolean;
+  grantedAt: string;
+};
+
+export type PlatformInvite = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  organisationName: string;
+  invitedAt: string;
+  expired: boolean;
+};
+
+export type PlatformSettings = {
+  maintenanceMode: boolean;
+  updatedAt: string;
+};
+
+export type PlatformOrganisationDetail = PlatformOrganisation & {
+  updatedAt: string;
+  modules: Array<{
+    code: string;
+    name: string;
+    description: string;
+    isCore: boolean;
+    enabled: boolean;
+  }>;
+};
+

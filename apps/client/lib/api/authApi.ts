@@ -15,6 +15,7 @@ import type {
   SetupAccountRequest,
   SetupAccountResponse,
 } from "@/lib/api/types";
+import { isMaintenanceError, rememberMaintenanceLogout } from "@/lib/api/getErrorMessage";
 import { logoutOrg } from "@/lib/store/orgAuthSlice";
 
 const rawBaseQuery = fetchBaseQuery({
@@ -34,7 +35,8 @@ const baseQueryWithAuth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQuery
   extraOptions,
 ) => {
   const result = await rawBaseQuery(args, api, extraOptions);
-  if (result.error?.status === 401) {
+  if (result.error?.status === 401 || isMaintenanceError(result.error)) {
+    if (isMaintenanceError(result.error)) rememberMaintenanceLogout();
     api.dispatch(logoutOrg());
   }
   return result;
@@ -59,13 +61,14 @@ export const authApi = createApi({
         body,
       }),
     }),
-    orgMe: builder.query<OrgMeResponse, void>({
+    orgMe: builder.query<OrgMeResponse, string>({
       query: () => "/auth/me",
     }),
     listOrgModules: builder.query<OrgModule[], void>({
       query: () => "/organisation/modules",
       providesTags: ["OrgModules"],
     }),
+    // Org Admin toggles a plan-included module on or off.
     setOrgModuleEnabled: builder.mutation<OrgModule, { code: string; enabled: boolean }>({
       query: ({ code, enabled }) => ({
         url: `/organisation/modules/${code}`,
@@ -74,6 +77,7 @@ export const authApi = createApi({
       }),
       invalidatesTags: ["OrgModules"],
     }),
+    // Team directory for this organisation (WORKFORCE must be enabled).
     listOrgTeam: builder.query<OrgTeamMember[], void>({
       query: () => "/organisation/team",
       providesTags: ["OrgTeam"],
@@ -101,6 +105,7 @@ export const authApi = createApi({
       }),
       invalidatesTags: (_result, _error, { id }) => ["OrgTeam", { type: "OrgTeam", id }],
     }),
+    // Logged-in org user updates their own password.
     changePassword: builder.mutation<
       { message: string },
       { currentPassword: string; newPassword: string }

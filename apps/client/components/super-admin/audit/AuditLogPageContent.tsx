@@ -1,10 +1,23 @@
 "use client";
 
-import { mockAuditLog } from "@/lib/mocks/data";
 import { ActionBadge } from "@/components/dashboard/StatusBadge";
+import { useListPlatformAuditQuery } from "@/lib/api/platformAuthApi";
+import { getErrorMessage } from "@/lib/api/getErrorMessage";
 
 export function AuditLogPageContent() {
-  const auditLog = mockAuditLog;
+  const { data: auditLog = [], isLoading, error } = useListPlatformAuditQuery();
+
+  if (isLoading) {
+    return <p className="text-sm text-muted">Loading audit log…</p>;
+  }
+
+  if (error) {
+    return (
+      <p className="text-sm text-red-600">
+        {getErrorMessage(error, "Could not load the audit log.")}
+      </p>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -42,7 +55,7 @@ export function AuditLogPageContent() {
                     <td className="px-6 py-4 font-medium">
                       {entry.organisationName ?? "Platform"}
                     </td>
-                    <td className="px-6 py-4 text-muted">{entry.action}</td>
+                    <td className="px-6 py-4 text-muted">{entry.details || "—"}</td>
                     <td className="px-6 py-4">{entry.actorEmail}</td>
                     <td className="px-6 py-4 text-muted">
                       {new Date(entry.createdAt).toLocaleString("en-AU")}

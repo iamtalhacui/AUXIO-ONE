@@ -45,7 +45,6 @@ const labelIconMap: Record<string, typeof IconOverview> = {
   Shifts: IconOverview,
   Timesheets: IconGrid,
   "Your profile": IconSettings,
-  "Usage & health": IconOverview,
   Notifications: IconBell,
   Reports: IconGrid,
 };

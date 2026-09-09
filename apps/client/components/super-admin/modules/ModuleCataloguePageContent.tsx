@@ -1,45 +1,54 @@
 "use client";
 
 import { useState } from "react";
-import { mockModules } from "@/lib/mocks/data";
-
-const moduleCatalogue = mockModules.map((module, index) => ({
-  ...module,
-  isOperational: index < 3,
-}));
+import { useListPlatformModulesQuery } from "@/lib/api/platformAuthApi";
+import { getErrorMessage } from "@/lib/api/getErrorMessage";
 
 export function ModuleCataloguePageContent() {
-  const [filter, setFilter] = useState<"ALL" | "OPERATIONAL" | "PLATFORM">("ALL");
+  const { data: modules = [], isLoading, error } = useListPlatformModulesQuery();
+  const [filter, setFilter] = useState<"ALL" | "CORE" | "OPTIONAL">("ALL");
 
-  const filtered = moduleCatalogue.filter((module) => {
-    if (filter === "OPERATIONAL") return module.isOperational;
-    if (filter === "PLATFORM") return !module.isOperational;
+  const filtered = modules.filter((module) => {
+    if (filter === "CORE") return module.isCore;
+    if (filter === "OPTIONAL") return !module.isCore;
     return true;
   });
+
+  if (isLoading) {
+    return <p className="text-sm text-muted">Loading modules…</p>;
+  }
+
+  if (error) {
+    return (
+      <p className="text-sm text-red-600">
+        {getErrorMessage(error, "Could not load the module catalogue.")}
+      </p>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="dashboard-card p-5">
           <p className="text-sm text-muted">Total modules</p>
-          <p className="mt-2 text-3xl font-semibold text-primary">{moduleCatalogue.length}</p>
+          <p className="mt-2 text-3xl font-semibold text-primary">{modules.length}</p>
         </div>
         <div className="dashboard-card p-5">
-          <p className="text-sm text-muted">Operational</p>
+          <p className="text-sm text-muted">Core</p>
           <p className="mt-2 text-3xl font-semibold text-primary">
-            {moduleCatalogue.filter((m) => m.isOperational).length}
+            {modules.filter((module) => module.isCore).length}
           </p>
         </div>
         <div className="dashboard-card p-5">
-          <p className="text-sm text-muted">Platform-only</p>
+          <p className="text-sm text-muted">Optional</p>
           <p className="mt-2 text-3xl font-semibold text-primary">
-            {moduleCatalogue.filter((m) => !m.isOperational).length}
+            {modules.filter((module) => !module.isCore).length}
           </p>
         </div>
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {(["ALL", "OPERATIONAL", "PLATFORM"] as const).map((item) => (
+        {(["ALL", "CORE", "OPTIONAL"] as const).map((item) => (
           <button
             key={item}
             type="button"
@@ -50,7 +59,7 @@ export function ModuleCataloguePageContent() {
                 : "border border-border bg-background text-muted hover:border-primary/30"
             }`}
           >
-            {item === "ALL" ? "All modules" : item === "OPERATIONAL" ? "Operational" : "Platform"}
+            {item === "ALL" ? "All modules" : item === "CORE" ? "Core" : "Optional"}
           </button>
         ))}
       </div>
@@ -63,18 +72,28 @@ export function ModuleCataloguePageContent() {
                 <th className="px-6 py-3 font-semibold">Code</th>
                 <th className="px-6 py-3 font-semibold">Name</th>
                 <th className="px-6 py-3 font-semibold">Type</th>
+                <th className="px-6 py-3 font-semibold">Description</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((module) => (
-                <tr key={module.code} className="border-t border-border/60">
-                  <td className="px-6 py-4 font-mono text-xs">{module.code}</td>
-                  <td className="px-6 py-4 font-medium">{module.name}</td>
-                  <td className="px-6 py-4 text-muted">
-                    {module.isOperational ? "Operational" : "Platform"}
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-6 py-8 text-center text-muted">
+                    No modules in this filter.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filtered.map((module) => (
+                  <tr key={module.id} className="border-t border-border/60">
+                    <td className="px-6 py-4 font-mono text-xs">{module.code}</td>
+                    <td className="px-6 py-4 font-medium">{module.name}</td>
+                    <td className="px-6 py-4 text-muted">
+                      {module.isCore ? "Core" : "Optional"}
+                    </td>
+                    <td className="px-6 py-4 text-muted">{module.description || "—"}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

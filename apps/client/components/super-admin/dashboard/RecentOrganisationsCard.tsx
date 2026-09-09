@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { mockOrganisations } from "@/lib/mocks/data";
+import { useListOrganisationsQuery } from "@/lib/api/platformAuthApi";
 
 const statusStyles = {
   ACTIVE: "bg-primary/10 text-primary",
   SUSPENDED: "bg-accent/10 text-accent",
-  CLOSED: "bg-surface-muted text-muted",
 } as const;
 
 function formatDate(value: string) {
@@ -18,7 +17,9 @@ function formatDate(value: string) {
 }
 
 export function RecentOrganisationsCard() {
-  const recent = [...mockOrganisations]
+  const { data: organisations = [], isLoading, error } = useListOrganisationsQuery();
+
+  const recent = [...organisations]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 5);
 
@@ -45,7 +46,19 @@ export function RecentOrganisationsCard() {
             </tr>
           </thead>
           <tbody>
-            {recent.length === 0 ? (
+            {isLoading ? (
+              <tr>
+                <td colSpan={4} className="px-6 py-8 text-center text-muted">
+                  Loading organisations…
+                </td>
+              </tr>
+            ) : error ? (
+              <tr>
+                <td colSpan={4} className="px-6 py-8 text-center text-red-600">
+                  Could not load organisations.
+                </td>
+              </tr>
+            ) : recent.length === 0 ? (
               <tr>
                 <td colSpan={4} className="px-6 py-8 text-center text-muted">
                   No organisations registered yet.
@@ -55,8 +68,13 @@ export function RecentOrganisationsCard() {
               recent.map((org) => (
                 <tr key={org.id} className="border-t border-border/60">
                   <td className="px-6 py-4">
-                    <p className="font-medium">{org.tradingName ?? org.legalName}</p>
-                    <p className="text-xs text-muted">{org.legalName}</p>
+                    <Link
+                      href={`/super-admin/organisations/${org.id}`}
+                      className="font-medium hover:text-primary"
+                    >
+                      {org.name}
+                    </Link>
+                    <p className="text-xs text-muted">{org.email}</p>
                   </td>
                   <td className="px-6 py-4">
                     <span

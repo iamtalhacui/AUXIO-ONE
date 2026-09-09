@@ -9,6 +9,7 @@ import { getErrorMessage } from "@/lib/api/getErrorMessage";
 import type { WorkforceRole } from "@/lib/api/types";
 import { REGISTERABLE_ROLES } from "@/lib/dashboard/content/org-admin-team";
 
+// Invite a new Manager, Rostering Expert, or Employee to this organisation.
 export function RegisterTeamMemberForm() {
   const router = useRouter();
   const [firstName, setFirstName] = useState("");

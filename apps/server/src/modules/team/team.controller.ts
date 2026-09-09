@@ -7,6 +7,7 @@ import { RegisterMemberDto } from './dto/register-member.dto';
 import { UpdateMemberDto } from './dto/update-member.dto';
 import { TeamService } from './team.service';
 
+// Team APIs are organisation-scoped and require the WORKFORCE module to be on.
 @Controller('organisation/team')
 @UseGuards(OrgJwtGuard, ModuleAccessGuard)
 @RequireModule('WORKFORCE')
@@ -23,11 +24,13 @@ export class TeamController {
     return this.teamService.getById(user.organisationId, id);
   }
 
+  // Invite a Manager, Rostering Expert, or Employee (Org Admin only).
   @Post()
   register(@CurrentOrgUser() user: OrgJwtPayload, @Body() dto: RegisterMemberDto) {
     return this.teamService.register(user.organisationId, user.role, dto);
   }
 
+  // Update name, email, role, or status for a non-admin member.
   @Patch(':id')
   update(
     @CurrentOrgUser() user: OrgJwtPayload,

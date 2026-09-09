@@ -13,6 +13,7 @@ function formatDate(value: string) {
   });
 }
 
+// Super Admin tenant list from GET /platform/organisations.
 export function OrganisationsPageContent() {
   const { data: organisations = [], isLoading, error } = useListOrganisationsQuery();
   const [query, setQuery] = useState("");
@@ -68,7 +69,9 @@ export function OrganisationsPageContent() {
               {filtered.map((org) => (
                 <tr key={org.id}>
                   <td>
-                    <p className="font-medium">{org.name}</p>
+                    <Link href={`/super-admin/organisations/${org.id}`} className="font-medium hover:text-primary">
+                      {org.name}
+                    </Link>
                     <p className="text-xs text-muted">{org.email}</p>
                   </td>
                   <td className="text-muted">{org.plan}</td>

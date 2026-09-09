@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { loginCopy } from "@/lib/content/auth";
 import { useOrgLoginMutation } from "@/lib/api/authApi";
-import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { getErrorMessage, takeMaintenanceLogoutNotice } from "@/lib/api/getErrorMessage";
 import { getDashboardHomeForRole } from "@/lib/dashboard/roles";
 import { setOrgCredentials } from "@/lib/store/orgAuthSlice";
 import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
@@ -17,7 +17,13 @@ export function LoginForm() {
   const user = useAppSelector((state) => state.orgAuth.user);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [maintenanceNotice, setMaintenanceNotice] = useState("");
   const [login, { isLoading, error, reset }] = useOrgLoginMutation();
+
+  useEffect(() => {
+    const notice = takeMaintenanceLogoutNotice();
+    if (notice) setMaintenanceNotice(notice);
+  }, []);
 
   useEffect(() => {
     if (accessToken) router.replace(getDashboardHomeForRole(user?.role));
@@ -26,6 +32,7 @@ export function LoginForm() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     reset();
+    setMaintenanceNotice("");
 
     try {
       const result = await login({ email, password }).unwrap();
@@ -36,7 +43,10 @@ export function LoginForm() {
     }
   }
 
-  const errorMessage = error ? getErrorMessage(error, "Invalid email or password") : null;
+  const errorMessage =
+    (error ? getErrorMessage(error, "Invalid email or password") : null) ||
+    maintenanceNotice ||
+    null;
 
   return (
     <div className="flex flex-1 items-center justify-center px-6 py-12 sm:px-10">

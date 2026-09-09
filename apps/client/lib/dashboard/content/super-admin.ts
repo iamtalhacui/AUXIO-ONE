@@ -77,14 +77,6 @@ export const reports = [
   },
 ] as const;
 
-export const platformSettings = {
-  defaultTimeZone: "Australia/Sydney",
-  inviteExpiryDays: 7,
-  maxModulesPerOrg: 15,
-  supportEmail: "hello@auxio.one",
-  maintenanceMode: false,
-} as const;
-
 export const featuredWorkflow = {
   tag: "Featured workflow",
   title: "W-01 · Register an organisation",

@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/dashboard/PageHeader";
 import { useChangePasswordMutation } from "@/lib/api/authApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
 
+// Org Admin security page — updates the signed-in user's password only.
 export function OrgAdminPasswordForm() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");

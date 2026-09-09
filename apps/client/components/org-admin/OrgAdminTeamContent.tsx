@@ -44,6 +44,7 @@ function filterMembers(members: OrgTeamMember[], tab: Tab, query: string) {
   });
 }
 
+// Organisation team directory — data comes from GET /organisation/team.
 export function OrgAdminTeamContent() {
   const { data: members = [], isLoading, error } = useListOrgTeamQuery();
   const [tab, setTab] = useState<Tab>("all");

@@ -50,7 +50,6 @@ const superAdminNav: NavGroup[] = [
   {
     title: "Monitoring",
     items: [
-      { label: "Usage & health", href: "/super-admin/health" },
       { label: "Notifications", href: "/super-admin/notifications" },
       { label: "Reports", href: "/super-admin/reports" },
     ],

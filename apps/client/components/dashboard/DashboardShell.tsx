@@ -3,6 +3,7 @@
 import { useMemo, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
+import { useConfirmOrgSession } from "@/components/auth/useConfirmOrgSession";
 import { useListOrgModulesQuery } from "@/lib/api/authApi";
 import { getDashboardConfigForPath } from "@/lib/dashboard/config";
 import { filterNavByModules } from "@/lib/dashboard/nav-modules";
@@ -17,8 +18,10 @@ export function DashboardShell({ children }: DashboardShellProps) {
   const orgUser = useAppSelector((state) => state.orgAuth.user);
   const isPlatform = pathname.startsWith("/super-admin");
   const config = getDashboardConfigForPath(pathname);
+  const sessionOk = useConfirmOrgSession(Boolean(orgUser) && !isPlatform);
+
   const { data: modules } = useListOrgModulesQuery(undefined, {
-    skip: !orgUser || isPlatform,
+    skip: !orgUser || isPlatform || !sessionOk,
   });
 
   const filteredConfig = useMemo(() => {

@@ -8,6 +8,7 @@ import {
 } from "@/lib/api/authApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
 
+// Org Admin toggles plan-included modules for their own organisation.
 export function OrgAdminModulesContent() {
   const { data: modules = [], isLoading, error } = useListOrgModulesQuery();
   const [setEnabled, { isLoading: isSaving, error: saveError }] =

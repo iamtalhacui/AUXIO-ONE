@@ -5,6 +5,7 @@ import {
 import { OverviewStatCards } from "@/components/super-admin/dashboard/OverviewStatCards";
 import { RecentOrganisationsCard } from "@/components/super-admin/dashboard/RecentOrganisationsCard";
 
+// Super Admin home: live organisation stats from the platform API.
 export function OverviewDashboard() {
   return (
     <div className="space-y-6">

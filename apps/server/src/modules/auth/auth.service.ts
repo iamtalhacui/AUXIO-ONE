@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -7,6 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 import { createHash } from 'crypto';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { PlatformService } from '../platform/platform.service';
 import type { OrgJwtPayload } from './current-org-user.decorator';
 
 @Injectable()
@@ -14,6 +16,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
+    private readonly platform: PlatformService,
   ) {}
 
   async setupAccount(rawToken: string, plainPassword: string) {
@@ -67,6 +70,13 @@ export class AuthService {
       throw new UnauthorizedException('Account is not active');
     }
 
+    // Organisation logins are paused while Super Admin has maintenance on.
+    if (await this.platform.isMaintenanceMode()) {
+      throw new ForbiddenException(
+        'The platform is in maintenance mode. Please try again later.',
+      );
+    }
+
     await this.prisma.user.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
@@ -86,6 +96,7 @@ export class AuthService {
     };
   }
 
+  // Logged-in org users change their own password (current password required).
   async changePassword(userId: string, currentPassword: string, newPassword: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },

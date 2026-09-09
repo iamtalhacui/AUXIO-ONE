@@ -8,6 +8,7 @@ type TeamMemberActionsMenuProps = {
   memberRoleCode?: string | null;
 };
 
+// View / Edit shortcuts. Org Admin rows only get View.
 export function TeamMemberActionsMenu({ memberId, memberRoleCode }: TeamMemberActionsMenuProps) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);

@@ -28,6 +28,7 @@ function formatDate(value: string | null) {
   });
 }
 
+// Read-only team member profile for Org Admin.
 export function OrgAdminTeamMemberViewContent({ memberId }: OrgAdminTeamMemberViewContentProps) {
   const { data: member, isLoading, error } = useGetOrgTeamMemberQuery(memberId);
 

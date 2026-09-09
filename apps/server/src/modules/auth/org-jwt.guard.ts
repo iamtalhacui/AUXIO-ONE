@@ -1,17 +1,22 @@
 import {
   CanActivate,
   ExecutionContext,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { PlatformService } from '../platform/platform.service';
 import type { OrgJwtPayload } from './current-org-user.decorator';
 
 @Injectable()
 export class OrgJwtGuard implements CanActivate {
-  constructor(private readonly jwt: JwtService) {}
+  constructor(
+    private readonly jwt: JwtService,
+    private readonly platform: PlatformService,
+  ) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const header = request.headers.authorization as string | undefined;
 
@@ -25,9 +30,19 @@ export class OrgJwtGuard implements CanActivate {
         throw new UnauthorizedException();
       }
       request.user = payload;
-      return true;
-    } catch {
+    } catch (error) {
+      if (error instanceof UnauthorizedException) throw error;
       throw new UnauthorizedException('Invalid or expired access token');
     }
+
+    // Super Admin routes are not guarded here. Org users get 403 while
+    // maintenance is on; the client then clears the org session.
+    if (await this.platform.isMaintenanceMode()) {
+      throw new ForbiddenException(
+        'The platform is in maintenance mode. Please try again later.',
+      );
+    }
+
+    return true;
   }
 }

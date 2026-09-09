@@ -12,6 +12,7 @@ import { OrgJwtGuard } from '../auth/org-jwt.guard';
 import { SetModuleEnabledDto } from './dto/set-module-enabled.dto';
 import { OrganisationsService } from './organisations.service';
 
+// Org Admin (and other org users) read/toggle modules for their own tenant.
 @Controller('organisation/modules')
 @UseGuards(OrgJwtGuard)
 export class OrgModulesController {
@@ -22,6 +23,7 @@ export class OrgModulesController {
     return this.organisationsService.listOrgModules(user.organisationId);
   }
 
+  // Enable or disable one plan-included module for this organisation.
   @Patch(':code')
   setEnabled(
     @CurrentOrgUser() user: OrgJwtPayload,

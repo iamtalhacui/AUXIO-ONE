@@ -108,3 +108,26 @@ model OrganisationModule {
   @@unique([organisationId, moduleId])
   @@index([organisationId])
 }
+
+// ─── Platform settings ───────────────────────────────────
+// Single-row table for Super Admin platform switches.
+
+model PlatformSetting {
+  id              String   @id @default("default")
+  maintenanceMode Boolean  @default(false)
+  updatedAt       DateTime @updatedAt
+}
+
+// ─── Platform audit log ──────────────────────────────────
+// Records Super Admin actions such as registering an org.
+
+model AuditLog {
+  id               String   @id @default(uuid())
+  action           String
+  actorEmail       String
+  organisationName String?
+  details          String   @default("")
+  createdAt        DateTime @default(now())
+
+  @@index([createdAt])
+}

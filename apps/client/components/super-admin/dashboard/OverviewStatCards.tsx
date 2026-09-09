@@ -1,6 +1,6 @@
 "use client";
 
-import { mockOrganisations } from "@/lib/mocks/data";
+import { useListOrganisationsQuery } from "@/lib/api/platformAuthApi";
 
 function MiniBars({ bars }: { bars: number[] }) {
   const max = Math.max(...bars, 1);
@@ -19,10 +19,18 @@ function MiniBars({ bars }: { bars: number[] }) {
 }
 
 export function OverviewStatCards() {
-  const organisations = mockOrganisations;
+  const { data: organisations = [], isLoading, error } = useListOrganisationsQuery();
+
+  if (isLoading) {
+    return <p className="text-sm text-muted">Loading dashboard…</p>;
+  }
+
+  if (error) {
+    return <p className="text-sm text-red-600">Could not load dashboard stats.</p>;
+  }
 
   const active = organisations.filter((org) => org.status === "ACTIVE").length;
-  const pendingInvites = organisations.filter((org) => org.orgAdminEmail).length;
+  const pendingAdmins = organisations.filter((org) => org.admin?.status === "INVITED").length;
 
   const stats = [
     {
@@ -35,9 +43,7 @@ export function OverviewStatCards() {
     },
     {
       label: "Modules enabled",
-      value: String(
-        organisations.reduce((sum, org) => sum + org.modulesEnabled, 0),
-      ),
+      value: String(organisations.reduce((sum, org) => sum + org.modulesEnabled, 0)),
       change: `${organisations.reduce((sum, org) => sum + org.modulesGranted, 0)} granted`,
       changeLabel: "across all tenants",
       positive: true,
@@ -46,8 +52,8 @@ export function OverviewStatCards() {
     {
       label: "Suspended tenants",
       value: String(organisations.filter((org) => org.status === "SUSPENDED").length),
-      change: `${pendingInvites} with org admin`,
-      changeLabel: "registered tenants",
+      change: `${pendingAdmins} pending admins`,
+      changeLabel: "waiting to set password",
       positive: false,
       bars: organisations.map((org) => (org.status === "SUSPENDED" ? 2 : 0)),
     },

@@ -54,6 +54,14 @@ async function main() {
     });
   }
   console.log(`Seeded ${MODULES.length} modules.`);
+
+  // ── Seed platform settings ──
+  await prisma.platformSetting.upsert({
+    where: { id: "default" },
+    update: {},
+    create: { id: "default", maintenanceMode: false },
+  });
+  console.log("Seeded platform settings.");
 }
 
 main()

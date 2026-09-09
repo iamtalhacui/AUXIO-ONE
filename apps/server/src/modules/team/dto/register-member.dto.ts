@@ -6,6 +6,7 @@ export enum WorkforceRole {
   EMPLOYEE = 'EMPLOYEE',
 }
 
+// Invite payload: workforce roles only (not ORG_ADMIN).
 export class RegisterMemberDto {
   @IsString()
   @IsNotEmpty()

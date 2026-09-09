@@ -27,6 +27,7 @@ export class AuthController {
     return this.authService.getMe(user.sub);
   }
 
+  // Org users update their password after they are already signed in.
   @UseGuards(OrgJwtGuard)
   @Post('change-password')
   changePassword(

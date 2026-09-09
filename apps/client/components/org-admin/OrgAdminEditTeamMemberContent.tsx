@@ -19,6 +19,7 @@ const STATUS_OPTIONS: Array<{ value: UserStatus; label: string }> = [
   { value: "SUSPENDED", label: "Suspended — cannot sign in" },
 ];
 
+// Org Admin edit form for a workforce member (not the Org Admin account).
 export function OrgAdminEditTeamMemberContent({ memberId }: OrgAdminEditTeamMemberContentProps) {
   const { data: member, isLoading, error } = useGetOrgTeamMemberQuery(memberId);
   const [updateMember, { isLoading: isSaving, error: saveError, reset }] =

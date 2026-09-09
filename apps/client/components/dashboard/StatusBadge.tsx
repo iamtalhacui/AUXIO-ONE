@@ -29,27 +29,17 @@ export function InviteStatusBadge({ status }: { status: "INVITED" | "EXPIRED" })
 export function ActionBadge({ action }: { action: string }) {
   const styles: Record<string, string> = {
     CREATE: "bg-primary/10 text-primary",
+    ORGANISATION_CREATED: "bg-primary/10 text-primary",
     MODULE_ENABLE: "bg-emerald-100 text-emerald-700",
     MODULE_DISABLE: "bg-accent/10 text-accent",
+    MAINTENANCE_ON: "bg-accent/10 text-accent",
+    MAINTENANCE_OFF: "bg-primary/10 text-primary",
   };
   return (
     <span
       className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${styles[action] ?? "bg-surface-muted text-muted"}`}
     >
-      {action.replace("_", " ")}
-    </span>
-  );
-}
-
-export function HealthBadge({ status }: { status: "healthy" | "warning" | "error" }) {
-  const styles = {
-    healthy: "bg-primary/10 text-primary",
-    warning: "bg-accent/10 text-accent",
-    error: "bg-red-100 text-red-700",
-  };
-  return (
-    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${styles[status]}`}>
-      {status}
+      {action.replaceAll("_", " ")}
     </span>
   );
 }

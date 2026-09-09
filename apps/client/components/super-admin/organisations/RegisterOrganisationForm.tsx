@@ -21,6 +21,7 @@ const PLANS: { value: OrgPlan; label: string; modules: string }[] = [
 
 const inputClass = "input-field";
 
+// Super Admin registers a tenant, Org Admin, and plan modules in one submit.
 export function RegisterOrganisationForm() {
   const router = useRouter();
   const [register, { isLoading, error, reset }] = useRegisterOrganisationMutation();
