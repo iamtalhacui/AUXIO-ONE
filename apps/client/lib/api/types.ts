@@ -12,6 +12,12 @@ export type PlatformLoginResponse = {
 export type OrgPlan = "BASIC" | "ADVANCED";
 export type OrgStatus = "ACTIVE" | "SUSPENDED";
 export type UserStatus = "INVITED" | "ACTIVE" | "SUSPENDED";
+export type OnboardingStatus =
+  | "NOT_STARTED"
+  | "IN_PROGRESS"
+  | "PENDING_REVIEW"
+  | "VERIFIED"
+  | "CHANGES_REQUIRED";
 
 export type RegisterOrganisationRequest = {
   name: string;
@@ -78,6 +84,7 @@ export type OrgUser = {
   email: string;
   role: string;
   status: UserStatus;
+  onboardingStatus: OnboardingStatus;
   organisationId: string;
 };
 
@@ -119,6 +126,7 @@ export type OrgTeamMember = {
   email: string;
   role: string;
   status: UserStatus;
+  onboardingStatus: OnboardingStatus;
   createdAt: string;
   lastLoginAt: string | null;
   emailVerifiedAt: string | null;
@@ -137,6 +145,75 @@ export type UpdateTeamMemberRequest = {
   email?: string;
   role?: WorkforceRole;
   status?: UserStatus;
+};
+
+export type OnboardingDocumentMeta = {
+  id: string;
+  fieldKey: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  uploadedAt: string;
+};
+
+export type OnboardingSubmissionDto = {
+  id: string;
+  userId: string;
+  organisationId: string;
+  roleSnapshot: string;
+  currentStep: number;
+  payload: {
+    personal?: Record<string, string | string[]>;
+    work?: Record<string, string | string[]>;
+  };
+  status: OnboardingStatus;
+  submittedAt: string | null;
+  reviewedAt: string | null;
+  reviewNote: string | null;
+  createdAt: string;
+  updatedAt: string;
+  documents: OnboardingDocumentMeta[];
+};
+
+export type OnboardingMeResponse = {
+  onboardingStatus: OnboardingStatus;
+  editable: boolean;
+  template: unknown;
+  submission: OnboardingSubmissionDto | null;
+};
+
+export type SaveOnboardingDraftRequest = {
+  currentStep?: number;
+  payload: {
+    personal?: Record<string, string | string[]>;
+    work?: Record<string, string | string[]>;
+  };
+};
+
+export type OnboardingAdminDetailResponse = {
+  template: unknown;
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    role: string;
+    status: UserStatus;
+    onboardingStatus: OnboardingStatus;
+  };
+  submission: OnboardingSubmissionDto & {
+    reviewedBy?: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+    } | null;
+  };
+};
+
+export type ReviewOnboardingRequest = {
+  decision: "VERIFIED" | "CHANGES_REQUIRED";
+  note?: string;
 };
 
 // ── Super Admin platform views ──

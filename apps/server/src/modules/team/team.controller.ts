@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { VerifiedOnboardingGuard } from '../../common/guards/verified-onboarding.guard';
 import { ModuleAccessGuard, RequireModule } from '../../common/guards/module-access.guard';
 import { CurrentOrgUser } from '../auth/current-org-user.decorator';
 import type { OrgJwtPayload } from '../auth/current-org-user.decorator';
@@ -9,7 +10,7 @@ import { TeamService } from './team.service';
 
 // Team APIs are organisation-scoped and require the WORKFORCE module to be on.
 @Controller('organisation/team')
-@UseGuards(OrgJwtGuard, ModuleAccessGuard)
+@UseGuards(OrgJwtGuard, VerifiedOnboardingGuard, ModuleAccessGuard)
 @RequireModule('WORKFORCE')
 export class TeamController {
   constructor(private readonly teamService: TeamService) {}

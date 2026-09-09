@@ -41,8 +41,9 @@ model Organisation {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  users              User[]
-  organisationModules OrganisationModule[]
+  users                 User[]
+  organisationModules   OrganisationModule[]
+  onboardingSubmissions OnboardingSubmission[]
 }
 
 // ─── User (organisation-scoped) ──────────────────────────
@@ -60,25 +61,80 @@ enum UserStatus {
   SUSPENDED
 }
 
-model User {
-  id                  String    @id @default(uuid())
-  organisationId      String
-  firstName           String
-  lastName            String
-  email               String    @unique
-  passwordHash        String?
-  role                UserRole
-  status              UserStatus @default(INVITED)
-  setupTokenHash      String?
-  setupTokenExpiresAt DateTime?
-  emailVerifiedAt     DateTime?
-  lastLoginAt         DateTime?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+// Product onboarding lifecycle (separate from account UserStatus).
+enum OnboardingStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  PENDING_REVIEW
+  VERIFIED
+  CHANGES_REQUIRED
+}
 
-  organisation Organisation @relation(fields: [organisationId], references: [id])
+model User {
+  id                    String           @id @default(uuid())
+  organisationId        String
+  firstName             String
+  lastName              String
+  email                 String           @unique
+  passwordHash          String?
+  role                  UserRole
+  status                UserStatus       @default(INVITED)
+  onboardingStatus      OnboardingStatus @default(NOT_STARTED)
+  onboardingCompletedAt DateTime?
+  setupTokenHash        String?
+  setupTokenExpiresAt   DateTime?
+  emailVerifiedAt       DateTime?
+  lastLoginAt           DateTime?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  organisation           Organisation           @relation(fields: [organisationId], references: [id])
+  onboardingSubmission   OnboardingSubmission?
+  reviewedOnboardings    OnboardingSubmission[] @relation("OnboardingReviews")
 
   @@index([organisationId])
+}
+
+// ─── Workforce onboarding (one submission per user) ───────
+
+model OnboardingSubmission {
+  id             String           @id @default(uuid())
+  userId         String           @unique
+  organisationId String
+  roleSnapshot   UserRole
+  currentStep    Int              @default(0)
+  payload        Json             @default("{}")
+  status         OnboardingStatus @default(IN_PROGRESS)
+  submittedAt    DateTime?
+  reviewedAt     DateTime?
+  reviewedById   String?
+  reviewNote     String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organisation Organisation         @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  reviewedBy   User?                @relation("OnboardingReviews", fields: [reviewedById], references: [id], onDelete: SetNull)
+  documents    OnboardingDocument[]
+
+  @@index([organisationId])
+  @@index([organisationId, status])
+}
+
+model OnboardingDocument {
+  id           String   @id @default(uuid())
+  submissionId String
+  fieldKey     String
+  fileName     String
+  mimeType     String
+  sizeBytes    Int
+  storageKey   String
+  uploadedAt   DateTime @default(now())
+
+  submission OnboardingSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@unique([submissionId, fieldKey])
+  @@index([submissionId])
 }
 
 // ─── Modules ─────────────────────────────────────────────

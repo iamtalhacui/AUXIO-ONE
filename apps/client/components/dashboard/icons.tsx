@@ -64,6 +64,25 @@ export function IconLogout(props: IconProps) {
   );
 }
 
+export function IconLock(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...props}>
+      <rect x="5" y="11" width="14" height="10" rx="2" />
+      <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+    </svg>
+  );
+}
+
+export function IconClipboard(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" {...props}>
+      <path d="M9 5h6M9 3h6a1 1 0 0 1 1 1v1H8V4a1 1 0 0 1 1-1Z" />
+      <rect x="5" y="5" width="14" height="16" rx="2" />
+      <path d="M9 12h6M9 16h4" />
+    </svg>
+  );
+}
+
 export const adminNavIcons = {
   Overview: IconOverview,
   Organisations: IconBuilding,

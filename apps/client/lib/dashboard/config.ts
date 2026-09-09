@@ -4,6 +4,7 @@ export type NavItem = {
   label: string;
   href?: string;
   module?: string;
+  locked?: boolean;
   children?: NavItem[];
 };
 

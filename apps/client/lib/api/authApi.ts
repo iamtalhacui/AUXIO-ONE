@@ -14,6 +14,12 @@ import type {
   UpdateTeamMemberRequest,
   SetupAccountRequest,
   SetupAccountResponse,
+  OnboardingMeResponse,
+  SaveOnboardingDraftRequest,
+  OnboardingDocumentMeta,
+  OnboardingAdminDetailResponse,
+  ReviewOnboardingRequest,
+  OnboardingStatus,
 } from "@/lib/api/types";
 import { isMaintenanceError, rememberMaintenanceLogout } from "@/lib/api/getErrorMessage";
 import { logoutOrg } from "@/lib/store/orgAuthSlice";
@@ -45,7 +51,7 @@ const baseQueryWithAuth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQuery
 export const authApi = createApi({
   reducerPath: "authApi",
   baseQuery: baseQueryWithAuth,
-  tagTypes: ["OrgModules", "OrgTeam"],
+  tagTypes: ["OrgModules", "OrgTeam", "OnboardingMe", "OnboardingAdmin"],
   endpoints: (builder) => ({
     setupAccount: builder.mutation<SetupAccountResponse, SetupAccountRequest>({
       query: (body) => ({
@@ -68,7 +74,6 @@ export const authApi = createApi({
       query: () => "/organisation/modules",
       providesTags: ["OrgModules"],
     }),
-    // Org Admin toggles a plan-included module on or off.
     setOrgModuleEnabled: builder.mutation<OrgModule, { code: string; enabled: boolean }>({
       query: ({ code, enabled }) => ({
         url: `/organisation/modules/${code}`,
@@ -77,7 +82,6 @@ export const authApi = createApi({
       }),
       invalidatesTags: ["OrgModules"],
     }),
-    // Team directory for this organisation (WORKFORCE must be enabled).
     listOrgTeam: builder.query<OrgTeamMember[], void>({
       query: () => "/organisation/team",
       providesTags: ["OrgTeam"],
@@ -105,7 +109,6 @@ export const authApi = createApi({
       }),
       invalidatesTags: (_result, _error, { id }) => ["OrgTeam", { type: "OrgTeam", id }],
     }),
-    // Logged-in org user updates their own password.
     changePassword: builder.mutation<
       { message: string },
       { currentPassword: string; newPassword: string }
@@ -115,6 +118,65 @@ export const authApi = createApi({
         method: "POST",
         body,
       }),
+    }),
+    getOnboardingMe: builder.query<OnboardingMeResponse, void>({
+      query: () => "/onboarding/me",
+      providesTags: ["OnboardingMe"],
+    }),
+    saveOnboardingDraft: builder.mutation<
+      { onboardingStatus: OnboardingStatus; editable: boolean; submission: OnboardingMeResponse["submission"] },
+      SaveOnboardingDraftRequest
+    >({
+      query: (body) => ({
+        url: "/onboarding/me/draft",
+        method: "PUT",
+        body,
+      }),
+      invalidatesTags: ["OnboardingMe"],
+    }),
+    submitOnboarding: builder.mutation<
+      { onboardingStatus: OnboardingStatus; editable: boolean; submission: OnboardingMeResponse["submission"] },
+      void
+    >({
+      query: () => ({
+        url: "/onboarding/me/submit",
+        method: "POST",
+      }),
+      invalidatesTags: ["OnboardingMe", "OrgTeam"],
+    }),
+    uploadOnboardingDocument: builder.mutation<OnboardingDocumentMeta, { fieldKey: string; file: File }>({
+      query: ({ fieldKey, file }) => {
+        const body = new FormData();
+        body.append("file", file);
+        return {
+          url: `/onboarding/me/documents/${fieldKey}`,
+          method: "POST",
+          body,
+        };
+      },
+      invalidatesTags: ["OnboardingMe"],
+    }),
+    deleteOnboardingDocument: builder.mutation<{ message: string }, string>({
+      query: (documentId) => ({
+        url: `/onboarding/me/documents/${documentId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: ["OnboardingMe"],
+    }),
+    getAdminOnboarding: builder.query<OnboardingAdminDetailResponse, string>({
+      query: (userId) => `/organisation/onboarding/${userId}`,
+      providesTags: (_r, _e, userId) => [{ type: "OnboardingAdmin", id: userId }],
+    }),
+    reviewOnboarding: builder.mutation<
+      { onboardingStatus: OnboardingStatus },
+      { userId: string } & ReviewOnboardingRequest
+    >({
+      query: ({ userId, ...body }) => ({
+        url: `/organisation/onboarding/${userId}/review`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["OnboardingAdmin", "OrgTeam", "OnboardingMe"],
     }),
   }),
 });
@@ -130,4 +192,11 @@ export const {
   useGetOrgTeamMemberQuery,
   useUpdateTeamMemberMutation,
   useChangePasswordMutation,
+  useGetOnboardingMeQuery,
+  useSaveOnboardingDraftMutation,
+  useSubmitOnboardingMutation,
+  useUploadOnboardingDocumentMutation,
+  useDeleteOnboardingDocumentMutation,
+  useGetAdminOnboardingQuery,
+  useReviewOnboardingMutation,
 } = authApi;
