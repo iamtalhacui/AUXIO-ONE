@@ -2,27 +2,46 @@
 
 import { FormEvent, useState } from "react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
+import { useChangePasswordMutation } from "@/lib/api/authApi";
+import { getErrorMessage } from "@/lib/api/getErrorMessage";
 
 export function OrgAdminPasswordForm() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState("");
+  const [localError, setLocalError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [changePassword, { isLoading, error, reset }] = useChangePasswordMutation();
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError("");
+    setLocalError("");
+    setSuccess("");
+    reset();
 
     if (newPassword.length < 8) {
-      setError("New password must be at least 8 characters.");
+      setLocalError("New password must be at least 8 characters.");
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      setError("New passwords do not match.");
+      setLocalError("New passwords do not match.");
       return;
     }
+
+    try {
+      const result = await changePassword({ currentPassword, newPassword }).unwrap();
+      setSuccess(result.message || "Password updated");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch {
+      // RTK error
+    }
   }
+
+  const errorMessage =
+    localError || (error ? getErrorMessage(error, "Could not update password") : null);
 
   return (
     <>
@@ -66,14 +85,20 @@ export function OrgAdminPasswordForm() {
           />
         </label>
 
-        {error ? (
+        {errorMessage ? (
           <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
+            {errorMessage}
           </p>
         ) : null}
 
-        <button type="submit" className="btn-primary">
-          Update password
+        {success ? (
+          <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            {success}
+          </p>
+        ) : null}
+
+        <button type="submit" disabled={isLoading} className="btn-primary disabled:opacity-70">
+          {isLoading ? "Updating…" : "Update password"}
         </button>
       </form>
     </>

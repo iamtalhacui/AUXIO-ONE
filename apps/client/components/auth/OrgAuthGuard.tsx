@@ -7,12 +7,13 @@ import { useAppSelector } from "@/lib/store/hooks";
 export function OrgAuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const accessToken = useAppSelector((state) => state.orgAuth.accessToken);
+  const hydrated = useAppSelector((state) => state.orgAuth.hydrated);
 
   useEffect(() => {
-    if (!accessToken) router.replace("/login");
-  }, [accessToken, router]);
+    if (hydrated && !accessToken) router.replace("/login");
+  }, [accessToken, hydrated, router]);
 
-  if (!accessToken) {
+  if (!hydrated || !accessToken) {
     return (
       <div className="flex min-h-screen items-center justify-center text-sm text-muted">
         Checking session…

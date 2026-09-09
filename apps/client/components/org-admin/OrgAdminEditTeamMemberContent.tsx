@@ -1,57 +1,100 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
-import type { ConfigurableRoleId } from "@/lib/dashboard/content/org-admin-roles";
+import { useGetOrgTeamMemberQuery, useUpdateTeamMemberMutation } from "@/lib/api/authApi";
+import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import type { UserStatus, WorkforceRole } from "@/lib/api/types";
 import { REGISTERABLE_ROLES } from "@/lib/dashboard/content/org-admin-team";
-import { mockTeamMembers, type TeamMember, type TeamMemberStatus } from "@/lib/mocks/data";
 import { inputClass, labelClass } from "@/lib/onboarding/form-styles";
 
 type OrgAdminEditTeamMemberContentProps = {
   memberId: string;
 };
 
-const STATUS_OPTIONS: Array<{ value: TeamMemberStatus; label: string }> = [
-  { value: "VERIFIED", label: "Verified — full access" },
-  { value: "PENDING_APPROVAL", label: "Pending approval — awaiting review" },
-  { value: "ONBOARDING", label: "Onboarding — in progress" },
-  { value: "INVITED", label: "Invited" },
-  { value: "MUST_CHANGE_PASSWORD", label: "Must change password" },
-  { value: "SUSPENDED", label: "Suspended — no system access" },
+const STATUS_OPTIONS: Array<{ value: UserStatus; label: string }> = [
+  { value: "INVITED", label: "Invited — waiting to set password" },
+  { value: "ACTIVE", label: "Active — can sign in" },
+  { value: "SUSPENDED", label: "Suspended — cannot sign in" },
 ];
 
-function mapRoleToConfigurable(role: string): ConfigurableRoleId {
-  if (role === "MANAGER" || role === "ROSTERING_EXPERT" || role === "EMPLOYEE") {
-    return role;
-  }
-  if (role === "TEAM_LEADER") return "MANAGER";
-  return "EMPLOYEE";
-}
-
 export function OrgAdminEditTeamMemberContent({ memberId }: OrgAdminEditTeamMemberContentProps) {
-  const member: TeamMember =
-    mockTeamMembers.find((item) => item.id === memberId) ?? mockTeamMembers[0];
+  const { data: member, isLoading, error } = useGetOrgTeamMemberQuery(memberId);
+  const [updateMember, { isLoading: isSaving, error: saveError, reset }] =
+    useUpdateTeamMemberMutation();
+  const [success, setSuccess] = useState("");
 
-  const [name, setName] = useState(member.name);
-  const [email, setEmail] = useState(member.email);
-  const [role, setRole] = useState<ConfigurableRoleId>(mapRoleToConfigurable(member.role));
-  const [status, setStatus] = useState<TeamMemberStatus>(member.status);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState<WorkforceRole>("EMPLOYEE");
+  const [status, setStatus] = useState<UserStatus>("INVITED");
 
-  function handleSubmit(event: FormEvent) {
+  useEffect(() => {
+    if (!member) return;
+    setFirstName(member.firstName);
+    setLastName(member.lastName);
+    setEmail(member.email);
+    if (
+      member.role === "MANAGER" ||
+      member.role === "ROSTERING_EXPERT" ||
+      member.role === "EMPLOYEE"
+    ) {
+      setRole(member.role);
+    }
+    setStatus(member.status);
+  }, [member]);
+
+  async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    setSuccess("");
+    reset();
+
+    try {
+      await updateMember({
+        id: memberId,
+        firstName,
+        lastName,
+        email,
+        role,
+        status,
+      }).unwrap();
+      setSuccess("Member updated");
+    } catch {
+      // RTK error
+    }
   }
+
+  if (isLoading) {
+    return <p className="text-sm text-muted">Loading member…</p>;
+  }
+
+  if (error || !member) {
+    return (
+      <p className="text-sm text-red-600">
+        {getErrorMessage(error, "Could not load this team member.")}
+      </p>
+    );
+  }
+
+  if (member.role === "ORG_ADMIN") {
+    return (
+      <p className="text-sm text-muted">
+        Organisation admin accounts cannot be edited from the team directory.
+      </p>
+    );
+  }
+
+  const errorMessage = saveError ? getErrorMessage(saveError, "Could not save changes") : null;
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Edit team member"
-        description="Update account details, role, or access status. Deactivated members keep their data but cannot sign in."
+        description="Update name, email, role, or access status."
         action={
-          <Link
-            href="/org-admin/team"
-            className="rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-muted transition hover:border-primary/30 hover:text-foreground"
-          >
+          <Link href="/org-admin/team" className="btn-secondary">
             Back to team
           </Link>
         }
@@ -60,8 +103,22 @@ export function OrgAdminEditTeamMemberContent({ memberId }: OrgAdminEditTeamMemb
       <form onSubmit={handleSubmit} className="dashboard-card space-y-6 p-6">
         <div className="grid gap-5 md:grid-cols-2">
           <label className="block">
-            <span className={labelClass}>Full name</span>
-            <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} required />
+            <span className={labelClass}>First name</span>
+            <input
+              className={inputClass}
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              required
+            />
+          </label>
+          <label className="block">
+            <span className={labelClass}>Last name</span>
+            <input
+              className={inputClass}
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              required
+            />
           </label>
           <label className="block">
             <span className={labelClass}>Email</span>
@@ -75,7 +132,11 @@ export function OrgAdminEditTeamMemberContent({ memberId }: OrgAdminEditTeamMemb
           </label>
           <label className="block">
             <span className={labelClass}>Role</span>
-            <select className={inputClass} value={role} onChange={(e) => setRole(e.target.value as ConfigurableRoleId)}>
+            <select
+              className={inputClass}
+              value={role}
+              onChange={(e) => setRole(e.target.value as WorkforceRole)}
+            >
               {REGISTERABLE_ROLES.map((item) => (
                 <option key={item.code} value={item.code}>
                   {item.label}
@@ -83,12 +144,12 @@ export function OrgAdminEditTeamMemberContent({ memberId }: OrgAdminEditTeamMemb
               ))}
             </select>
           </label>
-          <label className="block">
+          <label className="block md:col-span-2">
             <span className={labelClass}>Access status</span>
             <select
               className={inputClass}
               value={status}
-              onChange={(e) => setStatus(e.target.value as TeamMemberStatus)}
+              onChange={(e) => setStatus(e.target.value as UserStatus)}
             >
               {STATUS_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -101,22 +162,28 @@ export function OrgAdminEditTeamMemberContent({ memberId }: OrgAdminEditTeamMemb
 
         {status === "SUSPENDED" ? (
           <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            This member will be unable to sign in. Their onboarding records and history are retained.
+            This member will be unable to sign in.
+          </p>
+        ) : null}
+
+        {errorMessage ? (
+          <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {errorMessage}
+          </p>
+        ) : null}
+
+        {success ? (
+          <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            {success}
           </p>
         ) : null}
 
         <div className="flex justify-end gap-3">
-          <Link
-            href={`/org-admin/team/${member.id}/review`}
-            className="rounded-xl border border-border px-5 py-2.5 text-sm font-semibold text-muted hover:border-primary/30"
-          >
+          <Link href={`/org-admin/team/${member.id}/review`} className="btn-secondary">
             View profile
           </Link>
-          <button
-            type="submit"
-            className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-light"
-          >
-            Save changes
+          <button type="submit" disabled={isSaving} className="btn-primary disabled:opacity-70">
+            {isSaving ? "Saving…" : "Save changes"}
           </button>
         </div>
       </form>

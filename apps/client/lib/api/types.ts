@@ -101,3 +101,40 @@ export type OrgMeResponse = {
   user: OrgUser;
   organisation: OrgSummary;
 };
+
+export type OrgModule = {
+  code: string;
+  name: string;
+  description: string;
+  isCore: boolean;
+  enabled: boolean;
+};
+
+export type WorkforceRole = "MANAGER" | "ROSTERING_EXPERT" | "EMPLOYEE";
+
+export type OrgTeamMember = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: string;
+  status: UserStatus;
+  createdAt: string;
+  lastLoginAt: string | null;
+  emailVerifiedAt: string | null;
+};
+
+export type RegisterTeamMemberRequest = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: WorkforceRole;
+};
+
+export type UpdateTeamMemberRequest = {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  role?: WorkforceRole;
+  status?: UserStatus;
+};

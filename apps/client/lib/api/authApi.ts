@@ -8,6 +8,10 @@ import {
 import type {
   OrgLoginResponse,
   OrgMeResponse,
+  OrgModule,
+  OrgTeamMember,
+  RegisterTeamMemberRequest,
+  UpdateTeamMemberRequest,
   SetupAccountRequest,
   SetupAccountResponse,
 } from "@/lib/api/types";
@@ -39,6 +43,7 @@ const baseQueryWithAuth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQuery
 export const authApi = createApi({
   reducerPath: "authApi",
   baseQuery: baseQueryWithAuth,
+  tagTypes: ["OrgModules", "OrgTeam"],
   endpoints: (builder) => ({
     setupAccount: builder.mutation<SetupAccountResponse, SetupAccountRequest>({
       query: (body) => ({
@@ -57,7 +62,67 @@ export const authApi = createApi({
     orgMe: builder.query<OrgMeResponse, void>({
       query: () => "/auth/me",
     }),
+    listOrgModules: builder.query<OrgModule[], void>({
+      query: () => "/organisation/modules",
+      providesTags: ["OrgModules"],
+    }),
+    setOrgModuleEnabled: builder.mutation<OrgModule, { code: string; enabled: boolean }>({
+      query: ({ code, enabled }) => ({
+        url: `/organisation/modules/${code}`,
+        method: "PATCH",
+        body: { enabled },
+      }),
+      invalidatesTags: ["OrgModules"],
+    }),
+    listOrgTeam: builder.query<OrgTeamMember[], void>({
+      query: () => "/organisation/team",
+      providesTags: ["OrgTeam"],
+    }),
+    registerTeamMember: builder.mutation<OrgTeamMember, RegisterTeamMemberRequest>({
+      query: (body) => ({
+        url: "/organisation/team",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["OrgTeam"],
+    }),
+    getOrgTeamMember: builder.query<OrgTeamMember, string>({
+      query: (id) => `/organisation/team/${id}`,
+      providesTags: (_result, _error, id) => [{ type: "OrgTeam", id }],
+    }),
+    updateTeamMember: builder.mutation<
+      OrgTeamMember,
+      { id: string } & UpdateTeamMemberRequest
+    >({
+      query: ({ id, ...body }) => ({
+        url: `/organisation/team/${id}`,
+        method: "PATCH",
+        body,
+      }),
+      invalidatesTags: (_result, _error, { id }) => ["OrgTeam", { type: "OrgTeam", id }],
+    }),
+    changePassword: builder.mutation<
+      { message: string },
+      { currentPassword: string; newPassword: string }
+    >({
+      query: (body) => ({
+        url: "/auth/change-password",
+        method: "POST",
+        body,
+      }),
+    }),
   }),
 });
 
-export const { useSetupAccountMutation, useOrgLoginMutation, useOrgMeQuery } = authApi;
+export const {
+  useSetupAccountMutation,
+  useOrgLoginMutation,
+  useOrgMeQuery,
+  useListOrgModulesQuery,
+  useSetOrgModuleEnabledMutation,
+  useListOrgTeamQuery,
+  useRegisterTeamMemberMutation,
+  useGetOrgTeamMemberQuery,
+  useUpdateTeamMemberMutation,
+  useChangePasswordMutation,
+} = authApi;

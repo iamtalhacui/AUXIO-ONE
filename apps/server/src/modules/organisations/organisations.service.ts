@@ -148,6 +148,121 @@ export class OrganisationsService {
   }
 
   /**
+   * Plan-entitled modules for this organisation, with current enabled state.
+   * Modules not in the plan are omitted — Org Admin cannot toggle those.
+   */
+  async listOrgModules(organisationId: string) {
+    const org = await this.prisma.organisation.findUnique({
+      where: { id: organisationId },
+      select: { plan: true },
+    });
+
+    if (!org) {
+      throw new NotFoundException('Organisation not found');
+    }
+
+    const entitledCodes = getEntitledModuleCodes(org.plan);
+
+    const catalog = await this.prisma.module.findMany({
+      where: { code: { in: [...entitledCodes] } },
+      orderBy: { name: 'asc' },
+    });
+
+    const rows = await this.prisma.organisationModule.findMany({
+      where: { organisationId },
+      select: { enabled: true, module: { select: { code: true } } },
+    });
+
+    const enabledByCode = new Map(
+      rows.map((row: { module: { code: string }; enabled: boolean }) => [
+        row.module.code,
+        row.enabled,
+      ]),
+    );
+
+    return catalog.map(
+      (mod: {
+        code: string;
+        name: string;
+        description: string;
+        isCore: boolean;
+      }) => ({
+        code: mod.code,
+        name: mod.name,
+        description: mod.description,
+        isCore: mod.isCore,
+        enabled: enabledByCode.get(mod.code) ?? false,
+      }),
+    );
+  }
+
+  /**
+   * Org Admin only. Can toggle modules that are in the organisation's plan.
+   * The enabled flag is stored on OrganisationModule.
+   */
+  async setModuleEnabled(
+    organisationId: string,
+    role: string,
+    moduleCode: string,
+    enabled: boolean,
+  ) {
+    if (role !== 'ORG_ADMIN') {
+      throw new ForbiddenException(
+        'Only organisation admins can enable or disable modules',
+      );
+    }
+
+    const org = await this.prisma.organisation.findUnique({
+      where: { id: organisationId },
+      select: { plan: true },
+    });
+
+    if (!org) {
+      throw new NotFoundException('Organisation not found');
+    }
+
+    const code = moduleCode.trim().toUpperCase();
+    const entitled = getEntitledModuleCodes(org.plan);
+
+    if (!entitled.includes(code)) {
+      throw new ForbiddenException(
+        `Module "${code}" is not included in your organisation's plan`,
+      );
+    }
+
+    const mod = await this.prisma.module.findUnique({
+      where: { code },
+    });
+
+    if (!mod) {
+      throw new NotFoundException(`Module "${code}" not found`);
+    }
+
+    const orgModule = await this.prisma.organisationModule.upsert({
+      where: {
+        organisationId_moduleId: {
+          organisationId,
+          moduleId: mod.id,
+        },
+      },
+      update: { enabled },
+      create: {
+        organisationId,
+        moduleId: mod.id,
+        enabled,
+      },
+    });
+
+    return {
+      code: mod.code,
+      name: mod.name,
+      description: mod.description,
+      isCore: mod.isCore,
+      enabled: orgModule.enabled,
+    };
+  }
+
+  /**
    * Returns the module codes that an organisation is entitled to
    * based on its current plan.
    */
@@ -179,10 +294,11 @@ export class OrganisationsService {
     }
 
     // 1. Is the module in the org's plan?
+    const code = moduleCode.trim().toUpperCase();
     const entitled = getEntitledModuleCodes(org.plan);
-    if (!entitled.includes(moduleCode)) {
+    if (!entitled.includes(code)) {
       throw new ForbiddenException(
-        `Module "${moduleCode}" is not included in your organisation's plan`,
+        `Module "${code}" is not included in your organisation's plan`,
       );
     }
 
@@ -190,14 +306,14 @@ export class OrganisationsService {
     const orgModule = await this.prisma.organisationModule.findFirst({
       where: {
         organisationId,
-        module: { code: moduleCode },
+        module: { code },
       },
       select: { enabled: true },
     });
 
     if (!orgModule || !orgModule.enabled) {
       throw new ForbiddenException(
-        `Module "${moduleCode}" is not enabled for your organisation`,
+        `Module "${code}" is not enabled for your organisation`,
       );
     }
   }

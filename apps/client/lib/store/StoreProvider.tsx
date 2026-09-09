@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Provider } from "react-redux";
 import { hydrateOrgAuth } from "@/lib/store/orgAuthSlice";
 import { hydratePlatformAuth } from "@/lib/store/platformAuthSlice";
@@ -11,9 +11,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   if (!storeRef.current) {
     storeRef.current = makeStore();
-    storeRef.current.dispatch(hydratePlatformAuth());
-    storeRef.current.dispatch(hydrateOrgAuth());
   }
+
+  useEffect(() => {
+    storeRef.current?.dispatch(hydratePlatformAuth());
+    storeRef.current?.dispatch(hydrateOrgAuth());
+  }, []);
 
   return <Provider store={storeRef.current}>{children}</Provider>;
 }

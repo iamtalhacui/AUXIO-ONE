@@ -6,11 +6,13 @@ const STORAGE_KEY = "auxio_platform_auth";
 type PlatformAuthState = {
   accessToken: string | null;
   user: PlatformUser | null;
+  hydrated: boolean;
 };
 
 const initialState: PlatformAuthState = {
   accessToken: null,
   user: null,
+  hydrated: false,
 };
 
 function persist(state: PlatformAuthState) {
@@ -30,16 +32,21 @@ const platformAuthSlice = createSlice({
   initialState,
   reducers: {
     hydratePlatformAuth(state) {
-      if (typeof window === "undefined") return;
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      try {
-        const parsed = JSON.parse(raw) as PlatformAuthState;
-        state.accessToken = parsed.accessToken ?? null;
-        state.user = parsed.user ?? null;
-      } catch {
-        localStorage.removeItem(STORAGE_KEY);
+      if (typeof window === "undefined") {
+        state.hydrated = true;
+        return;
       }
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw) as PlatformAuthState;
+          state.accessToken = parsed.accessToken ?? null;
+          state.user = parsed.user ?? null;
+        } catch {
+          localStorage.removeItem(STORAGE_KEY);
+        }
+      }
+      state.hydrated = true;
     },
     setPlatformCredentials(state, action: PayloadAction<PlatformLoginResponse>) {
       state.accessToken = action.payload.accessToken;

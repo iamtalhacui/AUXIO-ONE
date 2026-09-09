@@ -1,6 +1,10 @@
-import type { TeamMember, TeamMemberStatus } from "@/lib/mocks/data";
+import type { UserStatus } from "@/lib/api/types";
+import type { TeamMemberStatus } from "@/lib/mocks/data";
 
-const STATUS_MAP: Record<TeamMemberStatus, { label: string; className: string }> = {
+type Status = UserStatus | TeamMemberStatus;
+
+const STATUS_MAP: Record<string, { label: string; className: string }> = {
+  ACTIVE: { label: "Active", className: "status-pill-active" },
   VERIFIED: { label: "Active", className: "status-pill-active" },
   INVITED: { label: "Invited", className: "status-pill-pending" },
   MUST_CHANGE_PASSWORD: { label: "Must change password", className: "status-pill-pending" },
@@ -9,13 +13,13 @@ const STATUS_MAP: Record<TeamMemberStatus, { label: string; className: string }>
   SUSPENDED: { label: "Suspended", className: "status-pill-inactive" },
 };
 
-export function MemberStatusPill({ status }: { status: TeamMember["status"] }) {
+export function MemberStatusPill({ status }: { status: Status }) {
   const config = STATUS_MAP[status] ?? { label: status, className: "status-pill-inactive" };
   return <span className={`status-pill ${config.className}`}>{config.label}</span>;
 }
 
-export function getMemberTabCategory(status: TeamMember["status"]): "active" | "inactive" | "all" {
+export function getMemberTabCategory(status: Status): "active" | "inactive" | "all" {
   if (status === "SUSPENDED") return "inactive";
-  if (status === "VERIFIED") return "active";
+  if (status === "ACTIVE" || status === "VERIFIED") return "active";
   return "all";
 }

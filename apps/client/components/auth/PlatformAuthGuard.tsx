@@ -7,14 +7,15 @@ import { useAppSelector } from "@/lib/store/hooks";
 export function PlatformAuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const accessToken = useAppSelector((state) => state.platformAuth.accessToken);
+  const hydrated = useAppSelector((state) => state.platformAuth.hydrated);
 
   useEffect(() => {
-    if (!accessToken) {
+    if (hydrated && !accessToken) {
       router.replace("/platform/login");
     }
-  }, [accessToken, router]);
+  }, [accessToken, hydrated, router]);
 
-  if (!accessToken) {
+  if (!hydrated || !accessToken) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted">
         Checking session…

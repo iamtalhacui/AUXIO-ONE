@@ -1,10 +1,10 @@
-import { OrgAdminOnboardingReviewContent } from "@/components/org-admin/OrgAdminOnboardingReviewContent";
+import { OrgAdminTeamMemberViewContent } from "@/components/org-admin/OrgAdminTeamMemberViewContent";
 
 type PageProps = {
   params: Promise<{ memberId: string }>;
 };
 
-export default async function OrgAdminOnboardingReviewPage({ params }: PageProps) {
+export default async function OrgAdminTeamMemberViewPage({ params }: PageProps) {
   const { memberId } = await params;
-  return <OrgAdminOnboardingReviewContent memberId={memberId} />;
+  return <OrgAdminTeamMemberViewContent memberId={memberId} />;
 }

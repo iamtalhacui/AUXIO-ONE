@@ -7,12 +7,14 @@ type OrgAuthState = {
   accessToken: string | null;
   user: OrgUser | null;
   organisation: OrgSummary | null;
+  hydrated: boolean;
 };
 
 const initialState: OrgAuthState = {
   accessToken: null,
   user: null,
   organisation: null,
+  hydrated: false,
 };
 
 function persist(state: OrgAuthState) {
@@ -36,17 +38,22 @@ const orgAuthSlice = createSlice({
   initialState,
   reducers: {
     hydrateOrgAuth(state) {
-      if (typeof window === "undefined") return;
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      try {
-        const parsed = JSON.parse(raw) as OrgAuthState;
-        state.accessToken = parsed.accessToken ?? null;
-        state.user = parsed.user ?? null;
-        state.organisation = parsed.organisation ?? null;
-      } catch {
-        localStorage.removeItem(STORAGE_KEY);
+      if (typeof window === "undefined") {
+        state.hydrated = true;
+        return;
       }
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw) as OrgAuthState;
+          state.accessToken = parsed.accessToken ?? null;
+          state.user = parsed.user ?? null;
+          state.organisation = parsed.organisation ?? null;
+        } catch {
+          localStorage.removeItem(STORAGE_KEY);
+        }
+      }
+      state.hydrated = true;
     },
     setOrgCredentials(state, action: PayloadAction<OrgLoginResponse>) {
       state.accessToken = action.payload.accessToken;

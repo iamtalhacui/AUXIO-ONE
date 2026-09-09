@@ -1,5 +1,5 @@
-import { ManagerOverview } from "@/components/dashboard/RolePlaceholder";
+import { RoleHomeContent } from "@/components/dashboard/RoleHomeContent";
 
 export default function ManagerPage() {
-  return <ManagerOverview />;
+  return <RoleHomeContent roleLabel="Manager" />;
 }

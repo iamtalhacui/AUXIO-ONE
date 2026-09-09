@@ -2,6 +2,7 @@ import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CurrentOrgUser } from './current-org-user.decorator';
 import type { OrgJwtPayload } from './current-org-user.decorator';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { SetupAccountDto } from './dto/setup-account.dto';
 import { OrgJwtGuard } from './org-jwt.guard';
@@ -24,5 +25,18 @@ export class AuthController {
   @Get('me')
   me(@CurrentOrgUser() user: OrgJwtPayload) {
     return this.authService.getMe(user.sub);
+  }
+
+  @UseGuards(OrgJwtGuard)
+  @Post('change-password')
+  changePassword(
+    @CurrentOrgUser() user: OrgJwtPayload,
+    @Body() dto: ChangePasswordDto,
+  ) {
+    return this.authService.changePassword(
+      user.sub,
+      dto.currentPassword,
+      dto.newPassword,
+    );
   }
 }

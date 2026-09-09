@@ -1,6 +1,7 @@
 import {
   CanActivate,
   ExecutionContext,
+  ForbiddenException,
   Injectable,
   SetMetadata,
 } from '@nestjs/common';
@@ -9,7 +10,9 @@ import { OrganisationsService } from '../../modules/organisations/organisations.
 
 /**
  * Decorator — attach to a controller or handler to require a specific module.
- * Example: @RequireModule('SCHEDULE')
+ * Example:
+ *   @UseGuards(OrgJwtGuard, ModuleAccessGuard)
+ *   @RequireModule('SCHEDULE')
  */
 export const MODULE_KEY = 'required_module';
 export const RequireModule = (moduleCode: string) =>
@@ -20,7 +23,9 @@ export const RequireModule = (moduleCode: string) =>
  * reads the user's organisationId from request.user, and calls
  * assertModuleAccess() to verify plan entitlement + enabled status.
  *
- * Must be used AFTER an auth guard that sets request.user with organisationId.
+ * Must be used AFTER OrgJwtGuard so request.user.organisationId is set.
+ * If the module is not in the plan or is disabled, the request is rejected
+ * for every org user — role and permissions do not bypass this.
  */
 @Injectable()
 export class ModuleAccessGuard implements CanActivate {
@@ -35,18 +40,15 @@ export class ModuleAccessGuard implements CanActivate {
       [context.getHandler(), context.getClass()],
     );
 
-    // No @RequireModule decorator → skip check
     if (!moduleCode) return true;
 
     const request = context.switchToHttp().getRequest();
     const user = request.user as { organisationId?: string } | undefined;
 
     if (!user?.organisationId) {
-      // No org context → can't check modules. Another guard should have blocked this.
-      return false;
+      throw new ForbiddenException('Organisation context is required');
     }
 
-    // Throws ForbiddenException if not entitled or not enabled
     await this.organisationsService.assertModuleAccess(
       user.organisationId,
       moduleCode,

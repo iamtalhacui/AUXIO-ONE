@@ -1,5 +1,5 @@
-import { RosterOverview } from "@/components/dashboard/RolePlaceholder";
+import { RoleHomeContent } from "@/components/dashboard/RoleHomeContent";
 
 export default function RosterPage() {
-  return <RosterOverview />;
+  return <RoleHomeContent roleLabel="Rostering Expert" />;
 }

@@ -8,17 +8,14 @@ import {
   MemberStatusPill,
 } from "@/components/dashboard/MemberStatusPill";
 import { TeamMemberActionsMenu } from "@/components/org-admin/TeamMemberActionsMenu";
-import { mockTeamMembers, type TeamMember } from "@/lib/mocks/data";
+import { useListOrgTeamQuery } from "@/lib/api/authApi";
+import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import type { OrgTeamMember } from "@/lib/api/types";
 
 type Tab = "all" | "active" | "inactive";
 
-function getInitials(name: string) {
-  return name
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+function getInitials(firstName: string, lastName: string) {
+  return `${firstName[0] ?? ""}${lastName[0] ?? ""}`.toUpperCase();
 }
 
 function formatRole(role: string) {
@@ -28,7 +25,7 @@ function formatRole(role: string) {
     .join(" ");
 }
 
-function filterMembers(members: TeamMember[], tab: Tab, query: string) {
+function filterMembers(members: OrgTeamMember[], tab: Tab, query: string) {
   const normalized = query.trim().toLowerCase();
 
   return members.filter((member) => {
@@ -37,9 +34,10 @@ function filterMembers(members: TeamMember[], tab: Tab, query: string) {
     if (tab === "inactive" && category !== "inactive") return false;
 
     if (!normalized) return true;
+    const name = `${member.firstName} ${member.lastName}`;
     const roleLabel = formatRole(member.role);
     return (
-      member.name.toLowerCase().includes(normalized) ||
+      name.toLowerCase().includes(normalized) ||
       member.email.toLowerCase().includes(normalized) ||
       roleLabel.toLowerCase().includes(normalized)
     );
@@ -47,7 +45,7 @@ function filterMembers(members: TeamMember[], tab: Tab, query: string) {
 }
 
 export function OrgAdminTeamContent() {
-  const members = mockTeamMembers;
+  const { data: members = [], isLoading, error } = useListOrgTeamQuery();
   const [tab, setTab] = useState<Tab>("all");
   const [query, setQuery] = useState("");
 
@@ -67,6 +65,18 @@ export function OrgAdminTeamContent() {
     { id: "active", label: "Active", count: counts.active },
     { id: "inactive", label: "Inactive", count: counts.inactive },
   ];
+
+  if (isLoading) {
+    return <p className="text-sm text-muted">Loading team…</p>;
+  }
+
+  if (error) {
+    return (
+      <p className="text-sm text-red-600">
+        {getErrorMessage(error, "Could not load team. Enable the Workforce module first.")}
+      </p>
+    );
+  }
 
   return (
     <div>
@@ -134,20 +144,20 @@ export function OrgAdminTeamContent() {
               </thead>
               <tbody>
                 {filtered.map((member) => {
+                  const name = `${member.firstName} ${member.lastName}`;
                   const roleLabel = formatRole(member.role);
                   return (
                     <tr key={member.id}>
                       <td>
                         <div className="flex items-center gap-3">
                           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                            {getInitials(member.name)}
+                            {getInitials(member.firstName, member.lastName)}
                           </span>
-                          <span className="font-semibold">{member.name}</span>
+                          <span className="font-semibold">{name}</span>
                         </div>
                       </td>
                       <td>
                         <p className="font-medium">{member.email}</p>
-                        <p className="text-xs text-muted">{roleLabel}</p>
                       </td>
                       <td className="text-muted">{roleLabel}</td>
                       <td>

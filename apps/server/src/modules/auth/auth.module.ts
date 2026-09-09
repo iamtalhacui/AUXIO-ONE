@@ -21,6 +21,6 @@ import { OrgJwtGuard } from './org-jwt.guard';
   ],
   controllers: [AuthController],
   providers: [AuthService, OrgJwtGuard],
-  exports: [AuthService, OrgJwtGuard],
+  exports: [AuthService, OrgJwtGuard, JwtModule],
 })
 export class AuthModule {}

@@ -2,23 +2,34 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/dashboard/PageHeader";
-import type { ConfigurableRoleId } from "@/lib/dashboard/content/org-admin-roles";
+import { useRegisterTeamMemberMutation } from "@/lib/api/authApi";
+import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import type { WorkforceRole } from "@/lib/api/types";
 import { REGISTERABLE_ROLES } from "@/lib/dashboard/content/org-admin-team";
-import { SERVICE_LINE_OPTIONS } from "@/lib/onboarding/constants";
-
-const inputClass = "input-field";
 
 export function RegisterTeamMemberForm() {
-  const [name, setName] = useState("");
+  const router = useRouter();
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<ConfigurableRoleId>("EMPLOYEE");
-  const [serviceLine, setServiceLine] =
-    useState<(typeof SERVICE_LINE_OPTIONS)[number]["value"]>("NDIS");
+  const [role, setRole] = useState<WorkforceRole>("EMPLOYEE");
+  const [register, { isLoading, error, reset }] = useRegisterTeamMemberMutation();
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    reset();
+
+    try {
+      await register({ firstName, lastName, email, role }).unwrap();
+      router.replace("/org-admin/team");
+    } catch {
+      // RTK error
+    }
   }
+
+  const errorMessage = error ? getErrorMessage(error, "Could not send invite") : null;
 
   return (
     <div className="space-y-6">
@@ -40,14 +51,25 @@ export function RegisterTeamMemberForm() {
           </p>
 
           <div className="mt-6 grid gap-5 sm:grid-cols-2">
-            <label className="block sm:col-span-2">
-              <span className="mb-2 block text-sm font-medium">Full name</span>
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium">First name</span>
               <input
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="Sarah Chen"
+                value={firstName}
+                onChange={(event) => setFirstName(event.target.value)}
+                placeholder="Sarah"
                 required
-                className={inputClass}
+                className="input-field"
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium">Last name</span>
+              <input
+                value={lastName}
+                onChange={(event) => setLastName(event.target.value)}
+                placeholder="Chen"
+                required
+                className="input-field"
               />
             </label>
 
@@ -59,7 +81,7 @@ export function RegisterTeamMemberForm() {
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="sarah@example.com"
                 required
-                className={inputClass}
+                className="input-field"
               />
             </label>
           </div>
@@ -68,7 +90,7 @@ export function RegisterTeamMemberForm() {
         <section className="dashboard-card p-6">
           <h2 className="text-lg font-semibold">Role</h2>
           <p className="mt-1 text-sm text-muted">
-            Choose what this person can access. Fine-grained permissions are configured under Roles.
+            This chooses their dashboard. They only see modules your organisation has enabled.
           </p>
 
           <div className="mt-6 grid gap-3 md:grid-cols-3">
@@ -98,40 +120,19 @@ export function RegisterTeamMemberForm() {
           </div>
         </section>
 
-        <section className="dashboard-card p-6">
-          <h2 className="text-lg font-semibold">Service line</h2>
-          <p className="mt-1 text-sm text-muted">
-            Set the worker&apos;s service line. This determines their compliance checklist and cannot be chosen by the worker.
+        {errorMessage ? (
+          <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {errorMessage}
           </p>
-
-          <div className="mt-6 grid gap-3 md:grid-cols-3">
-            {SERVICE_LINE_OPTIONS.map((option) => {
-              const active = serviceLine === option.value;
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => setServiceLine(option.value)}
-                  className={`rounded-2xl border px-4 py-4 text-left transition ${
-                    active
-                      ? "border-primary bg-primary/5 ring-2 ring-primary/10"
-                      : "border-border bg-background hover:border-primary/20"
-                  }`}
-                >
-                  <p className="font-semibold">{option.label}</p>
-                  <p className="mt-2 text-sm leading-6 text-muted">{option.description}</p>
-                </button>
-              );
-            })}
-          </div>
-        </section>
+        ) : null}
 
         <div className="flex flex-wrap gap-3">
           <button
             type="submit"
-            className="rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white transition hover:bg-primary-light"
+            disabled={isLoading}
+            className="rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white transition hover:bg-primary-light disabled:opacity-70"
           >
-            Send Invite
+            {isLoading ? "Sending invite…" : "Send invite"}
           </button>
           <Link
             href="/org-admin/team"

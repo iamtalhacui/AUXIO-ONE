@@ -24,20 +24,30 @@ export class MailService {
   }
 
   /**
-   * Sends the account setup email to a newly invited Org Admin.
+   * Sends the account setup email to a newly invited user.
    */
-  async sendSetupEmail(to: string, recipientName: string, setupToken: string) {
+  async sendSetupEmail(
+    to: string,
+    recipientName: string,
+    setupToken: string,
+    options?: { roleLabel?: string; organisationName?: string },
+  ) {
     const clientUrl = process.env.CLIENT_URL ?? 'http://localhost:3000';
     const setupLink = `${clientUrl}/setup?token=${setupToken}`;
+    const roleLabel = options?.roleLabel ?? 'Organisation Admin';
+    const orgLine = options?.organisationName
+      ? ` at <strong>${options.organisationName}</strong>`
+      : '';
+
+    const intro = options?.roleLabel
+      ? `You've been invited to AUXIO One as a <strong>${roleLabel}</strong>${orgLine}.`
+      : `Your organisation has been registered on AUXIO One and you've been assigned as the <strong>${roleLabel}</strong>.`;
 
     const html = `
       <div style="font-family: sans-serif; max-width: 520px; margin: 0 auto;">
         <h2 style="color: #0f766e;">Welcome to AUXIO One</h2>
         <p>Hi ${recipientName},</p>
-        <p>
-          Your organisation has been registered on AUXIO One and you've been
-          assigned as the <strong>Organisation Admin</strong>.
-        </p>
+        <p>${intro}</p>
         <p>Click the button below to set your password and activate your account:</p>
         <p style="text-align: center; margin: 32px 0;">
           <a href="${setupLink}"

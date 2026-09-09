@@ -3,6 +3,7 @@ import type { UserRole } from "@/lib/dashboard/roles";
 export type NavItem = {
   label: string;
   href?: string;
+  module?: string;
   children?: NavItem[];
 };
 
@@ -66,9 +67,10 @@ const orgAdminNav: NavGroup[] = [
     items: [
       {
         label: "Team",
+        module: "WORKFORCE",
         children: [
-          { label: "All members", href: "/org-admin/team" },
-          { label: "Register member", href: "/org-admin/team/register" },
+          { label: "All members", href: "/org-admin/team", module: "WORKFORCE" },
+          { label: "Register member", href: "/org-admin/team/register", module: "WORKFORCE" },
         ],
       },
       { label: "Roles", href: "/org-admin/roles" },
@@ -92,8 +94,7 @@ const managerNav: NavGroup[] = [
   {
     title: "Operations",
     items: [
-      { label: "Workforce", href: "/manager/workforce" },
-      { label: "Compliance", href: "/manager/compliance" },
+      { label: "Workforce", href: "/manager/workforce", module: "WORKFORCE" },
     ],
   },
   {
@@ -110,8 +111,8 @@ const rosterNav: NavGroup[] = [
   {
     title: "Rostering",
     items: [
-      { label: "Schedule", href: "/roster/schedule" },
-      { label: "Matching", href: "/roster/matching" },
+      { label: "Schedule", href: "/roster/schedule", module: "SCHEDULE" },
+      { label: "Matching", href: "/roster/matching", module: "SCHEDULE" },
     ],
   },
   {
@@ -131,8 +132,8 @@ const employeeNav: NavGroup[] = [
       {
         label: "Shifts & timesheets",
         children: [
-          { label: "Shifts", href: "/employee/shifts" },
-          { label: "Timesheets", href: "/employee/timesheets" },
+          { label: "Shifts", href: "/employee/shifts", module: "SCHEDULE" },
+          { label: "Timesheets", href: "/employee/timesheets", module: "SERVICE_DELIVERY" },
         ],
       },
     ],

@@ -86,6 +86,33 @@ export class AuthService {
     };
   }
 
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, passwordHash: true, status: true },
+    });
+
+    if (!user || user.status !== 'ACTIVE' || !user.passwordHash) {
+      throw new UnauthorizedException();
+    }
+
+    const currentOk = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!currentOk) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+
+    if (currentPassword === newPassword) {
+      throw new BadRequestException('New password must be different from the current password');
+    }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash: await bcrypt.hash(newPassword, 10) },
+    });
+
+    return { message: 'Password updated' };
+  }
+
   async getMe(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },

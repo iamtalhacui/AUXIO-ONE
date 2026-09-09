@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { loginCopy } from "@/lib/content/auth";
 import { useOrgLoginMutation } from "@/lib/api/authApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { getDashboardHomeForRole } from "@/lib/dashboard/roles";
 import { setOrgCredentials } from "@/lib/store/orgAuthSlice";
 import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
 
@@ -13,13 +14,14 @@ export function LoginForm() {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const accessToken = useAppSelector((state) => state.orgAuth.accessToken);
+  const user = useAppSelector((state) => state.orgAuth.user);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [login, { isLoading, error, reset }] = useOrgLoginMutation();
 
   useEffect(() => {
-    if (accessToken) router.replace("/org-admin");
-  }, [accessToken, router]);
+    if (accessToken) router.replace(getDashboardHomeForRole(user?.role));
+  }, [accessToken, router, user?.role]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -28,7 +30,7 @@ export function LoginForm() {
     try {
       const result = await login({ email, password }).unwrap();
       dispatch(setOrgCredentials(result));
-      router.replace("/org-admin");
+      router.replace(getDashboardHomeForRole(result.user.role));
     } catch {
       // RTK error
     }

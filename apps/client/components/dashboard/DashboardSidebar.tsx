@@ -156,10 +156,9 @@ export function DashboardSidebar({ config }: DashboardSidebarProps) {
   const platformUser = useAppSelector((state) => state.platformAuth.user);
   const orgUser = useAppSelector((state) => state.orgAuth.user);
   const isPlatform = pathname.startsWith("/super-admin");
-  const isOrg = pathname.startsWith("/org-admin");
   const displayName = isPlatform
     ? (platformUser?.name ?? config.roleLabel)
-    : isOrg && orgUser
+    : orgUser
       ? `${orgUser.firstName} ${orgUser.lastName}`
       : config.roleLabel;
   const initials = displayName
@@ -175,9 +174,7 @@ export function DashboardSidebar({ config }: DashboardSidebarProps) {
       router.replace("/platform/login");
       return;
     }
-    if (isOrg) {
-      dispatch(logoutOrg());
-    }
+    dispatch(logoutOrg());
     router.replace("/login");
   }
 
