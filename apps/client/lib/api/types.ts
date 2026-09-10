@@ -270,3 +270,137 @@ export type PlatformOrganisationDetail = PlatformOrganisation & {
   }>;
 };
 
+// ── Customers (CUSTOMERS module) ──
+
+export type CustomerStatus = "ONBOARDING" | "ACTIVE" | "PAUSED" | "ARCHIVED";
+
+export type CustomerDocumentMeta = {
+  id: string;
+  kind: "MANDATORY" | "OPTIONAL";
+  fieldKey: string;
+  label: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  uploadedAt: string;
+};
+
+export type CustomerMandatorySlot = {
+  fieldKey: string;
+  label: string;
+  uploaded: boolean;
+  document: CustomerDocumentMeta | null;
+};
+
+export type Customer = {
+  id: string;
+  organisationId: string;
+  firstName: string;
+  middleName: string | null;
+  preferredName: string | null;
+  surname: string;
+  displayName: string;
+  email: string | null;
+  phone: string | null;
+  dateOfBirth: string | null;
+  address: string | null;
+  serviceLine: string;
+  planStartDate: string | null;
+  planEndDate: string | null;
+  status: CustomerStatus;
+  supportSummary: string | null;
+  emergencyContactName: string | null;
+  emergencyContactPhone: string | null;
+  goals: string | null;
+  risks: string | null;
+  sourceOpportunityId: string | null;
+  activatedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  mandatoryDocs: CustomerMandatorySlot[];
+  optionalDocs: CustomerDocumentMeta[];
+  mandatoryComplete: boolean;
+  canActivate: boolean;
+};
+
+export type CreateCustomerRequest = {
+  firstName: string;
+  middleName?: string;
+  preferredName?: string;
+  surname: string;
+  email?: string;
+  phone?: string;
+  dateOfBirth?: string;
+  address?: string;
+  serviceLine?: string;
+  planStartDate?: string;
+  planEndDate?: string;
+  supportSummary?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  goals?: string;
+  risks?: string;
+};
+
+// ── CRM opportunities ──
+
+export type OpportunityStage =
+  | "ENQUIRY"
+  | "QUALIFIED"
+  | "PROPOSAL"
+  | "ACCEPTED"
+  | "LOST";
+
+export type CrmOpportunity = {
+  id: string;
+  organisationId: string;
+  title: string;
+  serviceLine: string;
+  ownerId: string;
+  contactName: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  stage: OpportunityStage;
+  estimatedAnnualValue: number | null;
+  nextFollowUpAt: string | null;
+  followUpNote: string | null;
+  createdAt: string;
+  updatedAt: string;
+  owner: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  convertedCustomer: {
+    id: string;
+    firstName: string;
+    surname: string;
+    status: CustomerStatus;
+  } | null;
+};
+
+export type CrmPipelineSummary = {
+  note: string;
+  stages: Array<{
+    stage: OpportunityStage;
+    count: number;
+    estimatedAnnualValue: number;
+  }>;
+};
+
+export type CreateOpportunityRequest = {
+  title: string;
+  serviceLine?: string;
+  contactName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  stage?: OpportunityStage;
+  estimatedAnnualValue?: number;
+  nextFollowUpAt?: string;
+  followUpNote?: string;
+};
+
+export type UpdateOpportunityRequest = Partial<CreateOpportunityRequest>;
+
+

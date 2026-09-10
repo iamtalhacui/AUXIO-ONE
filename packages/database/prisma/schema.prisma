@@ -44,6 +44,8 @@ model Organisation {
   users                 User[]
   organisationModules   OrganisationModule[]
   onboardingSubmissions OnboardingSubmission[]
+  customers             Customer[]
+  crmOpportunities      CrmOpportunity[]
 }
 
 // ─── User (organisation-scoped) ──────────────────────────
@@ -91,6 +93,9 @@ model User {
   organisation           Organisation           @relation(fields: [organisationId], references: [id])
   onboardingSubmission   OnboardingSubmission?
   reviewedOnboardings    OnboardingSubmission[] @relation("OnboardingReviews")
+  createdCustomers       Customer[]             @relation("CustomerCreatedBy")
+  uploadedCustomerDocs   CustomerDocument[]     @relation("CustomerDocUploadedBy")
+  ownedOpportunities     CrmOpportunity[]       @relation("OpportunityOwner")
 
   @@index([organisationId])
 }
@@ -135,6 +140,113 @@ model OnboardingDocument {
 
   @@unique([submissionId, fieldKey])
   @@index([submissionId])
+}
+
+// ─── Customers (participants) — master data, no login ────
+
+enum CustomerStatus {
+  ONBOARDING
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum CustomerDocumentKind {
+  MANDATORY
+  OPTIONAL
+}
+
+model Customer {
+  id                     String         @id @default(uuid())
+  organisationId         String
+  firstName              String
+  middleName             String?
+  preferredName          String?
+  surname                String
+  email                  String?
+  phone                  String?
+  dateOfBirth            DateTime?
+  address                String?
+  // Display name only — does not drive templates or checklists.
+  serviceLine            String         @default("")
+  planStartDate          DateTime?
+  planEndDate            DateTime?
+  status                 CustomerStatus @default(ONBOARDING)
+  supportSummary         String?
+  emergencyContactName   String?
+  emergencyContactPhone  String?
+  goals                  String?
+  risks                  String?
+  createdById            String
+  // Set when this customer was created from a CRM opportunity.
+  sourceOpportunityId    String?        @unique
+  activatedAt            DateTime?
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+
+  organisation      Organisation      @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  createdBy         User              @relation("CustomerCreatedBy", fields: [createdById], references: [id])
+  sourceOpportunity CrmOpportunity?   @relation("OpportunityConvertedCustomer", fields: [sourceOpportunityId], references: [id], onDelete: SetNull)
+  documents         CustomerDocument[]
+
+  @@index([organisationId])
+  @@index([organisationId, status])
+}
+
+model CustomerDocument {
+  id           String               @id @default(uuid())
+  customerId   String
+  kind         CustomerDocumentKind
+  // Fixed key for mandatory slots (e.g. ID_CARD); free label key for optional.
+  fieldKey     String
+  label        String
+  fileName     String
+  mimeType     String
+  sizeBytes    Int
+  storageKey   String
+  uploadedById String
+  uploadedAt   DateTime             @default(now())
+
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  uploadedBy User     @relation("CustomerDocUploadedBy", fields: [uploadedById], references: [id])
+
+  @@unique([customerId, fieldKey])
+  @@index([customerId])
+}
+
+// ─── CRM opportunities (pipeline) ────────────────────────
+
+enum OpportunityStage {
+  ENQUIRY
+  QUALIFIED
+  PROPOSAL
+  ACCEPTED
+  LOST
+}
+
+model CrmOpportunity {
+  id                    String           @id @default(uuid())
+  organisationId        String
+  title                 String
+  serviceLine           String           @default("")
+  ownerId               String
+  contactName           String?
+  contactEmail          String?
+  contactPhone          String?
+  stage                 OpportunityStage @default(ENQUIRY)
+  // Estimated annual value — not actual revenue.
+  estimatedAnnualValue  Float?
+  nextFollowUpAt        DateTime?
+  followUpNote          String?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  organisation       Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  owner              User         @relation("OpportunityOwner", fields: [ownerId], references: [id])
+  convertedCustomer  Customer?    @relation("OpportunityConvertedCustomer")
+
+  @@index([organisationId])
+  @@index([organisationId, stage])
 }
 
 // ─── Modules ─────────────────────────────────────────────

@@ -95,6 +95,8 @@ const managerNav: NavGroup[] = [
     title: "Operations",
     items: [
       { label: "Workforce", href: "/manager/workforce", module: "WORKFORCE" },
+      { label: "Customers", href: "/manager/customers", module: "CUSTOMERS" },
+      { label: "CRM", href: "/manager/crm", module: "CRM" },
     ],
   },
   {

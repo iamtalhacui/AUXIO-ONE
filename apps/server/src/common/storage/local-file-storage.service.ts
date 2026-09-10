@@ -52,6 +52,24 @@ export class LocalFileStorageService {
     );
   }
 
+  // Customer (participant) evidence files — separate folder from workforce onboarding.
+  buildCustomerKey(args: {
+    organisationId: string;
+    customerId: string;
+    fieldKey: string;
+    originalName: string;
+  }) {
+    const ext = extname(args.originalName).toLowerCase().slice(0, 12);
+    const safeExt = /^\.[a-z0-9]+$/.test(ext) ? ext : '';
+    const safeKey = args.fieldKey.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64);
+    return join(
+      'customers',
+      args.organisationId,
+      args.customerId,
+      `${safeKey}-${randomUUID()}${safeExt}`,
+    );
+  }
+
   private absolutePath(relativeKey: string) {
     const absolute = resolve(this.root, relativeKey);
     if (!absolute.startsWith(this.root)) {

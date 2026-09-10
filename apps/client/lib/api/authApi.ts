@@ -20,6 +20,13 @@ import type {
   OnboardingAdminDetailResponse,
   ReviewOnboardingRequest,
   OnboardingStatus,
+  Customer,
+  CreateCustomerRequest,
+  CrmOpportunity,
+  CrmPipelineSummary,
+  CreateOpportunityRequest,
+  UpdateOpportunityRequest,
+  CustomerDocumentMeta,
 } from "@/lib/api/types";
 import { isMaintenanceError, rememberMaintenanceLogout } from "@/lib/api/getErrorMessage";
 import { logoutOrg } from "@/lib/store/orgAuthSlice";
@@ -51,7 +58,7 @@ const baseQueryWithAuth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQuery
 export const authApi = createApi({
   reducerPath: "authApi",
   baseQuery: baseQueryWithAuth,
-  tagTypes: ["OrgModules", "OrgTeam", "OnboardingMe", "OnboardingAdmin"],
+  tagTypes: ["OrgModules", "OrgTeam", "OnboardingMe", "OnboardingAdmin", "Customers", "CrmOpportunities"],
   endpoints: (builder) => ({
     setupAccount: builder.mutation<SetupAccountResponse, SetupAccountRequest>({
       query: (body) => ({
@@ -178,6 +185,128 @@ export const authApi = createApi({
       }),
       invalidatesTags: ["OnboardingAdmin", "OrgTeam", "OnboardingMe"],
     }),
+
+    // ── Customers (CUSTOMERS module) ──
+    listCustomers: builder.query<Customer[], void>({
+      query: () => "/organisation/customers",
+      providesTags: ["Customers"],
+    }),
+    getCustomer: builder.query<Customer, string>({
+      query: (id) => `/organisation/customers/${id}`,
+      providesTags: (_r, _e, id) => [{ type: "Customers", id }],
+    }),
+    createCustomer: builder.mutation<Customer, CreateCustomerRequest>({
+      query: (body) => ({
+        url: "/organisation/customers",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Customers"],
+    }),
+    updateCustomer: builder.mutation<Customer, { id: string } & Partial<CreateCustomerRequest>>({
+      query: ({ id, ...body }) => ({
+        url: `/organisation/customers/${id}`,
+        method: "PATCH",
+        body,
+      }),
+      invalidatesTags: (_r, _e, { id }) => ["Customers", { type: "Customers", id }],
+    }),
+    activateCustomer: builder.mutation<Customer, string>({
+      query: (id) => ({
+        url: `/organisation/customers/${id}/activate`,
+        method: "POST",
+      }),
+      invalidatesTags: (_r, _e, id) => ["Customers", { type: "Customers", id }],
+    }),
+    uploadCustomerMandatoryDoc: builder.mutation<
+      CustomerDocumentMeta,
+      { customerId: string; fieldKey: string; file: File }
+    >({
+      query: ({ customerId, fieldKey, file }) => {
+        const body = new FormData();
+        body.append("file", file);
+        return {
+          url: `/organisation/customers/${customerId}/documents/mandatory/${fieldKey}`,
+          method: "POST",
+          body,
+        };
+      },
+      invalidatesTags: (_r, _e, { customerId }) => [
+        "Customers",
+        { type: "Customers", id: customerId },
+      ],
+    }),
+    uploadCustomerOptionalDoc: builder.mutation<
+      CustomerDocumentMeta,
+      { customerId: string; label: string; file: File }
+    >({
+      query: ({ customerId, label, file }) => {
+        const body = new FormData();
+        body.append("file", file);
+        body.append("label", label);
+        return {
+          url: `/organisation/customers/${customerId}/documents/optional`,
+          method: "POST",
+          body,
+        };
+      },
+      invalidatesTags: (_r, _e, { customerId }) => [
+        "Customers",
+        { type: "Customers", id: customerId },
+      ],
+    }),
+    deleteCustomerDoc: builder.mutation<
+      { message: string },
+      { customerId: string; documentId: string }
+    >({
+      query: ({ customerId, documentId }) => ({
+        url: `/organisation/customers/${customerId}/documents/${documentId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (_r, _e, { customerId }) => [
+        "Customers",
+        { type: "Customers", id: customerId },
+      ],
+    }),
+
+    // ── CRM opportunities ──
+    listCrmOpportunities: builder.query<CrmOpportunity[], void>({
+      query: () => "/organisation/crm/opportunities",
+      providesTags: ["CrmOpportunities"],
+    }),
+    getCrmPipeline: builder.query<CrmPipelineSummary, void>({
+      query: () => "/organisation/crm/opportunities/pipeline",
+      providesTags: ["CrmOpportunities"],
+    }),
+    createCrmOpportunity: builder.mutation<CrmOpportunity, CreateOpportunityRequest>({
+      query: (body) => ({
+        url: "/organisation/crm/opportunities",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["CrmOpportunities"],
+    }),
+    updateCrmOpportunity: builder.mutation<
+      CrmOpportunity,
+      { id: string } & UpdateOpportunityRequest
+    >({
+      query: ({ id, ...body }) => ({
+        url: `/organisation/crm/opportunities/${id}`,
+        method: "PATCH",
+        body,
+      }),
+      invalidatesTags: ["CrmOpportunities"],
+    }),
+    convertCrmOpportunity: builder.mutation<
+      { opportunityId: string; customer: Customer; message: string },
+      string
+    >({
+      query: (id) => ({
+        url: `/organisation/crm/opportunities/${id}/convert`,
+        method: "POST",
+      }),
+      invalidatesTags: ["CrmOpportunities", "Customers"],
+    }),
   }),
 });
 
@@ -199,4 +328,17 @@ export const {
   useDeleteOnboardingDocumentMutation,
   useGetAdminOnboardingQuery,
   useReviewOnboardingMutation,
+  useListCustomersQuery,
+  useGetCustomerQuery,
+  useCreateCustomerMutation,
+  useUpdateCustomerMutation,
+  useActivateCustomerMutation,
+  useUploadCustomerMandatoryDocMutation,
+  useUploadCustomerOptionalDocMutation,
+  useDeleteCustomerDocMutation,
+  useListCrmOpportunitiesQuery,
+  useGetCrmPipelineQuery,
+  useCreateCrmOpportunityMutation,
+  useUpdateCrmOpportunityMutation,
+  useConvertCrmOpportunityMutation,
 } = authApi;

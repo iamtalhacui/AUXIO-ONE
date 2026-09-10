@@ -42,6 +42,8 @@ const labelIconMap: Record<string, typeof IconOverview> = {
   "Organisation details": IconSettings,
   Security: IconSettings,
   Workforce: IconBuilding,
+  Customers: IconBuilding,
+  CRM: IconGrid,
   Compliance: IconSettings,
   Schedule: IconGrid,
   Matching: IconGrid,

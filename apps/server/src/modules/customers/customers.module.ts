@@ -1,0 +1,16 @@
+import { Module } from '@nestjs/common';
+import { LocalFileStorageService } from '../../common/storage/local-file-storage.service';
+import { AuthModule } from '../auth/auth.module';
+import { OrganisationsModule } from '../organisations/organisations.module';
+import { PlatformModule } from '../platform/platform.module';
+import { CrmController } from './crm.controller';
+import { CustomersController } from './customers.controller';
+import { CustomersService } from './customers.service';
+
+@Module({
+  imports: [AuthModule, OrganisationsModule, PlatformModule],
+  controllers: [CustomersController, CrmController],
+  providers: [CustomersService, LocalFileStorageService],
+  exports: [CustomersService],
+})
+export class CustomersModule {}
