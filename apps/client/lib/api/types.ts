@@ -91,11 +91,25 @@ export type OrgUser = {
 export type OrgSummary = {
   id: string;
   name: string;
+  tradingName: string | null;
+  tagline: string | null;
   timezone: string;
   email: string;
   phone: string | null;
+  brandColor: string;
+  hasLogo: boolean;
   plan: OrgPlan;
   status: OrgStatus;
+};
+
+export type UpdateOrganisationRequest = {
+  name: string;
+  tradingName?: string;
+  tagline?: string;
+  email: string;
+  phone?: string;
+  timezone: string;
+  brandColor: string;
 };
 
 export type OrgLoginResponse = {

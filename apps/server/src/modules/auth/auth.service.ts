@@ -165,18 +165,26 @@ export class AuthService {
   private toOrgDto(org: {
     id: string;
     name: string;
+    tradingName: string | null;
+    tagline: string | null;
     timezone: string;
     email: string;
     phone: string | null;
+    brandColor: string;
+    logoKey: string | null;
     plan: string;
     status: string;
   }) {
     return {
       id: org.id,
       name: org.name,
+      tradingName: org.tradingName,
+      tagline: org.tagline,
       timezone: org.timezone,
       email: org.email,
       phone: org.phone,
+      brandColor: org.brandColor,
+      hasLogo: Boolean(org.logoKey),
       plan: org.plan,
       status: org.status,
     };

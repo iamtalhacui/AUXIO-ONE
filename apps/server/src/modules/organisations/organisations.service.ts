@@ -1,16 +1,37 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
+  StreamableFile,
 } from '@nestjs/common';
 import { randomBytes, createHash } from 'crypto';
+import { readFileSync } from 'fs';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { LocalFileStorageService } from '../../common/storage/local-file-storage.service';
 import { MailService } from '../../common/mail/mail.service';
 import { PlatformService } from '../platform/platform.service';
 import { getEntitledModuleCodes } from './plan-modules';
 import type { RegisterOrganisationDto } from './dto/register-organisation.dto';
+import type { UpdateOrganisationDto } from './dto/update-organisation.dto';
+
+const ALLOWED_LOGO_MIME = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'image/svg+xml',
+  'image/gif',
+]);
+
+type LogoUpload = {
+  originalname: string;
+  mimetype: string;
+  size: number;
+  buffer?: Buffer;
+  path?: string;
+};
 
 @Injectable()
 export class OrganisationsService {
@@ -20,6 +41,7 @@ export class OrganisationsService {
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
     private readonly platform: PlatformService,
+    private readonly storage: LocalFileStorageService,
   ) {}
 
   /**
@@ -391,5 +413,169 @@ export class OrganisationsService {
         `Module "${code}" is not enabled for your organisation`,
       );
     }
+  }
+
+  async getOrganisation(organisationId: string) {
+    const org = await this.prisma.organisation.findUnique({
+      where: { id: organisationId },
+    });
+    if (!org) throw new NotFoundException('Organisation not found');
+    return this.toOrgProfileDto(org);
+  }
+
+  async updateOrganisation(
+    organisationId: string,
+    role: string,
+    dto: UpdateOrganisationDto,
+  ) {
+    this.assertOrgAdmin(role);
+
+    const org = await this.prisma.organisation.update({
+      where: { id: organisationId },
+      data: {
+        name: dto.name.trim(),
+        tradingName: dto.tradingName?.trim() || null,
+        tagline: dto.tagline?.trim() || null,
+        email: dto.email.trim().toLowerCase(),
+        phone: dto.phone?.trim() || null,
+        timezone: dto.timezone.trim(),
+        brandColor: dto.brandColor.toLowerCase(),
+      },
+    });
+
+    return this.toOrgProfileDto(org);
+  }
+
+  async uploadLogo(
+    organisationId: string,
+    role: string,
+    file: LogoUpload | undefined,
+  ) {
+    this.assertOrgAdmin(role);
+    if (!file) {
+      throw new BadRequestException('Logo file is required');
+    }
+    if (!ALLOWED_LOGO_MIME.has(file.mimetype)) {
+      throw new BadRequestException(
+        'Logo must be PNG, JPEG, WebP, GIF, or SVG',
+      );
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      throw new BadRequestException('Logo must be 2 MB or smaller');
+    }
+
+    const buffer =
+      file.buffer ??
+      (file.path ? readFileSync(file.path) : undefined);
+    if (!buffer?.length) {
+      throw new BadRequestException('Logo file is required');
+    }
+
+    const existing = await this.prisma.organisation.findUnique({
+      where: { id: organisationId },
+      select: { logoKey: true },
+    });
+    if (!existing) throw new NotFoundException('Organisation not found');
+
+    const logoKey = this.storage.buildOrgLogoKey({
+      organisationId,
+      originalName: file.originalname || 'logo.png',
+    });
+    this.storage.put(logoKey, buffer);
+
+    const org = await this.prisma.organisation.update({
+      where: { id: organisationId },
+      data: {
+        logoKey,
+        logoMimeType: file.mimetype,
+        logoFileName: file.originalname?.slice(0, 200) || 'logo',
+      },
+    });
+
+    if (existing.logoKey && existing.logoKey !== logoKey) {
+      try {
+        this.storage.delete(existing.logoKey);
+      } catch {
+        this.logger.warn(`Failed to delete old logo ${existing.logoKey}`);
+      }
+    }
+
+    return this.toOrgProfileDto(org);
+  }
+
+  async getLogo(organisationId: string) {
+    const org = await this.prisma.organisation.findUnique({
+      where: { id: organisationId },
+      select: { logoKey: true, logoMimeType: true, logoFileName: true },
+    });
+    if (!org?.logoKey) throw new NotFoundException('Organisation logo not found');
+
+    const stream = this.storage.openReadStream(org.logoKey);
+    return {
+      file: new StreamableFile(stream),
+      mimeType: org.logoMimeType || 'application/octet-stream',
+      fileName: org.logoFileName || 'logo',
+    };
+  }
+
+  async deleteLogo(organisationId: string, role: string) {
+    this.assertOrgAdmin(role);
+
+    const org = await this.prisma.organisation.findUnique({
+      where: { id: organisationId },
+      select: { logoKey: true },
+    });
+    if (!org) throw new NotFoundException('Organisation not found');
+
+    if (org.logoKey) {
+      try {
+        this.storage.delete(org.logoKey);
+      } catch {
+        this.logger.warn(`Failed to delete logo ${org.logoKey}`);
+      }
+    }
+
+    const updated = await this.prisma.organisation.update({
+      where: { id: organisationId },
+      data: { logoKey: null, logoMimeType: null, logoFileName: null },
+    });
+
+    return this.toOrgProfileDto(updated);
+  }
+
+  private assertOrgAdmin(role: string) {
+    if (role !== 'ORG_ADMIN') {
+      throw new ForbiddenException(
+        'Only organisation admins can update organisation settings',
+      );
+    }
+  }
+
+  toOrgProfileDto(org: {
+    id: string;
+    name: string;
+    tradingName: string | null;
+    tagline: string | null;
+    timezone: string;
+    email: string;
+    phone: string | null;
+    brandColor: string;
+    logoKey: string | null;
+    plan: string;
+    status: string;
+  }) {
+    return {
+      id: org.id,
+      name: org.name,
+      tradingName: org.tradingName,
+      tagline: org.tagline,
+      timezone: org.timezone,
+      email: org.email,
+      phone: org.phone,
+      brandColor: org.brandColor,
+      hasLogo: Boolean(org.logoKey),
+      plan: org.plan,
+      status: org.status,
+    };
   }
 }

@@ -33,6 +33,17 @@ function persist(state: OrgAuthState) {
   );
 }
 
+function normalizeOrganisation(org: OrgSummary | null | undefined): OrgSummary | null {
+  if (!org) return null;
+  return {
+    ...org,
+    tradingName: org.tradingName ?? null,
+    tagline: org.tagline ?? null,
+    brandColor: org.brandColor ?? "#0f766e",
+    hasLogo: Boolean(org.hasLogo),
+  };
+}
+
 const orgAuthSlice = createSlice({
   name: "orgAuth",
   initialState,
@@ -48,7 +59,7 @@ const orgAuthSlice = createSlice({
           const parsed = JSON.parse(raw) as OrgAuthState;
           state.accessToken = parsed.accessToken ?? null;
           state.user = parsed.user ?? null;
-          state.organisation = parsed.organisation ?? null;
+          state.organisation = normalizeOrganisation(parsed.organisation);
         } catch {
           localStorage.removeItem(STORAGE_KEY);
         }
@@ -58,12 +69,16 @@ const orgAuthSlice = createSlice({
     setOrgCredentials(state, action: PayloadAction<OrgLoginResponse>) {
       state.accessToken = action.payload.accessToken;
       state.user = action.payload.user;
-      state.organisation = action.payload.organisation;
+      state.organisation = normalizeOrganisation(action.payload.organisation);
       persist(state);
     },
     patchOrgUser(state, action: PayloadAction<Partial<OrgUser>>) {
       if (!state.user) return;
       state.user = { ...state.user, ...action.payload };
+      persist(state);
+    },
+    setOrganisation(state, action: PayloadAction<OrgSummary>) {
+      state.organisation = normalizeOrganisation(action.payload);
       persist(state);
     },
     logoutOrg(state) {
@@ -75,6 +90,11 @@ const orgAuthSlice = createSlice({
   },
 });
 
-export const { hydrateOrgAuth, setOrgCredentials, patchOrgUser, logoutOrg } =
-  orgAuthSlice.actions;
+export const {
+  hydrateOrgAuth,
+  setOrgCredentials,
+  patchOrgUser,
+  setOrganisation,
+  logoutOrg,
+} = orgAuthSlice.actions;
 export default orgAuthSlice.reducer;

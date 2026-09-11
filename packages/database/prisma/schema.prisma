@@ -33,9 +33,15 @@ enum OrgStatus {
 model Organisation {
   id        String    @id @default(uuid())
   name      String
+  tradingName String?
+  tagline   String?
   timezone  String
   email     String
   phone     String?
+  brandColor String  @default("#0f766e")
+  logoKey   String?
+  logoMimeType String?
+  logoFileName String?
   plan      OrgPlan
   status    OrgStatus @default(ACTIVE)
   createdAt DateTime  @default(now())

@@ -9,9 +9,11 @@ import type {
   OrgLoginResponse,
   OrgMeResponse,
   OrgModule,
+  OrgSummary,
   OrgTeamMember,
   RegisterTeamMemberRequest,
   UpdateTeamMemberRequest,
+  UpdateOrganisationRequest,
   SetupAccountRequest,
   SetupAccountResponse,
   OnboardingMeResponse,
@@ -58,7 +60,15 @@ const baseQueryWithAuth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQuery
 export const authApi = createApi({
   reducerPath: "authApi",
   baseQuery: baseQueryWithAuth,
-  tagTypes: ["OrgModules", "OrgTeam", "OnboardingMe", "OnboardingAdmin", "Customers", "CrmOpportunities"],
+  tagTypes: [
+    "OrgModules",
+    "OrgTeam",
+    "OnboardingMe",
+    "OnboardingAdmin",
+    "Customers",
+    "CrmOpportunities",
+    "Organisation",
+  ],
   endpoints: (builder) => ({
     setupAccount: builder.mutation<SetupAccountResponse, SetupAccountRequest>({
       query: (body) => ({
@@ -76,6 +86,37 @@ export const authApi = createApi({
     }),
     orgMe: builder.query<OrgMeResponse, string>({
       query: () => "/auth/me",
+    }),
+    getOrganisation: builder.query<OrgSummary, void>({
+      query: () => "/organisation",
+      providesTags: ["Organisation"],
+    }),
+    updateOrganisation: builder.mutation<OrgSummary, UpdateOrganisationRequest>({
+      query: (body) => ({
+        url: "/organisation",
+        method: "PATCH",
+        body,
+      }),
+      invalidatesTags: ["Organisation"],
+    }),
+    uploadOrganisationLogo: builder.mutation<OrgSummary, File>({
+      query: (file) => {
+        const body = new FormData();
+        body.append("file", file);
+        return {
+          url: "/organisation/logo",
+          method: "POST",
+          body,
+        };
+      },
+      invalidatesTags: ["Organisation"],
+    }),
+    deleteOrganisationLogo: builder.mutation<OrgSummary, void>({
+      query: () => ({
+        url: "/organisation/logo",
+        method: "DELETE",
+      }),
+      invalidatesTags: ["Organisation"],
     }),
     listOrgModules: builder.query<OrgModule[], void>({
       query: () => "/organisation/modules",
@@ -314,6 +355,10 @@ export const {
   useSetupAccountMutation,
   useOrgLoginMutation,
   useOrgMeQuery,
+  useGetOrganisationQuery,
+  useUpdateOrganisationMutation,
+  useUploadOrganisationLogoMutation,
+  useDeleteOrganisationLogoMutation,
   useListOrgModulesQuery,
   useSetOrgModuleEnabledMutation,
   useListOrgTeamQuery,

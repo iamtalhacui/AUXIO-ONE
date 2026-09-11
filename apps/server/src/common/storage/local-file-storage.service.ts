@@ -70,6 +70,12 @@ export class LocalFileStorageService {
     );
   }
 
+  buildOrgLogoKey(args: { organisationId: string; originalName: string }) {
+    const ext = extname(args.originalName).toLowerCase().slice(0, 12);
+    const safeExt = /^\.[a-z0-9]+$/.test(ext) ? ext : '';
+    return join('org-logos', args.organisationId, `logo-${randomUUID()}${safeExt}`);
+  }
+
   private absolutePath(relativeKey: string) {
     const absolute = resolve(this.root, relativeKey);
     if (!absolute.startsWith(this.root)) {

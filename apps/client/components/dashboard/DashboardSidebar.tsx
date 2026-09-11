@@ -9,6 +9,7 @@ import { site } from "@/lib/content";
 import { logoutOrg } from "@/lib/store/orgAuthSlice";
 import { logoutPlatform } from "@/lib/store/platformAuthSlice";
 import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
+import { OrgLogoMark } from "@/components/dashboard/OrgLogoMark";
 import {
   IconBell,
   IconBuilding,
@@ -179,6 +180,7 @@ export function DashboardSidebar({ config, lockedOnboarding }: DashboardSidebarP
   const dispatch = useAppDispatch();
   const platformUser = useAppSelector((state) => state.platformAuth.user);
   const orgUser = useAppSelector((state) => state.orgAuth.user);
+  const organisation = useAppSelector((state) => state.orgAuth.organisation);
   const isPlatform = pathname.startsWith("/super-admin");
   const displayName = isPlatform
     ? (platformUser?.name ?? config.roleLabel)
@@ -186,6 +188,15 @@ export function DashboardSidebar({ config, lockedOnboarding }: DashboardSidebarP
       ? `${orgUser.firstName} ${orgUser.lastName}`
       : config.roleLabel;
   const email = isPlatform ? platformUser?.email : orgUser?.email;
+  const brandLabel = isPlatform
+    ? site.name
+    : organisation?.tradingName || organisation?.name || site.name;
+  const brandFallback = brandLabel
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase() || "A1";
   const initials = displayName
     .split(" ")
     .map((part) => part[0])
@@ -207,10 +218,14 @@ export function DashboardSidebar({ config, lockedOnboarding }: DashboardSidebarP
     <aside className="dashboard-sidebar">
       <div className="dashboard-sidebar-brand">
         <Link href={config.basePath} className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-xs font-bold text-white">
-            A1
-          </span>
-          <span className="text-sm font-semibold tracking-tight">{site.name}</span>
+          {isPlatform ? (
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-xs font-bold text-white">
+              A1
+            </span>
+          ) : (
+            <OrgLogoMark fallback={brandFallback} />
+          )}
+          <span className="truncate text-sm font-semibold tracking-tight">{brandLabel}</span>
         </Link>
       </div>
 
