@@ -182,6 +182,31 @@ export const authApi = createApi({
       }),
       invalidatesTags: ["OnboardingMe"],
     }),
+    updatePersonalDetails: builder.mutation<
+      {
+        onboardingStatus: OnboardingStatus;
+        editable: boolean;
+        submission: OnboardingMeResponse["submission"];
+      },
+      Partial<
+        Record<
+          | "preferredName"
+          | "dateOfBirth"
+          | "mobile"
+          | "homeAddress"
+          | "emergencyName"
+          | "emergencyPhone",
+          string
+        >
+      >
+    >({
+      query: (body) => ({
+        url: "/onboarding/me/personal-details",
+        method: "PATCH",
+        body,
+      }),
+      invalidatesTags: ["OnboardingMe"],
+    }),
     submitOnboarding: builder.mutation<
       { onboardingStatus: OnboardingStatus; editable: boolean; submission: OnboardingMeResponse["submission"] },
       void
@@ -368,6 +393,7 @@ export const {
   useChangePasswordMutation,
   useGetOnboardingMeQuery,
   useSaveOnboardingDraftMutation,
+  useUpdatePersonalDetailsMutation,
   useSubmitOnboardingMutation,
   useUploadOnboardingDocumentMutation,
   useDeleteOnboardingDocumentMutation,
