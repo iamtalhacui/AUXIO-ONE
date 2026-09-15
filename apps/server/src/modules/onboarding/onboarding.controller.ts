@@ -5,6 +5,7 @@ import {
   Param,
   Post,
   Put,
+  Patch,
   Body,
   UploadedFile,
   UseGuards,
@@ -18,6 +19,7 @@ import { CurrentOrgUser } from '../auth/current-org-user.decorator';
 import type { OrgJwtPayload } from '../auth/current-org-user.decorator';
 import { OrgJwtGuard } from '../auth/org-jwt.guard';
 import { SaveOnboardingDraftDto } from './dto/save-onboarding-draft.dto';
+import { UpdatePersonalDetailsDto } from './dto/update-personal-details.dto';
 import { OnboardingService } from './onboarding.service';
 import { OnboardingTemplatesService } from './onboarding-templates.service';
 
@@ -55,6 +57,19 @@ export class OnboardingController {
   @Post('me/submit')
   submit(@CurrentOrgUser() user: OrgJwtPayload) {
     return this.onboarding.submit(user.sub, user.organisationId, user.role);
+  }
+
+  @Patch('me/personal-details')
+  updatePersonalDetails(
+    @CurrentOrgUser() user: OrgJwtPayload,
+    @Body() dto: UpdatePersonalDetailsDto,
+  ) {
+    return this.onboarding.updatePersonalDetails(
+      user.sub,
+      user.organisationId,
+      user.role,
+      dto,
+    );
   }
 
   @Post('me/documents/:fieldKey')

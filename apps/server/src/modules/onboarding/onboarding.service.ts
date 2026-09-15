@@ -12,11 +12,19 @@ import { LocalFileStorageService } from '../../common/storage/local-file-storage
 import { MailService } from '../../common/mail/mail.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import type { SaveOnboardingDraftDto } from './dto/save-onboarding-draft.dto';
+import type { UpdatePersonalDetailsDto } from './dto/update-personal-details.dto';
 import { OnboardingTemplatesService } from './onboarding-templates.service';
 import type { OnboardingPayload } from './onboarding-templates';
 
 const LOCKED_STATUSES = new Set(['PENDING_REVIEW', 'VERIFIED']);
-
+const EDITABLE_AFTER_VERIFICATION = new Set([
+  'preferredName',
+  'dateOfBirth',
+  'mobile',
+  'homeAddress',
+  'emergencyName',
+  'emergencyPhone',
+]);
 const ALLOWED_MIME = new Set([
   'application/pdf',
   'image/jpeg',
@@ -297,6 +305,80 @@ export class OnboardingService {
 
     return {
       onboardingStatus: 'PENDING_REVIEW' as const,
+      editable: false,
+      submission: this.toSubmissionDto(submission),
+    };
+  }
+
+  // Lets a VERIFIED member update a narrow set of personal fields without
+  // re-entering review. Whitelist-filtered and merged, never replaced.
+  async updatePersonalDetails(
+    userId: string,
+    organisationId: string,
+    role: string,
+    dto: UpdatePersonalDetailsDto,
+  ) {
+    const user = await this.requireWorkforceUser(userId, organisationId, role);
+
+    if (user.onboardingStatus !== 'VERIFIED') {
+      throw new ForbiddenException(
+        'Personal details can only be edited once onboarding is verified',
+      );
+    }
+
+    const existing = await this.prisma.onboardingSubmission.findUnique({
+      where: { userId: user.id },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Onboarding submission not found');
+    }
+
+    const updates: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(dto)) {
+      if (EDITABLE_AFTER_VERIFICATION.has(key) && value !== undefined) {
+        updates[key] = value;
+      }
+    }
+
+    if (Object.keys(updates).length === 0) {
+      throw new BadRequestException('No editable fields were provided');
+    }
+
+    const current = this.normalizePayload(
+      (existing.payload ?? {}) as SaveOnboardingDraftDto['payload'],
+    );
+
+    const nextPayload = {
+      ...current,
+      personal: {
+        ...current.personal,
+        ...updates,
+      },
+    };
+
+    const submission = await this.prisma.onboardingSubmission.update({
+      where: { id: existing.id },
+      data: {
+        payload: nextPayload as Prisma.InputJsonValue,
+      },
+      include: {
+        documents: {
+          select: {
+            id: true,
+            fieldKey: true,
+            fileName: true,
+            mimeType: true,
+            sizeBytes: true,
+            uploadedAt: true,
+          },
+          orderBy: { uploadedAt: 'asc' },
+        },
+      },
+    });
+
+    return {
+      onboardingStatus: user.onboardingStatus,
       editable: false,
       submission: this.toSubmissionDto(submission),
     };
