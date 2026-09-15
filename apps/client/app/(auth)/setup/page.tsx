@@ -11,7 +11,7 @@ export default function SetupPage() {
         </Link>
         <h1 className="mt-6 text-2xl font-semibold tracking-tight">Set your password</h1>
         <p className="mt-2 text-sm text-muted">
-          Activate your Organisation Admin account to continue.
+          Activate your AUXIO One account to continue.
         </p>
         <Suspense fallback={<p className="mt-8 text-sm text-muted">Loading…</p>}>
           <SetupAccountForm />

@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { BrandLogo } from "@/components/ui/BrandLogo";
 
 type OnboardingShellProps = {
   children: ReactNode;
@@ -14,9 +15,7 @@ export function OnboardingShell({ children, organisationName }: OnboardingShellP
       <header className="border-b border-border/60 bg-surface/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-10">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-sm font-bold text-white">
-              A
-            </div>
+            <BrandLogo size={36} className="h-9 w-9 object-contain" />
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted">
                 People & Compliance

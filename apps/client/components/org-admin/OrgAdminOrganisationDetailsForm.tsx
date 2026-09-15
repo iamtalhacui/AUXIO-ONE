@@ -21,7 +21,6 @@ const timeZones = [
 ];
 
 const MAX_LOGO_BYTES = 2 * 1024 * 1024;
-const DEFAULT_BRAND = "#0f766e";
 
 export function OrgAdminOrganisationDetailsForm() {
   const dispatch = useAppDispatch();
@@ -37,7 +36,6 @@ export function OrgAdminOrganisationDetailsForm() {
   const [contactPhone, setContactPhone] = useState("");
   const [timeZone, setTimeZone] = useState(timeZones[0]);
   const [tagline, setTagline] = useState("");
-  const [brandColor, setBrandColor] = useState(DEFAULT_BRAND);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [pendingLogo, setPendingLogo] = useState<File | null>(null);
   const [removeLogo, setRemoveLogo] = useState(false);
@@ -52,7 +50,6 @@ export function OrgAdminOrganisationDetailsForm() {
     setContactPhone(org.phone ?? "");
     setTimeZone(org.timezone);
     setTagline(org.tagline ?? "");
-    setBrandColor(org.brandColor || DEFAULT_BRAND);
     setPendingLogo(null);
     setRemoveLogo(false);
   }, [org]);
@@ -117,7 +114,6 @@ export function OrgAdminOrganisationDetailsForm() {
         email: contactEmail.trim(),
         phone: contactPhone.trim() || undefined,
         timezone: timeZone,
-        brandColor,
       }).unwrap();
 
       if (removeLogo && org?.hasLogo) {
@@ -152,7 +148,7 @@ export function OrgAdminOrganisationDetailsForm() {
 
   return (
     <>
-      <PageHeader title="Organisation details" description="Name, contact info, and branding." />
+      <PageHeader title="Organisation details" description="Name, contact info, and logo." />
       <form className="space-y-6" onSubmit={handleSubmit}>
         <section className="dashboard-card p-6">
           <h2 className="text-lg font-semibold">Identity</h2>
@@ -231,26 +227,23 @@ export function OrgAdminOrganisationDetailsForm() {
         </section>
 
         <section className="dashboard-card p-6">
-          <h2 className="text-lg font-semibold">Branding</h2>
+          <h2 className="text-lg font-semibold">Logo</h2>
           <p className="mt-1 text-sm text-muted">
-            Logo and accent colour applied to every user in this organisation.
+            Shown in the sidebar for everyone in your organisation.
           </p>
 
-          <div className="mt-6 grid gap-6 lg:grid-cols-[160px_1fr]">
-            <div className="flex flex-col items-center gap-3">
-              <div
-                className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-2xl border border-dashed border-border bg-background"
-                style={{ backgroundColor: logoPreview ? undefined : `${brandColor}14` }}
-              >
-                {logoPreview ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={logoPreview} alt="Organisation logo preview" className="h-full w-full object-cover" />
-                ) : (
-                  <span className="text-2xl font-bold" style={{ color: brandColor }}>
-                    {displayName.slice(0, 2).toUpperCase() || "OR"}
-                  </span>
-                )}
-              </div>
+          <div className="mt-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+            <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-2xl border border-dashed border-border bg-primary/5">
+              {logoPreview ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={logoPreview} alt="Organisation logo preview" className="h-full w-full object-cover" />
+              ) : (
+                <span className="text-2xl font-bold text-primary">
+                  {displayName.slice(0, 2).toUpperCase() || "OR"}
+                </span>
+              )}
+            </div>
+            <div className="space-y-2">
               <label className="cursor-pointer text-sm font-medium text-primary hover:text-primary-light">
                 Upload logo
                 <input type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" className="hidden" onChange={handleLogoChange} />
@@ -258,7 +251,7 @@ export function OrgAdminOrganisationDetailsForm() {
               {(logoPreview || org.hasLogo) && !removeLogo ? (
                 <button
                   type="button"
-                  className="text-xs font-medium text-red-600 hover:underline"
+                  className="block text-xs font-medium text-red-600 hover:underline"
                   onClick={() => {
                     setPendingLogo(null);
                     setRemoveLogo(true);
@@ -268,38 +261,7 @@ export function OrgAdminOrganisationDetailsForm() {
                   Remove logo
                 </button>
               ) : null}
-              <p className="text-center text-xs text-muted">PNG, JPEG, WebP, GIF or SVG, up to 2 MB</p>
-            </div>
-
-            <div className="space-y-5">
-              <label className="block">
-                <span className="mb-2 block text-sm font-medium">Brand colour</span>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="color"
-                    value={brandColor}
-                    onChange={(event) => setBrandColor(event.target.value)}
-                    className="h-11 w-16 cursor-pointer rounded-lg border border-border bg-background"
-                  />
-                  <input
-                    value={brandColor}
-                    onChange={(event) => setBrandColor(event.target.value)}
-                    pattern="^#[0-9A-Fa-f]{6}$"
-                    className="flex-1 rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
-                  />
-                </div>
-              </label>
-
-              <div
-                className="rounded-2xl border border-border p-4"
-                style={{ borderColor: `${brandColor}40`, backgroundColor: `${brandColor}0d` }}
-              >
-                <p className="text-xs font-bold uppercase tracking-wide text-muted">Preview</p>
-                <p className="mt-2 text-lg font-semibold" style={{ color: brandColor }}>
-                  {displayName}
-                </p>
-                <p className="mt-1 text-sm text-muted">{tagline || "Your workspace accent colour"}</p>
-              </div>
+              <p className="text-xs text-muted">PNG, JPEG, WebP, GIF or SVG, up to 2 MB</p>
             </div>
           </div>
         </section>

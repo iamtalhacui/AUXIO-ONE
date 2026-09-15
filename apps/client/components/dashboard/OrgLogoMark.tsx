@@ -12,9 +12,6 @@ type OrgLogoMarkProps = {
 export function OrgLogoMark({ className, fallback }: OrgLogoMarkProps) {
   const accessToken = useAppSelector((state) => state.orgAuth.accessToken);
   const hasLogo = useAppSelector((state) => state.orgAuth.organisation?.hasLogo);
-  const brandColor = useAppSelector(
-    (state) => state.orgAuth.organisation?.brandColor ?? "#0f766e",
-  );
   const [src, setSrc] = useState<string | null>(null);
 
   useEffect(() => {
@@ -58,9 +55,8 @@ export function OrgLogoMark({ className, fallback }: OrgLogoMarkProps) {
     <span
       className={
         className ??
-        "flex h-9 w-9 items-center justify-center rounded-lg text-xs font-bold text-white"
+        "flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-xs font-bold text-white"
       }
-      style={{ backgroundColor: brandColor }}
     >
       {fallback}
     </span>

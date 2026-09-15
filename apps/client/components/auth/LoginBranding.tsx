@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { loginCopy } from "@/lib/content/auth";
 import { roles, site } from "@/lib/content";
+import { BrandLogo } from "@/components/ui/BrandLogo";
 
 export function LoginBranding() {
   return (
@@ -11,9 +12,7 @@ export function LoginBranding() {
 
       <div className="relative">
         <Link href="/" className="inline-flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15 text-sm font-bold backdrop-blur">
-            A1
-          </span>
+          <BrandLogo size={44} className="h-11 w-11 object-contain" />
           <span className="text-xl font-semibold">{site.name}</span>
         </Link>
       </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { LockedOnboardingHome } from "@/components/onboarding/LockedOnboardingHome";
-import { RoleHomeContent } from "@/components/dashboard/RoleHomeContent";
+import { EmployeeHomeContent } from "@/components/rostering/EmployeeHomeContent";
 import { needsOnboardingLock } from "@/lib/onboarding/access";
 import { useAppSelector } from "@/lib/store/hooks";
 
@@ -15,5 +15,5 @@ export default function EmployeePage() {
     );
   }
 
-  return <RoleHomeContent roleLabel="Employee" />;
+  return <EmployeeHomeContent />;
 }

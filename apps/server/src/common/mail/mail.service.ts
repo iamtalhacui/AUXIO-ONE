@@ -158,4 +158,121 @@ export class MailService {
 
     this.logger.log(`Onboarding decision email sent to ${args.to}`);
   }
+
+  async sendDemoRequestEmail(args: {
+    organisationName: string;
+    contactName: string;
+    email: string;
+    phone: string | null;
+    numberOfUsers: number | null;
+    preferredDate: Date;
+    preferredTime: string;
+    message: string;
+  }) {
+    const to =
+      process.env.SUPER_ADMIN_EMAIL?.trim() ||
+      process.env.GMAIL_USER?.trim();
+
+    if (!to) {
+      this.logger.warn('No SUPER_ADMIN_EMAIL / GMAIL_USER — demo notification skipped');
+      return;
+    }
+
+    const clientUrl = process.env.CLIENT_URL ?? 'http://localhost:3000';
+    const dashboardLink = `${clientUrl}/super-admin/demos`;
+    const preferredDate = args.preferredDate.toLocaleDateString('en-AU', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+
+    const html = `
+      <div style="font-family: sans-serif; max-width: 560px; margin: 0 auto;">
+        <h2 style="color: #0f766e;">New demo request</h2>
+        <p>A prospective customer booked a demo on AUXIO One.</p>
+        <table style="width:100%; border-collapse: collapse; margin: 24px 0; font-size: 14px;">
+          <tr>
+            <td style="padding: 8px 0; color: #666; width: 160px;">Organisation</td>
+            <td style="padding: 8px 0; font-weight: 600;">${args.organisationName}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #666;">Contact name</td>
+            <td style="padding: 8px 0; font-weight: 600;">${args.contactName}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #666;">Contact email</td>
+            <td style="padding: 8px 0;">
+              <a href="mailto:${args.email}" style="color: #0f766e; font-weight: 600;">${args.email}</a>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #666;">Phone</td>
+            <td style="padding: 8px 0;">${args.phone || 'Not provided'}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #666;">Number of users</td>
+            <td style="padding: 8px 0;">${args.numberOfUsers ?? 'Not provided'}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #666;">Preferred date</td>
+            <td style="padding: 8px 0; font-weight: 600;">${preferredDate}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #666;">Preferred time</td>
+            <td style="padding: 8px 0; font-weight: 600;">${args.preferredTime}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #666; vertical-align: top;">Message</td>
+            <td style="padding: 8px 0;">${args.message || 'None'}</td>
+          </tr>
+        </table>
+        <p style="text-align: center; margin: 32px 0;">
+          <a href="${dashboardLink}"
+             style="background: #0f766e; color: #fff; padding: 12px 28px;
+                    border-radius: 8px; text-decoration: none; font-weight: 600;">
+            View demo requests
+          </a>
+        </p>
+        <p style="color: #999; font-size: 12px;">AUXIO One — Care operations platform</p>
+      </div>
+    `;
+
+    await this.transporter.sendMail({
+      from: this.from,
+      to,
+      replyTo: args.email,
+      subject: `Demo request — ${args.organisationName}`,
+      html,
+    });
+
+    this.logger.log(`Demo request email sent to ${to}`);
+  }
+
+  async sendPasswordResetOtp(to: string, recipientName: string, otp: string) {
+    const html = `
+      <div style="font-family: sans-serif; max-width: 520px; margin: 0 auto;">
+        <h2 style="color: #0f766e;">Reset your password</h2>
+        <p>Hi ${recipientName},</p>
+        <p>Use this 6-digit code to reset your AUXIO One password:</p>
+        <p style="text-align: center; margin: 28px 0; letter-spacing: 0.35em; font-size: 28px; font-weight: 700; color: #0f766e;">
+          ${otp}
+        </p>
+        <p style="color: #666; font-size: 13px;">
+          This code expires in 15 minutes. If you did not request a reset, you can ignore this email.
+        </p>
+        <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 24px 0;" />
+        <p style="color: #999; font-size: 12px;">AUXIO One — Care operations platform</p>
+      </div>
+    `;
+
+    await this.transporter.sendMail({
+      from: this.from,
+      to,
+      subject: 'Your AUXIO One password reset code',
+      html,
+    });
+
+    this.logger.log(`Password reset OTP sent to ${to}`);
+  }
 }

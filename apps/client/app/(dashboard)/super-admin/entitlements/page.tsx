@@ -6,7 +6,7 @@ export default function EntitlementsPage() {
     <>
       <PageHeader
         title="Entitlements"
-        description="Module ceiling grants and enabled status across all organisations."
+        description="Organisations and their module plan grants. Open a row to view modules."
       />
       <EntitlementsPageContent />
     </>

@@ -2,6 +2,9 @@
 
 import { FormEvent, useState } from "react";
 import Link from "next/link";
+import { BrandLogo } from "@/components/ui/BrandLogo";
+import { PasswordStrengthMeter } from "@/components/auth/PasswordStrengthMeter";
+import { evaluatePassword } from "@/lib/auth/passwordStrength";
 
 export function AcceptInviteForm() {
   const [password, setPassword] = useState("");
@@ -16,9 +19,7 @@ export function AcceptInviteForm() {
       <div className="w-full max-w-md animate-fade-in-up">
         <div className="mb-8 lg:hidden">
           <Link href="/" className="inline-flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-sm font-bold text-white">
-              A1
-            </span>
+            <BrandLogo size={40} className="h-10 w-10 object-contain" />
             <span className="text-lg font-semibold">AUXIO One</span>
           </Link>
         </div>
@@ -46,6 +47,8 @@ export function AcceptInviteForm() {
             />
           </label>
 
+          <PasswordStrengthMeter password={password} />
+
           <label className="block">
             <span className="mb-2 block text-sm font-medium">Confirm password</span>
             <input
@@ -61,6 +64,7 @@ export function AcceptInviteForm() {
 
           <button
             type="submit"
+            disabled={!evaluatePassword(password).isValid}
             className="flex w-full items-center justify-center rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:bg-primary-light disabled:cursor-not-allowed disabled:opacity-70"
           >
             Activate account

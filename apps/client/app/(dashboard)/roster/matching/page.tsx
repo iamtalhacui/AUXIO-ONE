@@ -1,11 +1,10 @@
-import { PlaceholderPage } from "@/components/dashboard/RolePlaceholder";
-import { PageHeader } from "@/components/dashboard/PageHeader";
+import { Suspense } from "react";
+import { MatchingContent } from "@/components/rostering/MatchingContent";
 
 export default function Page() {
   return (
-    <>
-      <PageHeader title="Matching" description="Match support workers to participant shifts." />
-      <PlaceholderPage title="Matching" description="Shift matching workflows will be added in the rostering module." />
-    </>
+    <Suspense fallback={<p className="text-sm text-muted">Loading matching…</p>}>
+      <MatchingContent />
+    </Suspense>
   );
 }

@@ -18,7 +18,7 @@ export const hero = {
   title: "Care management, without the admin headache.",
   subtitle:
     "AUXIO One brings onboarding, rostering, shift time, incidents, and billing-ready reporting into one platform — so your team spends less time on paperwork and more time delivering great care.",
-  primaryCta: "Get started",
+  primaryCta: "Book a Demo",
   secondaryCta: "See how it works",
   imageAlt: "A support worker helping a participant at home",
 } as const;
@@ -207,12 +207,12 @@ export const faqs = [
 ] as const;
 
 export const getStarted = {
-  eyebrow: "Get started",
-  title: "Bring your organisation onto AUXIO One.",
+  eyebrow: "Book a Demo",
+  title: "See AUXIO One in action.",
   subtitle:
-    "AUXIO One is currently onboarding new providers directly. Tell us about your organisation and our team will set up your tenant, module access, and first admin account.",
+    "Tell us a little about your organisation and pick a time that works. Our team will walk you through the platform and answer your questions.",
   emailLabel: "Prefer email?",
   emailNote: "Send your organisation details directly and we will respond within one business day.",
-  formTitle: "Request access",
-  formNote: "This form opens your email client — no account is created until we confirm with you.",
+  formTitle: "Book your demo",
+  formNote: "Choose a preferred date and time — we’ll confirm by email within one business day.",
 } as const;

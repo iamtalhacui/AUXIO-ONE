@@ -18,6 +18,10 @@ export const metadata: Metadata = {
   title: "AUXIO One | Care operations platform for NDIS providers",
   description:
     "Multi-tenant SaaS for NDIS providers — organisation setup, workforce onboarding, rostering, shift execution, and billing-ready handoff.",
+  icons: {
+    icon: "/images/auxio-logo.png",
+    apple: "/images/auxio-logo.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
