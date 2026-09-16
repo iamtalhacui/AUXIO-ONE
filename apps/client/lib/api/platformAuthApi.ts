@@ -69,6 +69,49 @@ export const platformAuthApi = createApi({
       query: (id) => `/platform/organisations/${id}`,
       providesTags: (_result, _error, id) => [{ type: "Organisations", id }],
     }),
+    approveOrgAdmin: builder.mutation<PlatformOrganisationDetail, string>({
+      query: (id) => ({
+        url: `/platform/organisations/${id}/approve-admin`,
+        method: "POST",
+      }),
+      invalidatesTags: (_result, _error, id) => [
+        "Organisations",
+        { type: "Organisations", id },
+        "Audit",
+      ],
+    }),
+    rejectOrgAdmin: builder.mutation<PlatformOrganisationDetail, string>({
+      query: (id) => ({
+        url: `/platform/organisations/${id}/reject-admin`,
+        method: "POST",
+      }),
+      invalidatesTags: (_result, _error, id) => [
+        "Organisations",
+        { type: "Organisations", id },
+        "Audit",
+      ],
+    }),
+    changeOrgAdminEmail: builder.mutation<
+      PlatformOrganisationDetail,
+      {
+        id: string;
+        adminEmail: string;
+        adminFirstName?: string;
+        adminLastName?: string;
+      }
+    >({
+      query: ({ id, ...body }) => ({
+        url: `/platform/organisations/${id}/admin-email`,
+        method: "PATCH",
+        body,
+      }),
+      invalidatesTags: (_result, _error, { id }) => [
+        "Organisations",
+        { type: "Organisations", id },
+        "Audit",
+        "Invites",
+      ],
+    }),
     registerOrganisation: builder.mutation<
       RegisterOrganisationResponse,
       RegisterOrganisationRequest
@@ -116,6 +159,9 @@ export const {
   usePlatformMeQuery,
   useListOrganisationsQuery,
   useGetOrganisationQuery,
+  useApproveOrgAdminMutation,
+  useRejectOrgAdminMutation,
+  useChangeOrgAdminEmailMutation,
   useRegisterOrganisationMutation,
   useListPlatformModulesQuery,
   useListPlatformAuditQuery,

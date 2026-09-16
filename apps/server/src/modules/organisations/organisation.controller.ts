@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
+import { PlatformApprovedGuard } from '../../common/guards/platform-approved.guard';
 import { VerifiedOnboardingGuard } from '../../common/guards/verified-onboarding.guard';
 import { CurrentOrgUser } from '../auth/current-org-user.decorator';
 import type { OrgJwtPayload } from '../auth/current-org-user.decorator';
@@ -30,7 +31,7 @@ type MulterUpload = {
 
 // Org-scoped profile + branding (distinct from /organisation/modules).
 @Controller('organisation')
-@UseGuards(OrgJwtGuard)
+@UseGuards(OrgJwtGuard, PlatformApprovedGuard)
 export class OrganisationController {
   constructor(private readonly organisationsService: OrganisationsService) {}
 

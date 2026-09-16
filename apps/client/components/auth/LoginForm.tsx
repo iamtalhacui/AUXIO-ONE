@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { loginCopy } from "@/lib/content/auth";
 import { useOrgLoginMutation } from "@/lib/api/authApi";
 import { getErrorMessage, takeMaintenanceLogoutNotice } from "@/lib/api/getErrorMessage";
-import { getDashboardHomeForRole } from "@/lib/dashboard/roles";
+import { getPostLoginPath } from "@/lib/dashboard/roles";
 import { setOrgCredentials } from "@/lib/store/orgAuthSlice";
 import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
 
@@ -26,8 +26,8 @@ export function LoginForm() {
   }, []);
 
   useEffect(() => {
-    if (accessToken) router.replace(getDashboardHomeForRole(user?.role));
-  }, [accessToken, router, user?.role]);
+    if (accessToken) router.replace(getPostLoginPath(user));
+  }, [accessToken, router, user]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -37,7 +37,7 @@ export function LoginForm() {
     try {
       const result = await login({ email, password }).unwrap();
       dispatch(setOrgCredentials(result));
-      router.replace(getDashboardHomeForRole(result.user.role));
+      router.replace(getPostLoginPath(result.user));
     } catch {
       // RTK error
     }

@@ -91,6 +91,7 @@ export class OrganisationsService {
           email: dto.adminEmail.trim().toLowerCase(),
           role: 'ORG_ADMIN',
           status: 'INVITED',
+          platformApproved: false,
           onboardingStatus: 'VERIFIED',
           setupTokenHash,
           setupTokenExpiresAt,
@@ -153,10 +154,13 @@ export class OrganisationsService {
           where: { role: 'ORG_ADMIN' },
           take: 1,
           select: {
+            id: true,
             firstName: true,
             lastName: true,
             email: true,
             status: true,
+            platformApproved: true,
+            passwordHash: true,
           },
         },
         organisationModules: { select: { enabled: true } },
@@ -176,7 +180,17 @@ export class OrganisationsService {
         createdAt: org.createdAt,
         modulesEnabled: org.organisationModules.filter((m) => m.enabled).length,
         modulesGranted: org.organisationModules.length,
-        admin,
+        admin: admin
+          ? {
+              id: admin.id,
+              firstName: admin.firstName,
+              lastName: admin.lastName,
+              email: admin.email,
+              status: admin.status,
+              platformApproved: admin.platformApproved,
+              approvalStatus: this.toAdminApprovalStatus(admin),
+            }
+          : null,
       };
     });
   }
@@ -190,10 +204,13 @@ export class OrganisationsService {
           where: { role: 'ORG_ADMIN' },
           take: 1,
           select: {
+            id: true,
             firstName: true,
             lastName: true,
             email: true,
             status: true,
+            platformApproved: true,
+            passwordHash: true,
           },
         },
         organisationModules: {
@@ -239,9 +256,179 @@ export class OrganisationsService {
       updatedAt: org.updatedAt,
       modulesEnabled: modules.filter((row) => row.enabled).length,
       modulesGranted: modules.length,
-      admin,
+      admin: admin
+        ? {
+            id: admin.id,
+            firstName: admin.firstName,
+            lastName: admin.lastName,
+            email: admin.email,
+            status: admin.status,
+            platformApproved: admin.platformApproved,
+            approvalStatus: this.toAdminApprovalStatus(admin),
+          }
+        : null,
       modules,
     };
+  }
+
+  // Super Admin confirms the Org Admin after they set a password.
+  async approveOrgAdmin(organisationId: string, actorEmail: string) {
+    const { org, admin } = await this.getOrgAdminPair(organisationId);
+
+    if (admin.status !== 'ACTIVE' || !admin.passwordHash) {
+      throw new BadRequestException(
+        'Org Admin must set a password before they can be approved',
+      );
+    }
+
+    if (admin.platformApproved) {
+      return this.getById(organisationId);
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: admin.id },
+        data: { platformApproved: true, status: 'ACTIVE' },
+      }),
+      this.prisma.organisation.update({
+        where: { id: org.id },
+        data: { status: 'ACTIVE' },
+      }),
+    ]);
+
+    await this.platform.writeAudit({
+      action: 'ORG_ADMIN_APPROVED',
+      actorEmail,
+      organisationName: org.name,
+      details: `Approved Org Admin ${admin.email}`,
+    });
+
+    return this.getById(organisationId);
+  }
+
+  // Block this admin and suspend the org until a correct admin is approved.
+  async rejectOrgAdmin(organisationId: string, actorEmail: string) {
+    const { org, admin } = await this.getOrgAdminPair(organisationId);
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: admin.id },
+        data: {
+          platformApproved: false,
+          status: 'SUSPENDED',
+          setupTokenHash: null,
+          setupTokenExpiresAt: null,
+        },
+      }),
+      this.prisma.organisation.update({
+        where: { id: org.id },
+        data: { status: 'SUSPENDED' },
+      }),
+    ]);
+
+    await this.platform.writeAudit({
+      action: 'ORG_ADMIN_REJECTED',
+      actorEmail,
+      organisationName: org.name,
+      details: `Rejected Org Admin ${admin.email}`,
+    });
+
+    return this.getById(organisationId);
+  }
+
+  // Same Org Admin row: replace email, clear credentials, resend invite.
+  async changeOrgAdminEmail(
+    organisationId: string,
+    actorEmail: string,
+    dto: { adminEmail: string; adminFirstName?: string; adminLastName?: string },
+  ) {
+    const { org, admin } = await this.getOrgAdminPair(organisationId);
+    const nextEmail = dto.adminEmail.trim().toLowerCase();
+
+    if (nextEmail !== admin.email) {
+      const existing = await this.prisma.user.findUnique({
+        where: { email: nextEmail },
+      });
+      if (existing) {
+        throw new ConflictException('A user with this email already exists');
+      }
+    }
+
+    const rawToken = randomBytes(32).toString('hex');
+    const setupTokenHash = createHash('sha256').update(rawToken).digest('hex');
+    const setupTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    const updatedAdmin = await this.prisma.$transaction(async (tx) => {
+      const user = await tx.user.update({
+        where: { id: admin.id },
+        data: {
+          email: nextEmail,
+          firstName: dto.adminFirstName?.trim() || admin.firstName,
+          lastName: dto.adminLastName?.trim() || admin.lastName,
+          passwordHash: null,
+          status: 'INVITED',
+          platformApproved: false,
+          emailVerifiedAt: null,
+          lastLoginAt: null,
+          setupTokenHash,
+          setupTokenExpiresAt,
+        },
+      });
+
+      await tx.organisation.update({
+        where: { id: org.id },
+        data: { status: 'SUSPENDED' },
+      });
+
+      return user;
+    });
+
+    const adminName = `${updatedAdmin.firstName} ${updatedAdmin.lastName}`;
+    try {
+      await this.mail.sendSetupEmail(updatedAdmin.email, adminName, rawToken);
+    } catch (error) {
+      this.logger.error(
+        `Failed to send setup email to ${updatedAdmin.email}`,
+        error,
+      );
+    }
+
+    await this.platform.writeAudit({
+      action: 'ORG_ADMIN_EMAIL_CHANGED',
+      actorEmail,
+      organisationName: org.name,
+      details: `Org Admin email changed from ${admin.email} to ${updatedAdmin.email}`,
+    });
+
+    return this.getById(organisationId);
+  }
+
+  private async getOrgAdminPair(organisationId: string) {
+    const org = await this.prisma.organisation.findUnique({
+      where: { id: organisationId },
+      include: {
+        users: {
+          where: { role: 'ORG_ADMIN' },
+          take: 1,
+        },
+      },
+    });
+
+    if (!org) throw new NotFoundException('Organisation not found');
+    const admin = org.users[0];
+    if (!admin) throw new NotFoundException('Org Admin not found');
+    return { org, admin };
+  }
+
+  private toAdminApprovalStatus(admin: {
+    status: string;
+    platformApproved: boolean;
+    passwordHash: string | null;
+  }) {
+    if (admin.platformApproved) return 'APPROVED';
+    if (admin.status === 'SUSPENDED') return 'REJECTED';
+    if (admin.status === 'ACTIVE' && admin.passwordHash) return 'AWAITING_APPROVAL';
+    return 'INVITED';
   }
 
   /**

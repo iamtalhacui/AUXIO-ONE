@@ -6,6 +6,7 @@ import {
   Patch,
   UseGuards,
 } from '@nestjs/common';
+import { PlatformApprovedGuard } from '../../common/guards/platform-approved.guard';
 import { VerifiedOnboardingGuard } from '../../common/guards/verified-onboarding.guard';
 import { CurrentOrgUser } from '../auth/current-org-user.decorator';
 import type { OrgJwtPayload } from '../auth/current-org-user.decorator';
@@ -15,7 +16,7 @@ import { OrganisationsService } from './organisations.service';
 
 // Org Admin (and other org users) read/toggle modules for their own tenant.
 @Controller('organisation/modules')
-@UseGuards(OrgJwtGuard)
+@UseGuards(OrgJwtGuard, PlatformApprovedGuard)
 export class OrgModulesController {
   constructor(private readonly organisationsService: OrganisationsService) {}
 

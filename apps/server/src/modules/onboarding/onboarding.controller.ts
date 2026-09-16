@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
+import { PlatformApprovedGuard } from '../../common/guards/platform-approved.guard';
 import { CurrentOrgUser } from '../auth/current-org-user.decorator';
 import type { OrgJwtPayload } from '../auth/current-org-user.decorator';
 import { OrgJwtGuard } from '../auth/org-jwt.guard';
@@ -30,7 +31,7 @@ type MulterUpload = {
 };
 
 @Controller('onboarding')
-@UseGuards(OrgJwtGuard)
+@UseGuards(OrgJwtGuard, PlatformApprovedGuard)
 export class OnboardingController {
   constructor(
     private readonly onboarding: OnboardingService,

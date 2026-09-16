@@ -44,12 +44,18 @@ export class AuthService {
         emailVerifiedAt: new Date(),
         setupTokenHash: null,
         setupTokenExpiresAt: null,
+        // Org Admin still needs Super Admin approval before full access.
+        platformApproved: user.role === 'ORG_ADMIN' ? false : user.platformApproved,
       },
     });
 
     return {
-      message: 'Account activated successfully',
+      message:
+        user.role === 'ORG_ADMIN'
+          ? 'Password set. Waiting for Super Admin approval before you can use the platform.'
+          : 'Account activated successfully',
       email: user.email,
+      awaitingPlatformApproval: user.role === 'ORG_ADMIN',
     };
   }
 
@@ -74,6 +80,16 @@ export class AuthService {
     if (await this.platform.isMaintenanceMode()) {
       throw new ForbiddenException(
         'The platform is in maintenance mode. Please try again later.',
+      );
+    }
+
+    // Approved users cannot use a suspended organisation.
+    // Unapproved Org Admins may still sign in to see the waiting screen.
+    const awaitingApproval =
+      user.role === 'ORG_ADMIN' && !user.platformApproved;
+    if (user.organisation.status === 'SUSPENDED' && !awaitingApproval) {
+      throw new ForbiddenException(
+        'This organisation is suspended. Contact the platform administrator.',
       );
     }
 
@@ -148,6 +164,7 @@ export class AuthService {
     role: string;
     status: string;
     onboardingStatus: string;
+    platformApproved: boolean;
     organisationId: string;
   }) {
     return {
@@ -158,6 +175,7 @@ export class AuthService {
       role: user.role,
       status: user.status,
       onboardingStatus: user.onboardingStatus,
+      platformApproved: user.platformApproved,
       organisationId: user.organisationId,
     };
   }

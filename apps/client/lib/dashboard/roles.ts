@@ -23,6 +23,22 @@ export function getDashboardHomeForRole(role?: string) {
   return "/login";
 }
 
+/** Org Admin who set a password but Super Admin has not approved yet. */
+export function needsPlatformApproval(user?: {
+  role?: string;
+  platformApproved?: boolean;
+} | null) {
+  return user?.role === "ORG_ADMIN" && user.platformApproved === false;
+}
+
+export function getPostLoginPath(user?: {
+  role?: string;
+  platformApproved?: boolean;
+} | null) {
+  if (needsPlatformApproval(user)) return "/platform-approval";
+  return getDashboardHomeForRole(user?.role);
+}
+
 export function isUserRole(value?: string): value is UserRole {
   return USER_ROLES.includes(value as UserRole);
 }

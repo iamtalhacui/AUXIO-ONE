@@ -10,6 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import type { Response } from 'express';
+import { PlatformApprovedGuard } from '../../common/guards/platform-approved.guard';
 import { VerifiedOnboardingGuard } from '../../common/guards/verified-onboarding.guard';
 import { CurrentOrgUser } from '../auth/current-org-user.decorator';
 import type { OrgJwtPayload } from '../auth/current-org-user.decorator';
@@ -18,7 +19,7 @@ import { ReviewOnboardingDto } from './dto/review-onboarding.dto';
 import { OnboardingService } from './onboarding.service';
 
 @Controller('organisation/onboarding')
-@UseGuards(OrgJwtGuard, VerifiedOnboardingGuard)
+@UseGuards(OrgJwtGuard, PlatformApprovedGuard, VerifiedOnboardingGuard)
 export class OrganisationOnboardingController {
   constructor(private readonly onboarding: OnboardingService) {}
 

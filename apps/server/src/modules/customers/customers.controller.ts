@@ -15,6 +15,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { ModuleAccessGuard, RequireModule } from '../../common/guards/module-access.guard';
+import { PlatformApprovedGuard } from '../../common/guards/platform-approved.guard';
 import { CurrentOrgUser } from '../auth/current-org-user.decorator';
 import type { OrgJwtPayload } from '../auth/current-org-user.decorator';
 import { OrgJwtGuard } from '../auth/org-jwt.guard';
@@ -30,7 +31,7 @@ type MulterUpload = {
 
 // Customer master data + document onboarding (CUSTOMERS module, Manager only).
 @Controller('organisation/customers')
-@UseGuards(OrgJwtGuard, ModuleAccessGuard)
+@UseGuards(OrgJwtGuard, PlatformApprovedGuard, ModuleAccessGuard)
 @RequireModule('CUSTOMERS')
 export class CustomersController {
   constructor(private readonly customers: CustomersService) {}

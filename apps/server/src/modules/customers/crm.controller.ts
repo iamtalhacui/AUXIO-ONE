@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ModuleAccessGuard, RequireModule } from '../../common/guards/module-access.guard';
+import { PlatformApprovedGuard } from '../../common/guards/platform-approved.guard';
 import { CurrentOrgUser } from '../auth/current-org-user.decorator';
 import type { OrgJwtPayload } from '../auth/current-org-user.decorator';
 import { OrgJwtGuard } from '../auth/org-jwt.guard';
@@ -8,7 +9,7 @@ import { CustomersService } from './customers.service';
 
 // CRM opportunity pipeline (CRM module, Manager only).
 @Controller('organisation/crm/opportunities')
-@UseGuards(OrgJwtGuard, ModuleAccessGuard)
+@UseGuards(OrgJwtGuard, PlatformApprovedGuard, ModuleAccessGuard)
 @RequireModule('CRM')
 export class CrmController {
   constructor(private readonly customers: CustomersService) {}

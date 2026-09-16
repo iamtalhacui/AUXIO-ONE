@@ -60,10 +60,13 @@ export type PlatformOrganisation = {
   modulesEnabled: number;
   modulesGranted: number;
   admin: {
+    id: string;
     firstName: string;
     lastName: string;
     email: string;
     status: UserStatus;
+    platformApproved: boolean;
+    approvalStatus: "INVITED" | "AWAITING_APPROVAL" | "APPROVED" | "REJECTED";
   } | null;
 };
 
@@ -75,6 +78,7 @@ export type SetupAccountRequest = {
 export type SetupAccountResponse = {
   message: string;
   email: string;
+  awaitingPlatformApproval?: boolean;
 };
 
 export type OrgUser = {
@@ -85,6 +89,7 @@ export type OrgUser = {
   role: string;
   status: UserStatus;
   onboardingStatus: OnboardingStatus;
+  platformApproved: boolean;
   organisationId: string;
 };
 

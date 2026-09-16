@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
+import { PlatformApprovedGuard } from '../../common/guards/platform-approved.guard';
 import { PlatformModule } from '../platform/platform.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
@@ -22,7 +23,7 @@ import { OrgJwtGuard } from './org-jwt.guard';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, OrgJwtGuard],
-  exports: [AuthService, OrgJwtGuard, JwtModule, PlatformModule],
+  providers: [AuthService, OrgJwtGuard, PlatformApprovedGuard],
+  exports: [AuthService, OrgJwtGuard, PlatformApprovedGuard, JwtModule, PlatformModule],
 })
 export class AuthModule {}

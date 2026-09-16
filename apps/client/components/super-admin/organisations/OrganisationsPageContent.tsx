@@ -13,6 +13,13 @@ function formatDate(value: string) {
   });
 }
 
+const APPROVAL_LABEL: Record<string, string> = {
+  INVITED: "Invited",
+  AWAITING_APPROVAL: "Awaiting approval",
+  APPROVED: "Approved",
+  REJECTED: "Rejected",
+};
+
 // Super Admin tenant list from GET /platform/organisations.
 export function OrganisationsPageContent() {
   const { data: organisations = [], isLoading, error } = useListOrganisationsQuery();
@@ -51,6 +58,10 @@ export function OrganisationsPageContent() {
         </Link>
       </div>
 
+      <p className="text-sm text-muted">
+        Open an organisation to approve or reject the Org Admin, or change their login email.
+      </p>
+
       <div className="data-table-wrap">
         {filtered.length === 0 ? (
           <p className="px-5 py-10 text-center text-sm text-muted">No organisations yet.</p>
@@ -62,33 +73,73 @@ export function OrganisationsPageContent() {
                 <th>Plan</th>
                 <th>Status</th>
                 <th>Admin</th>
+                <th>Admin approval</th>
                 <th>Registered</th>
+                <th className="text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((org) => (
-                <tr key={org.id}>
-                  <td>
-                    <Link href={`/super-admin/organisations/${org.id}`} className="font-medium hover:text-primary">
-                      {org.name}
-                    </Link>
-                    <p className="text-xs text-muted">{org.email}</p>
-                  </td>
-                  <td className="text-muted">{org.plan}</td>
-                  <td>
-                    <OrgStatusBadge status={org.status} />
-                  </td>
-                  <td className="text-muted">
-                    {org.admin
-                      ? `${org.admin.firstName} ${org.admin.lastName}`
-                      : "—"}
-                    {org.admin ? (
-                      <p className="text-xs">{org.admin.status}</p>
-                    ) : null}
-                  </td>
-                  <td className="text-muted">{formatDate(org.createdAt)}</td>
-                </tr>
-              ))}
+              {filtered.map((org) => {
+                const approval = org.admin?.approvalStatus;
+                const needsReview =
+                  approval === "AWAITING_APPROVAL" || approval === "INVITED";
+
+                return (
+                  <tr key={org.id}>
+                    <td>
+                      <Link
+                        href={`/super-admin/organisations/${org.id}`}
+                        className="font-medium text-primary underline-offset-2 hover:underline"
+                      >
+                        {org.name}
+                      </Link>
+                      <p className="text-xs text-muted">{org.email}</p>
+                    </td>
+                    <td className="text-muted">{org.plan}</td>
+                    <td>
+                      <OrgStatusBadge status={org.status} />
+                    </td>
+                    <td className="text-muted">
+                      {org.admin
+                        ? `${org.admin.firstName} ${org.admin.lastName}`
+                        : "—"}
+                      {org.admin ? (
+                        <p className="text-xs">{org.admin.email}</p>
+                      ) : null}
+                    </td>
+                    <td>
+                      {approval ? (
+                        <span
+                          className={
+                            approval === "AWAITING_APPROVAL"
+                              ? "rounded-md bg-sky-100 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-sky-800"
+                              : approval === "REJECTED"
+                                ? "rounded-md bg-red-100 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-red-800"
+                                : "text-xs text-muted"
+                          }
+                        >
+                          {APPROVAL_LABEL[approval] ?? approval}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted">—</span>
+                      )}
+                    </td>
+                    <td className="text-muted">{formatDate(org.createdAt)}</td>
+                    <td className="text-right">
+                      <Link
+                        href={`/super-admin/organisations/${org.id}`}
+                        className={
+                          needsReview
+                            ? "btn-primary inline-flex px-3 py-1.5 text-xs"
+                            : "btn-secondary inline-flex px-3 py-1.5 text-xs"
+                        }
+                      >
+                        {needsReview ? "Review" : "Manage"}
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}

@@ -12,6 +12,7 @@ export function SetupAccountForm() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [localError, setLocalError] = useState("");
+  const [doneMessage, setDoneMessage] = useState("");
   const [setup, { isLoading, error }] = useSetupAccountMutation();
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -24,7 +25,13 @@ export function SetupAccountForm() {
     }
 
     try {
-      await setup({ token, password }).unwrap();
+      const result = await setup({ token, password }).unwrap();
+      if (result.awaitingPlatformApproval) {
+        setDoneMessage(
+          "Password set. Sign in after you receive Super Admin approval, or sign in now to see the waiting screen.",
+        );
+        return;
+      }
       router.replace("/login");
     } catch {
       // RTK error
@@ -36,6 +43,19 @@ export function SetupAccountForm() {
 
   if (!token) {
     return <p className="text-sm text-muted">This setup link is missing a token.</p>;
+  }
+
+  if (doneMessage) {
+    return (
+      <div className="mt-8 space-y-4">
+        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          {doneMessage}
+        </p>
+        <button type="button" className="btn-primary w-full" onClick={() => router.replace("/login")}>
+          Continue to sign in
+        </button>
+      </div>
+    );
   }
 
   return (

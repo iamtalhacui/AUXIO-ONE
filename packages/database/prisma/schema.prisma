@@ -87,6 +87,9 @@ model User {
   passwordHash          String?
   role                  UserRole
   status                UserStatus       @default(INVITED)
+  // Org Admin must be approved by Super Admin after password setup.
+  // Workforce users stay true (default) and are unaffected.
+  platformApproved      Boolean          @default(true)
   onboardingStatus      OnboardingStatus @default(NOT_STARTED)
   onboardingCompletedAt DateTime?
   setupTokenHash        String?
@@ -96,7 +99,7 @@ model User {
   createdAt             DateTime         @default(now())
   updatedAt             DateTime         @updatedAt
 
-  organisation           Organisation           @relation(fields: [organisationId], references: [id])
+  organisation           Organisation           @relation(fields: [organisationId], references: [id], onDelete: Cascade)
   onboardingSubmission   OnboardingSubmission?
   reviewedOnboardings    OnboardingSubmission[] @relation("OnboardingReviews")
   createdCustomers       Customer[]             @relation("CustomerCreatedBy")
@@ -191,7 +194,7 @@ model Customer {
   updatedAt              DateTime       @updatedAt
 
   organisation      Organisation      @relation(fields: [organisationId], references: [id], onDelete: Cascade)
-  createdBy         User              @relation("CustomerCreatedBy", fields: [createdById], references: [id])
+  createdBy         User              @relation("CustomerCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
   sourceOpportunity CrmOpportunity?   @relation("OpportunityConvertedCustomer", fields: [sourceOpportunityId], references: [id], onDelete: SetNull)
   documents         CustomerDocument[]
 
@@ -214,7 +217,7 @@ model CustomerDocument {
   uploadedAt   DateTime             @default(now())
 
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  uploadedBy User     @relation("CustomerDocUploadedBy", fields: [uploadedById], references: [id])
+  uploadedBy User     @relation("CustomerDocUploadedBy", fields: [uploadedById], references: [id], onDelete: Cascade)
 
   @@unique([customerId, fieldKey])
   @@index([customerId])
@@ -248,7 +251,7 @@ model CrmOpportunity {
   updatedAt             DateTime         @updatedAt
 
   organisation       Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
-  owner              User         @relation("OpportunityOwner", fields: [ownerId], references: [id])
+  owner              User         @relation("OpportunityOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   convertedCustomer  Customer?    @relation("OpportunityConvertedCustomer")
 
   @@index([organisationId])
@@ -275,10 +278,7 @@ model OrganisationModule {
   enabled        Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-
-  organisation Organisation @relation(fields: [organisationId], references: [id])
-  module       Module       @relation(fields: [moduleId], references: [id])
-
+3
   @@unique([organisationId, moduleId])
   @@index([organisationId])
 }
