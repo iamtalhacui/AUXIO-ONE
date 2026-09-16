@@ -81,6 +81,16 @@ export type SetupAccountResponse = {
   awaitingPlatformApproval?: boolean;
 };
 
+export type ForgotPasswordRequest = {
+  email: string;
+};
+
+export type ResetPasswordRequest = {
+  email: string;
+  otp: string;
+  password: string;
+};
+
 export type OrgUser = {
   id: string;
   firstName: string;
@@ -114,7 +124,6 @@ export type UpdateOrganisationRequest = {
   email: string;
   phone?: string;
   timezone: string;
-  brandColor: string;
 };
 
 export type OrgLoginResponse = {
@@ -275,6 +284,23 @@ export type PlatformInvite = {
 
 export type PlatformSettings = {
   maintenanceMode: boolean;
+  updatedAt: string;
+};
+
+export type DemoRequestStatus = "PENDING" | "CONTACTED" | "COMPLETED";
+
+export type DemoRequest = {
+  id: string;
+  organisationName: string;
+  contactName: string;
+  email: string;
+  phone: string | null;
+  numberOfUsers: number | null;
+  preferredDate: string;
+  preferredTime: string;
+  message: string;
+  status: DemoRequestStatus;
+  createdAt: string;
   updatedAt: string;
 };
 

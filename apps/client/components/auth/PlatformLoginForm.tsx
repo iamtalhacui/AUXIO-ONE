@@ -1,11 +1,14 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { usePlatformLoginMutation } from "@/lib/api/platformAuthApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
 import { setPlatformCredentials } from "@/lib/store/platformAuthSlice";
 import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
+import { BrandLogo } from "@/components/ui/BrandLogo";
+import { site } from "@/lib/content";
 
 export function PlatformLoginForm() {
   const router = useRouter();
@@ -36,6 +39,10 @@ export function PlatformLoginForm() {
 
   return (
     <div>
+      <Link href="/" className="mb-6 inline-flex items-center gap-3">
+        <BrandLogo size={36} className="h-9 w-9 object-contain" />
+        <span className="text-lg font-semibold">{site.name}</span>
+      </Link>
       <p className="text-xs font-medium uppercase tracking-wide text-muted">Platform</p>
       <h1 className="mt-2 text-2xl font-semibold tracking-tight">Super Admin sign in</h1>
       <p className="mt-2 text-sm text-muted">Use your platform credentials.</p>

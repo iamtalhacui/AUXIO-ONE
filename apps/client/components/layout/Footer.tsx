@@ -1,12 +1,16 @@
 import Link from "next/link";
 import { navLinks, site } from "@/lib/content";
+import { BrandLogo } from "@/components/ui/BrandLogo";
 
 export function Footer() {
   return (
     <footer className="border-t border-border bg-surface">
       <div className="section-shell grid gap-10 py-14 md:grid-cols-[1.2fr_1fr]">
         <div>
-          <p className="text-lg font-semibold">{site.name}</p>
+          <div className="flex items-center gap-3">
+            <BrandLogo size={36} className="h-9 w-9 object-contain" />
+            <p className="text-lg font-semibold">{site.name}</p>
+          </div>
           <p className="mt-3 max-w-md text-sm leading-7 text-muted">
             {site.description}
           </p>
@@ -41,7 +45,7 @@ export function Footer() {
                   href="/get-started"
                   className="text-sm text-foreground transition hover:text-primary"
                 >
-                  Register your organisation
+                  Book a Demo
                 </Link>
               </li>
               <li>

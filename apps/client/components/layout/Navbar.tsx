@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { navLinks, site } from "@/lib/content";
 import { Button } from "@/components/ui/Button";
+import { BrandLogo } from "@/components/ui/BrandLogo";
 
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
@@ -25,9 +26,11 @@ export function Navbar() {
     >
       <div className="section-shell flex h-16 items-center justify-between py-4">
         <Link href="/" className="group flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-sm font-bold text-white shadow-lg shadow-primary/20 transition group-hover:scale-105">
-            A1
-          </span>
+          <BrandLogo
+            size={40}
+            priority
+            className="h-10 w-10 object-contain transition group-hover:scale-105"
+          />
           <span className="text-lg font-semibold tracking-tight">{site.name}</span>
         </Link>
 
@@ -48,7 +51,7 @@ export function Navbar() {
             Sign in
           </Button>
           <Button href="/get-started" className="px-5 py-2.5">
-            Get started
+            Book a Demo
           </Button>
         </div>
       </div>

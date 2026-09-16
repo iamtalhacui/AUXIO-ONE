@@ -9,6 +9,7 @@ import { getErrorMessage, takeMaintenanceLogoutNotice } from "@/lib/api/getError
 import { getPostLoginPath } from "@/lib/dashboard/roles";
 import { setOrgCredentials } from "@/lib/store/orgAuthSlice";
 import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
+import { BrandLogo } from "@/components/ui/BrandLogo";
 
 export function LoginForm() {
   const router = useRouter();
@@ -52,8 +53,9 @@ export function LoginForm() {
     <div className="flex flex-1 items-center justify-center px-6 py-12 sm:px-10">
       <div className="w-full max-w-md">
         <div className="mb-8 lg:hidden">
-          <Link href="/" className="text-lg font-semibold">
-            AUXIO One
+          <Link href="/" className="inline-flex items-center gap-3">
+            <BrandLogo size={36} className="h-9 w-9 object-contain" />
+            <span className="text-lg font-semibold">AUXIO One</span>
           </Link>
         </div>
 
@@ -74,7 +76,15 @@ export function LoginForm() {
             />
           </label>
           <label className="block">
-            <span className="input-label">Password</span>
+            <div className="mb-1.5 flex items-center justify-between gap-3">
+              <span className="text-sm font-medium text-foreground">Password</span>
+              <Link
+                href="/forgot-password"
+                className="text-sm font-semibold text-primary hover:text-primary-light"
+              >
+                Forgot password?
+              </Link>
+            </div>
             <input
               type="password"
               value={password}

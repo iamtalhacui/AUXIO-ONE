@@ -1,13 +1,6 @@
-import {
-  IsEmail,
-  IsOptional,
-  IsString,
-  Matches,
-  MaxLength,
-  MinLength,
-} from 'class-validator';
+import { IsEmail, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
-// Org Admin updates profile + branding for their own tenant.
+// Org Admin updates profile for their own tenant.
 export class UpdateOrganisationDto {
   @IsString()
   @MinLength(1)
@@ -36,10 +29,4 @@ export class UpdateOrganisationDto {
   @MinLength(1)
   @MaxLength(80)
   timezone: string;
-
-  @IsString()
-  @Matches(/^#[0-9A-Fa-f]{6}$/, {
-    message: 'brandColor must be a hex colour like #0f766e',
-  })
-  brandColor: string;
 }

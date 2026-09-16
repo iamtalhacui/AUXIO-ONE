@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, type CSSProperties, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { useConfirmOrgSession } from "@/components/auth/useConfirmOrgSession";
@@ -17,20 +17,9 @@ type DashboardShellProps = {
   children: ReactNode;
 };
 
-function brandThemeStyle(brandColor: string | undefined): CSSProperties | undefined {
-  if (!brandColor || !/^#[0-9A-Fa-f]{6}$/.test(brandColor)) return undefined;
-  return {
-    ["--primary" as string]: brandColor,
-    ["--primary-light" as string]: brandColor,
-    ["--accent" as string]: brandColor,
-    ["--hero-glow" as string]: `${brandColor}1a`,
-  };
-}
-
 export function DashboardShell({ children }: DashboardShellProps) {
   const pathname = usePathname();
   const orgUser = useAppSelector((state) => state.orgAuth.user);
-  const organisation = useAppSelector((state) => state.orgAuth.organisation);
   const isPlatform = pathname.startsWith("/super-admin");
   const config = getDashboardConfigForPath(pathname);
   const sessionOk = useConfirmOrgSession(Boolean(orgUser) && !isPlatform);
@@ -54,10 +43,8 @@ export function DashboardShell({ children }: DashboardShellProps) {
 
   if (!filteredConfig) return null;
 
-  const themeStyle = isPlatform ? undefined : brandThemeStyle(organisation?.brandColor);
-
   return (
-    <div className="dashboard-shell" style={themeStyle}>
+    <div className="dashboard-shell">
       <DashboardSidebar config={filteredConfig} lockedOnboarding={lockedOnboarding} />
       <main className="dashboard-main">
         <div className="dashboard-content">{children}</div>

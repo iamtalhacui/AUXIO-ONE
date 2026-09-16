@@ -626,7 +626,6 @@ export class OrganisationsService {
         email: dto.email.trim().toLowerCase(),
         phone: dto.phone?.trim() || null,
         timezone: dto.timezone.trim(),
-        brandColor: dto.brandColor.toLowerCase(),
       },
     });
 

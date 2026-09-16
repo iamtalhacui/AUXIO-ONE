@@ -16,6 +16,8 @@ import type {
   UpdateOrganisationRequest,
   SetupAccountRequest,
   SetupAccountResponse,
+  ForgotPasswordRequest,
+  ResetPasswordRequest,
   OnboardingMeResponse,
   SaveOnboardingDraftRequest,
   OnboardingDocumentMeta,
@@ -73,6 +75,20 @@ export const authApi = createApi({
     setupAccount: builder.mutation<SetupAccountResponse, SetupAccountRequest>({
       query: (body) => ({
         url: "/auth/setup",
+        method: "POST",
+        body,
+      }),
+    }),
+    forgotPassword: builder.mutation<{ message: string }, ForgotPasswordRequest>({
+      query: (body) => ({
+        url: "/auth/forgot-password",
+        method: "POST",
+        body,
+      }),
+    }),
+    resetPassword: builder.mutation<{ message: string }, ResetPasswordRequest>({
+      query: (body) => ({
+        url: "/auth/reset-password",
         method: "POST",
         body,
       }),
@@ -353,6 +369,8 @@ export const authApi = createApi({
 
 export const {
   useSetupAccountMutation,
+  useForgotPasswordMutation,
+  useResetPasswordMutation,
   useOrgLoginMutation,
   useOrgMeQuery,
   useGetOrganisationQuery,

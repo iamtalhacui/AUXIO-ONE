@@ -5,11 +5,19 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { createHash } from 'crypto';
+import { createHash, randomInt } from 'crypto';
 import * as bcrypt from 'bcryptjs';
+import { MailService } from '../../common/mail/mail.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { PlatformService } from '../platform/platform.service';
 import type { OrgJwtPayload } from './current-org-user.decorator';
+import {
+  isPasswordPolicyValid,
+  PASSWORD_POLICY_MESSAGE,
+} from './password-policy';
+
+const RESET_OTP_TTL_MS = 15 * 60 * 1000;
+const RESET_OTP_MAX_ATTEMPTS = 5;
 
 @Injectable()
 export class AuthService {
@@ -17,9 +25,12 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly platform: PlatformService,
+    private readonly mail: MailService,
   ) {}
 
   async setupAccount(rawToken: string, plainPassword: string) {
+    this.ensurePasswordPolicy(plainPassword);
+
     const tokenHash = createHash('sha256').update(rawToken).digest('hex');
 
     const user = await this.prisma.user.findFirst({
@@ -76,7 +87,6 @@ export class AuthService {
       throw new UnauthorizedException('Account is not active');
     }
 
-    // Organisation logins are paused while Super Admin has maintenance on.
     if (await this.platform.isMaintenanceMode()) {
       throw new ForbiddenException(
         'The platform is in maintenance mode. Please try again later.',
@@ -112,8 +122,9 @@ export class AuthService {
     };
   }
 
-  // Logged-in org users change their own password (current password required).
   async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    this.ensurePasswordPolicy(newPassword);
+
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, passwordHash: true, status: true },
@@ -140,6 +151,94 @@ export class AuthService {
     return { message: 'Password updated' };
   }
 
+  /**
+   * Always returns a generic success message to avoid account enumeration.
+   * Sends a 6-digit OTP only when an ACTIVE user with a password exists.
+   */
+  async forgotPassword(email: string) {
+    const normalized = email.trim().toLowerCase();
+    const generic = {
+      message: 'If an account exists for that email, a reset code has been sent.',
+    };
+
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalized },
+    });
+
+    if (!user || user.status !== 'ACTIVE' || !user.passwordHash) {
+      return generic;
+    }
+
+    const otp = String(randomInt(0, 1_000_000)).padStart(6, '0');
+    const otpHash = createHash('sha256').update(otp).digest('hex');
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordResetOtpHash: otpHash,
+        passwordResetExpiresAt: new Date(Date.now() + RESET_OTP_TTL_MS),
+        passwordResetAttempts: 0,
+      },
+    });
+
+    await this.mail.sendPasswordResetOtp(
+      user.email,
+      user.firstName || 'there',
+      otp,
+    );
+
+    return generic;
+  }
+
+  async resetPassword(email: string, otp: string, newPassword: string) {
+    this.ensurePasswordPolicy(newPassword);
+
+    const normalized = email.trim().toLowerCase();
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalized },
+    });
+
+    if (
+      !user ||
+      user.status !== 'ACTIVE' ||
+      !user.passwordResetOtpHash ||
+      !user.passwordResetExpiresAt
+    ) {
+      throw new BadRequestException('Invalid or expired reset code');
+    }
+
+    if (user.passwordResetExpiresAt < new Date()) {
+      await this.clearPasswordReset(user.id);
+      throw new BadRequestException('Reset code has expired');
+    }
+
+    if (user.passwordResetAttempts >= RESET_OTP_MAX_ATTEMPTS) {
+      await this.clearPasswordReset(user.id);
+      throw new BadRequestException('Too many invalid attempts. Request a new code.');
+    }
+
+    const otpHash = createHash('sha256').update(otp.trim()).digest('hex');
+    if (otpHash !== user.passwordResetOtpHash) {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { passwordResetAttempts: { increment: 1 } },
+      });
+      throw new BadRequestException('Invalid or expired reset code');
+    }
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash: await bcrypt.hash(newPassword, 10),
+        passwordResetOtpHash: null,
+        passwordResetExpiresAt: null,
+        passwordResetAttempts: 0,
+      },
+    });
+
+    return { message: 'Password has been reset. You can sign in now.' };
+  }
+
   async getMe(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -154,6 +253,23 @@ export class AuthService {
       user: this.toUserDto(user),
       organisation: this.toOrgDto(user.organisation),
     };
+  }
+
+  private ensurePasswordPolicy(password: string) {
+    if (!isPasswordPolicyValid(password)) {
+      throw new BadRequestException(PASSWORD_POLICY_MESSAGE);
+    }
+  }
+
+  private async clearPasswordReset(userId: string) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        passwordResetOtpHash: null,
+        passwordResetExpiresAt: null,
+        passwordResetAttempts: 0,
+      },
+    });
   }
 
   private toUserDto(user: {

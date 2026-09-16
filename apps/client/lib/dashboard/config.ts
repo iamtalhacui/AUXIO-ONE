@@ -45,6 +45,7 @@ const superAdminNav: NavGroup[] = [
         ],
       },
       { label: "Platform settings", href: "/super-admin/settings" },
+      { label: "Demo Requests", href: "/super-admin/demos" },
       { label: "Audit log", href: "/super-admin/audit" },
     ],
   },
@@ -135,6 +136,7 @@ const employeeNav: NavGroup[] = [
         label: "Shifts & timesheets",
         children: [
           { label: "Shifts", href: "/employee/shifts", module: "SCHEDULE" },
+          { label: "Availability", href: "/employee/availability", module: "SCHEDULE" },
           { label: "Timesheets", href: "/employee/timesheets", module: "SERVICE_DELIVERY" },
         ],
       },

@@ -3,6 +3,10 @@ import { AuthService } from './auth.service';
 import { CurrentOrgUser } from './current-org-user.decorator';
 import type { OrgJwtPayload } from './current-org-user.decorator';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import {
+  ForgotPasswordDto,
+  ResetPasswordDto,
+} from './dto/forgot-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { SetupAccountDto } from './dto/setup-account.dto';
 import { OrgJwtGuard } from './org-jwt.guard';
@@ -21,13 +25,22 @@ export class AuthController {
     return this.authService.login(dto.email, dto.password);
   }
 
+  @Post('forgot-password')
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(dto.email);
+  }
+
+  @Post('reset-password')
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto.email, dto.otp, dto.password);
+  }
+
   @UseGuards(OrgJwtGuard)
   @Get('me')
   me(@CurrentOrgUser() user: OrgJwtPayload) {
     return this.authService.getMe(user.sub);
   }
 
-  // Org users update their password after they are already signed in.
   @UseGuards(OrgJwtGuard)
   @Post('change-password')
   changePassword(

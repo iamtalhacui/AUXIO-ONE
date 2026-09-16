@@ -43,3 +43,22 @@ export function ActionBadge({ action }: { action: string }) {
     </span>
   );
 }
+
+export function DemoStatusBadge({
+  status,
+}: {
+  status: "PENDING" | "CONTACTED" | "COMPLETED";
+}) {
+  const styles = {
+    PENDING: "bg-accent/10 text-accent",
+    CONTACTED: "bg-primary/10 text-primary",
+    COMPLETED: "bg-emerald-100 text-emerald-700",
+  };
+  return (
+    <span
+      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${styles[status]}`}
+    >
+      {status}
+    </span>
+  );
+}

@@ -2,8 +2,10 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { PasswordStrengthMeter } from "@/components/auth/PasswordStrengthMeter";
 import { useSetupAccountMutation } from "@/lib/api/authApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { evaluatePassword } from "@/lib/auth/passwordStrength";
 
 export function SetupAccountForm() {
   const router = useRouter();
@@ -18,6 +20,14 @@ export function SetupAccountForm() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLocalError("");
+
+    const strength = evaluatePassword(password);
+    if (!strength.isValid) {
+      setLocalError(
+        "Password must be at least 8 characters and include uppercase, lowercase, and a number",
+      );
+      return;
+    }
 
     if (password !== confirm) {
       setLocalError("Passwords do not match");
@@ -68,9 +78,13 @@ export function SetupAccountForm() {
           onChange={(e) => setPassword(e.target.value)}
           minLength={8}
           required
+          autoComplete="new-password"
           className="input-field"
         />
       </label>
+
+      <PasswordStrengthMeter password={password} />
+
       <label className="block">
         <span className="input-label">Confirm password</span>
         <input
@@ -79,6 +93,7 @@ export function SetupAccountForm() {
           onChange={(e) => setConfirm(e.target.value)}
           minLength={8}
           required
+          autoComplete="new-password"
           className="input-field"
         />
       </label>
@@ -87,7 +102,11 @@ export function SetupAccountForm() {
           {errorMessage}
         </p>
       ) : null}
-      <button type="submit" disabled={isLoading} className="btn-primary w-full disabled:opacity-70">
+      <button
+        type="submit"
+        disabled={isLoading || !evaluatePassword(password).isValid}
+        className="btn-primary w-full disabled:opacity-70"
+      >
         {isLoading ? "Activating…" : "Activate account"}
       </button>
     </form>

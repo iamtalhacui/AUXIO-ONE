@@ -18,8 +18,8 @@ export function CtaSection() {
                 Ready to spend less time on paperwork?
               </h2>
               <p className="mt-4 text-base leading-7 text-white/80">
-                Tell us about your organisation and our team will set up your
-                account, modules, and first admin login — usually within days.
+                Book a short demo and we’ll walk you through onboarding,
+                rostering, and the workflows that matter to your team.
               </p>
               <div className="mt-8">
                 <Button
@@ -27,7 +27,7 @@ export function CtaSection() {
                   variant="secondary"
                   className="border-white/20 bg-white text-primary hover:bg-white/90"
                 >
-                  Book with us
+                  Book a Demo
                 </Button>
               </div>
             </div>

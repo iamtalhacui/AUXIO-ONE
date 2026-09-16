@@ -10,6 +10,7 @@ import { logoutOrg } from "@/lib/store/orgAuthSlice";
 import { logoutPlatform } from "@/lib/store/platformAuthSlice";
 import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
 import { OrgLogoMark } from "@/components/dashboard/OrgLogoMark";
+import { BrandLogo } from "@/components/ui/BrandLogo";
 import {
   IconBell,
   IconBuilding,
@@ -34,6 +35,7 @@ const labelIconMap: Record<string, typeof IconOverview> = {
   "Module catalogue": IconGrid,
   Entitlements: IconGrid,
   "Platform settings": IconSettings,
+  "Demo Requests": IconBell,
   "Audit log": IconSettings,
   Team: IconBuilding,
   "All members": IconBuilding,
@@ -219,9 +221,7 @@ export function DashboardSidebar({ config, lockedOnboarding }: DashboardSidebarP
       <div className="dashboard-sidebar-brand">
         <Link href={config.basePath} className="flex items-center gap-3">
           {isPlatform ? (
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-xs font-bold text-white">
-              A1
-            </span>
+            <BrandLogo size={36} className="h-9 w-9 object-contain" />
           ) : (
             <OrgLogoMark fallback={brandFallback} />
           )}

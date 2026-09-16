@@ -6,6 +6,8 @@ import {
   type FetchBaseQueryError,
 } from "@reduxjs/toolkit/query/react";
 import type {
+  DemoRequest,
+  DemoRequestStatus,
   PlatformAuditEntry,
   PlatformEntitlement,
   PlatformInvite,
@@ -46,7 +48,7 @@ const baseQueryWithAuth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQuery
 export const platformAuthApi = createApi({
   reducerPath: "platformAuthApi",
   baseQuery: baseQueryWithAuth,
-  tagTypes: ["Organisations", "Audit", "Modules", "Entitlements", "Invites", "Settings"],
+  tagTypes: ["Organisations", "Audit", "Modules", "Entitlements", "Invites", "Settings", "Demos"],
   endpoints: (builder) => ({
     platformLogin: builder.mutation<
       PlatformLoginResponse,
@@ -151,6 +153,25 @@ export const platformAuthApi = createApi({
       }),
       invalidatesTags: ["Settings", "Audit"],
     }),
+    listDemoRequests: builder.query<DemoRequest[], void>({
+      query: () => "/platform/demos",
+      providesTags: ["Demos"],
+    }),
+    getDemoRequest: builder.query<DemoRequest, string>({
+      query: (id) => `/platform/demos/${id}`,
+      providesTags: (_result, _error, id) => [{ type: "Demos", id }],
+    }),
+    updateDemoRequestStatus: builder.mutation<
+      DemoRequest,
+      { id: string; status: DemoRequestStatus }
+    >({
+      query: ({ id, status }) => ({
+        url: `/platform/demos/${id}`,
+        method: "PATCH",
+        body: { status },
+      }),
+      invalidatesTags: (_result, _error, { id }) => ["Demos", { type: "Demos", id }],
+    }),
   }),
 });
 
@@ -169,4 +190,7 @@ export const {
   useListPlatformInvitesQuery,
   useGetPlatformSettingsQuery,
   useUpdatePlatformSettingsMutation,
+  useListDemoRequestsQuery,
+  useGetDemoRequestQuery,
+  useUpdateDemoRequestStatusMutation,
 } = platformAuthApi;
