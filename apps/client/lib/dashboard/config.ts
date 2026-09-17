@@ -80,8 +80,18 @@ const orgAdminNav: NavGroup[] = [
         children: [
           { label: "Organisation details", href: "/org-admin/settings/organisation" },
           { label: "Modules", href: "/org-admin/settings/modules" },
+          {
+            label: "Service line tasks",
+            href: "/org-admin/settings/service-tasks",
+            module: "SCHEDULE",
+          },
           { label: "Security", href: "/org-admin/settings/password" },
         ],
+      },
+      {
+        label: "Shift approvals",
+        href: "/org-admin/shift-approvals",
+        module: "SCHEDULE",
       },
     ],
   },

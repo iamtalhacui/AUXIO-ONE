@@ -31,6 +31,17 @@ import type {
   CreateOpportunityRequest,
   UpdateOpportunityRequest,
   CustomerDocumentMeta,
+  ScheduleShift,
+  ScheduleParticipantOption,
+  ScheduleWorkerOption,
+  MatchCandidate,
+  CreateScheduleShiftRequest,
+  CreateScheduleShiftResponse,
+  RecurrencePreview,
+  UpdateScheduleShiftRequest,
+  WorkerAvailabilityPayload,
+  ParticipantCareView,
+  ServiceLineTaskCatalogue,
 } from "@/lib/api/types";
 import { isMaintenanceError, rememberMaintenanceLogout } from "@/lib/api/getErrorMessage";
 import { logoutOrg } from "@/lib/store/orgAuthSlice";
@@ -70,6 +81,15 @@ export const authApi = createApi({
     "Customers",
     "CrmOpportunities",
     "Organisation",
+    "ScheduleShifts",
+    "ScheduleWorkers",
+    "ScheduleParticipants",
+    "MyAvailability",
+    "MyShifts",
+    "MatchCandidates",
+    "ParticipantCare",
+    "PendingApprovals",
+    "ServiceLineTasks",
   ],
   endpoints: (builder) => ({
     setupAccount: builder.mutation<SetupAccountResponse, SetupAccountRequest>({
@@ -364,6 +384,226 @@ export const authApi = createApi({
       }),
       invalidatesTags: ["CrmOpportunities", "Customers"],
     }),
+
+    // ── Schedule / rostering (SCHEDULE module — Phase A) ──
+
+    listScheduleParticipants: builder.query<ScheduleParticipantOption[], void>({
+      query: () => "/organisation/schedule/participants",
+      providesTags: ["ScheduleParticipants"],
+    }),
+    listScheduleWorkers: builder.query<ScheduleWorkerOption[], void>({
+      query: () => "/organisation/schedule/workers",
+      providesTags: ["ScheduleWorkers"],
+    }),
+    listScheduleShifts: builder.query<
+      ScheduleShift[],
+      { from?: string; to?: string } | void
+    >({
+      query: (params) => {
+        const search = new URLSearchParams();
+        if (params?.from) search.set("from", params.from);
+        if (params?.to) search.set("to", params.to);
+        const qs = search.toString();
+        return `/organisation/schedule/shifts${qs ? `?${qs}` : ""}`;
+      },
+      providesTags: ["ScheduleShifts"],
+    }),
+    getScheduleShift: builder.query<ScheduleShift, string>({
+      query: (id) => `/organisation/schedule/shifts/${id}`,
+      providesTags: (_r, _e, id) => [{ type: "ScheduleShifts", id }],
+    }),
+    previewRecurrence: builder.mutation<RecurrencePreview, CreateScheduleShiftRequest>({
+      query: (body) => ({
+        url: "/organisation/schedule/shifts/preview-recurrence",
+        method: "POST",
+        body,
+      }),
+    }),
+    createScheduleShifts: builder.mutation<
+      CreateScheduleShiftResponse,
+      CreateScheduleShiftRequest
+    >({
+      query: (body) => ({
+        url: "/organisation/schedule/shifts",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["ScheduleShifts"],
+    }),
+    updateScheduleShift: builder.mutation<
+      { updatedCount: number; shift: ScheduleShift },
+      { id: string } & UpdateScheduleShiftRequest
+    >({
+      query: ({ id, ...body }) => ({
+        url: `/organisation/schedule/shifts/${id}`,
+        method: "PATCH",
+        body,
+      }),
+      invalidatesTags: ["ScheduleShifts", "MyShifts"],
+    }),
+    cancelScheduleShift: builder.mutation<ScheduleShift, string>({
+      query: (id) => ({
+        url: `/organisation/schedule/shifts/${id}/cancel`,
+        method: "POST",
+      }),
+      invalidatesTags: ["ScheduleShifts", "MyShifts", "MatchCandidates"],
+    }),
+    publishUnfilledShift: builder.mutation<ScheduleShift, string>({
+      query: (id) => ({
+        url: `/organisation/schedule/shifts/${id}/publish`,
+        method: "POST",
+      }),
+      invalidatesTags: ["ScheduleShifts", "MatchCandidates"],
+    }),
+    publishOfferShift: builder.mutation<
+      ScheduleShift,
+      { id: string; workerId: string }
+    >({
+      query: ({ id, workerId }) => ({
+        url: `/organisation/schedule/shifts/${id}/publish-offer`,
+        method: "POST",
+        body: { workerId },
+      }),
+      invalidatesTags: ["ScheduleShifts", "MyShifts", "MatchCandidates"],
+    }),
+    withdrawShiftOffer: builder.mutation<ScheduleShift, string>({
+      query: (id) => ({
+        url: `/organisation/schedule/shifts/${id}/withdraw-offer`,
+        method: "POST",
+      }),
+      invalidatesTags: ["ScheduleShifts", "MyShifts", "MatchCandidates"],
+    }),
+    listMatchCandidates: builder.query<MatchCandidate[], string>({
+      query: (id) => `/organisation/schedule/shifts/${id}/candidates`,
+      providesTags: (_r, _e, id) => [{ type: "MatchCandidates", id }],
+    }),
+
+    // Employee schedule endpoints
+    listMyShifts: builder.query<ScheduleShift[], void>({
+      query: () => "/organisation/schedule/my/shifts",
+      providesTags: ["MyShifts"],
+    }),
+    getMyShift: builder.query<ScheduleShift, string>({
+      query: (id) => `/organisation/schedule/my/shifts/${id}`,
+      providesTags: (_r, _e, id) => [{ type: "MyShifts", id }],
+    }),
+    acceptShiftOffer: builder.mutation<ScheduleShift, string>({
+      query: (id) => ({
+        url: `/organisation/schedule/my/shifts/${id}/accept`,
+        method: "POST",
+      }),
+      invalidatesTags: ["MyShifts", "ScheduleShifts", "MatchCandidates"],
+    }),
+    declineShiftOffer: builder.mutation<ScheduleShift, string>({
+      query: (id) => ({
+        url: `/organisation/schedule/my/shifts/${id}/decline`,
+        method: "POST",
+      }),
+      invalidatesTags: ["MyShifts", "ScheduleShifts", "MatchCandidates"],
+    }),
+    getParticipantCareView: builder.query<ParticipantCareView, string>({
+      query: (customerId) => `/organisation/schedule/my/participants/${customerId}`,
+      providesTags: (_r, _e, id) => [{ type: "ParticipantCare", id }],
+    }),
+    getMyAvailability: builder.query<WorkerAvailabilityPayload, void>({
+      query: () => "/organisation/schedule/my/availability",
+      providesTags: ["MyAvailability"],
+    }),
+    saveMyAvailability: builder.mutation<
+      WorkerAvailabilityPayload,
+      WorkerAvailabilityPayload
+    >({
+      query: (body) => ({
+        url: "/organisation/schedule/my/availability",
+        method: "PUT",
+        body,
+      }),
+      invalidatesTags: ["MyAvailability", "MatchCandidates", "ScheduleWorkers"],
+    }),
+
+    // Phase B — employee execution
+    startMyShift: builder.mutation<ScheduleShift, string>({
+      query: (id) => ({
+        url: `/organisation/schedule/my/shifts/${id}/start`,
+        method: "POST",
+      }),
+      invalidatesTags: ["MyShifts", "ScheduleShifts"],
+    }),
+    completeMyShiftTask: builder.mutation<
+      ScheduleShift,
+      { shiftId: string; taskId: string }
+    >({
+      query: ({ shiftId, taskId }) => ({
+        url: `/organisation/schedule/my/shifts/${shiftId}/tasks/${taskId}/complete`,
+        method: "POST",
+      }),
+      invalidatesTags: ["MyShifts"],
+    }),
+    saveMyProgressNote: builder.mutation<
+      ScheduleShift,
+      { shiftId: string; progressNote: string }
+    >({
+      query: ({ shiftId, progressNote }) => ({
+        url: `/organisation/schedule/my/shifts/${shiftId}/progress-note`,
+        method: "PUT",
+        body: { progressNote },
+      }),
+      invalidatesTags: ["MyShifts"],
+    }),
+    finishMyShift: builder.mutation<
+      ScheduleShift,
+      { shiftId: string; finishReason?: string }
+    >({
+      query: ({ shiftId, finishReason }) => ({
+        url: `/organisation/schedule/my/shifts/${shiftId}/finish`,
+        method: "POST",
+        body: { finishReason },
+      }),
+      invalidatesTags: ["MyShifts", "ScheduleShifts", "PendingApprovals"],
+    }),
+
+    // Org Admin — variance approvals + task catalogues
+    listPendingShiftApprovals: builder.query<ScheduleShift[], void>({
+      query: () => "/organisation/schedule/admin/pending-approvals",
+      providesTags: ["PendingApprovals"],
+    }),
+    approvePendingShift: builder.mutation<
+      ScheduleShift,
+      { id: string; reviewNote?: string }
+    >({
+      query: ({ id, reviewNote }) => ({
+        url: `/organisation/schedule/admin/shifts/${id}/approve`,
+        method: "POST",
+        body: { reviewNote },
+      }),
+      invalidatesTags: ["PendingApprovals", "MyShifts", "ScheduleShifts"],
+    }),
+    rejectPendingShift: builder.mutation<
+      ScheduleShift,
+      { id: string; reviewNote: string }
+    >({
+      query: ({ id, reviewNote }) => ({
+        url: `/organisation/schedule/admin/shifts/${id}/reject`,
+        method: "POST",
+        body: { reviewNote },
+      }),
+      invalidatesTags: ["PendingApprovals", "MyShifts", "ScheduleShifts"],
+    }),
+    listServiceLineTasks: builder.query<ServiceLineTaskCatalogue[], void>({
+      query: () => "/organisation/schedule/admin/service-line-tasks",
+      providesTags: ["ServiceLineTasks"],
+    }),
+    saveServiceLineTasks: builder.mutation<
+      ServiceLineTaskCatalogue[],
+      { serviceLine: string; labels: string[] }
+    >({
+      query: (body) => ({
+        url: "/organisation/schedule/admin/service-line-tasks",
+        method: "PUT",
+        body,
+      }),
+      invalidatesTags: ["ServiceLineTasks"],
+    }),
   }),
 });
 
@@ -404,4 +644,32 @@ export const {
   useCreateCrmOpportunityMutation,
   useUpdateCrmOpportunityMutation,
   useConvertCrmOpportunityMutation,
+  useListScheduleParticipantsQuery,
+  useListScheduleWorkersQuery,
+  useListScheduleShiftsQuery,
+  useGetScheduleShiftQuery,
+  usePreviewRecurrenceMutation,
+  useCreateScheduleShiftsMutation,
+  useUpdateScheduleShiftMutation,
+  useCancelScheduleShiftMutation,
+  usePublishUnfilledShiftMutation,
+  usePublishOfferShiftMutation,
+  useWithdrawShiftOfferMutation,
+  useListMatchCandidatesQuery,
+  useListMyShiftsQuery,
+  useGetMyShiftQuery,
+  useAcceptShiftOfferMutation,
+  useDeclineShiftOfferMutation,
+  useGetParticipantCareViewQuery,
+  useGetMyAvailabilityQuery,
+  useSaveMyAvailabilityMutation,
+  useStartMyShiftMutation,
+  useCompleteMyShiftTaskMutation,
+  useSaveMyProgressNoteMutation,
+  useFinishMyShiftMutation,
+  useListPendingShiftApprovalsQuery,
+  useApprovePendingShiftMutation,
+  useRejectPendingShiftMutation,
+  useListServiceLineTasksQuery,
+  useSaveServiceLineTasksMutation,
 } = authApi;

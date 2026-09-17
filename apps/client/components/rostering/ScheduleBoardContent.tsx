@@ -4,18 +4,22 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { CreateShiftModal } from "@/components/rostering/CreateShiftModal";
+import { EditShiftModal } from "@/components/rostering/EditShiftModal";
 import { ShiftStatusPill } from "@/components/rostering/ShiftStatusPill";
+import { useListScheduleShiftsQuery } from "@/lib/api/authApi";
+import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import type { ScheduleShift } from "@/lib/api/types";
 import {
+  addDays,
   BOARD_END_HOUR,
   BOARD_START_HOUR,
-  DEMO_DATE,
+  formatDuration,
+  formatLongDate,
+  formatShortDate,
   formatShiftTime,
-  getWorker,
   parseTimeToMinutes,
-  workerName,
-} from "@/lib/rostering/mock-data";
-import { useRosterShifts } from "@/lib/rostering/store";
-import type { RosterShift } from "@/lib/rostering/types";
+  todayIso,
+} from "@/lib/rostering/format";
 
 type ViewMode = "table" | "calendar";
 type RangeMode = "day" | "week";
@@ -25,40 +29,16 @@ const HOURS = Array.from(
   (_, i) => BOARD_START_HOUR + i,
 );
 
-function addDays(iso: string, days: number) {
-  const d = new Date(`${iso}T12:00:00`);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().slice(0, 10);
-}
-
-function formatShortDate(iso: string) {
-  return new Date(`${iso}T12:00:00`).toLocaleDateString("en-AU", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
-}
-
-function formatLongDate(iso: string) {
-  return new Date(`${iso}T12:00:00`).toLocaleDateString("en-AU", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-}
-
-function assignedLabel(shift: RosterShift) {
-  if (shift.status === "OFFERED" && shift.offeredWorkerId) {
-    const w = getWorker(shift.offeredWorkerId);
-    return w ? `Offered to ${workerName(w)}` : "Offered";
+function workerLabel(shift: ScheduleShift) {
+  if (shift.status === "OFFERED" && shift.offeredWorkerName) {
+    return `Offered to ${shift.offeredWorkerName}`;
   }
-  if (!shift.workerId) return "Unassigned";
-  const w = getWorker(shift.workerId);
-  return w ? workerName(w) : "Unassigned";
+  if (shift.assignedWorkerName) return shift.assignedWorkerName;
+  if (shift.status === "DRAFT") return "Draft — not published";
+  return "Unfilled";
 }
 
-function blockStyle(shift: RosterShift) {
+function blockStyle(shift: ScheduleShift) {
   const start = parseTimeToMinutes(shift.startTime);
   const end = parseTimeToMinutes(shift.endTime);
   const boardStart = BOARD_START_HOUR * 60;
@@ -68,26 +48,25 @@ function blockStyle(shift: RosterShift) {
   return { left: `${left}%`, width: `${Math.max(width, 3.5)}%` };
 }
 
-function blockTone(shift: RosterShift) {
-  if (shift.status === "UNASSIGNED") {
-    return "border-dashed border-amber-300 bg-amber-50 text-amber-950";
-  }
-  if (shift.status === "OFFERED") {
-    return "border-sky-200 bg-sky-50 text-sky-900";
-  }
-  if (shift.status === "ASSIGNED") {
-    return "border-primary/25 bg-primary/8 text-primary";
-  }
+function blockTone(shift: ScheduleShift) {
+  if (shift.status === "DRAFT") return "border-dashed border-slate-300 bg-slate-50 text-slate-700";
+  if (shift.status === "UNFILLED") return "border-dashed border-amber-300 bg-amber-50 text-amber-950";
+  if (shift.status === "OFFERED") return "border-sky-200 bg-sky-50 text-sky-900";
+  if (shift.status === "ACCEPTED") return "border-primary/25 bg-primary/8 text-primary";
+  if (shift.status === "IN_PROGRESS") return "border-violet-200 bg-violet-50 text-violet-900";
+  if (shift.status === "PENDING_APPROVAL") return "border-orange-200 bg-orange-50 text-orange-900";
+  if (shift.status === "APPROVED") return "border-emerald-200 bg-emerald-50 text-emerald-900";
+  if (shift.status === "REJECTED") return "border-red-200 bg-red-50 text-red-900";
   return "border-border bg-slate-50 text-slate-700";
 }
 
 export function ScheduleBoardContent() {
-  const shifts = useRosterShifts();
-  const [date, setDate] = useState(DEMO_DATE);
+  const [date, setDate] = useState(todayIso());
   const [range, setRange] = useState<RangeMode>("day");
   const [view, setView] = useState<ViewMode>("table");
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [editShift, setEditShift] = useState<ScheduleShift | null>(null);
   const [flash, setFlash] = useState("");
 
   const weekDates = useMemo(
@@ -95,40 +74,49 @@ export function ScheduleBoardContent() {
     [date],
   );
 
+  const from = range === "day" ? date : weekDates[0];
+  const to = range === "day" ? date : weekDates[6];
+
+  const { data: shifts = [], isLoading, error, refetch } = useListScheduleShiftsQuery({
+    from,
+    to,
+  });
+
   const visible = useMemo(() => {
-    const dates = range === "day" ? [date] : weekDates;
     return shifts
-      .filter((s) => dates.includes(s.date))
       .filter((s) => {
         if (!search.trim()) return true;
         const q = search.toLowerCase();
-        const worker = getWorker(s.workerId);
-        const offered = getWorker(s.offeredWorkerId);
         return (
           s.participantName.toLowerCase().includes(q) ||
           s.locationLabel.toLowerCase().includes(q) ||
           s.serviceTitle.toLowerCase().includes(q) ||
           s.serviceLine.toLowerCase().includes(q) ||
-          (worker ? workerName(worker).toLowerCase().includes(q) : false) ||
-          (offered ? workerName(offered).toLowerCase().includes(q) : false) ||
-          "unassigned".includes(q)
+          (s.assignedWorkerName ?? "").toLowerCase().includes(q) ||
+          (s.offeredWorkerName ?? "").toLowerCase().includes(q) ||
+          s.status.toLowerCase().includes(q)
         );
       })
       .sort((a, b) =>
         `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`),
       );
-  }, [shifts, date, range, weekDates, search]);
+  }, [shifts, search]);
 
-  function onCreated() {
-    setFlash("Shift created as Unassigned. Offer it from Matching.");
-    window.setTimeout(() => setFlash(""), 3200);
+  function onCreated(count: number) {
+    setFlash(
+      count > 1
+        ? `${count} draft shifts created. Publish and offer from Matching.`
+        : "Draft shift created. Publish and offer from Matching.",
+    );
+    window.setTimeout(() => setFlash(""), 4000);
+    void refetch();
   }
 
   return (
     <div className="space-y-4">
       <PageHeader
         title="Schedule"
-        description="Create shifts, then offer them to workers from Matching."
+        description="Create draft shifts, then publish and offer workers from Matching."
         action={
           <button type="button" className="btn-primary" onClick={() => setCreateOpen(true)}>
             + Create Shift
@@ -140,6 +128,12 @@ export function ScheduleBoardContent() {
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
           {flash}
         </div>
+      ) : null}
+
+      {error ? (
+        <p className="text-sm text-red-600">
+          {getErrorMessage(error, "Could not load shifts.")}
+        </p>
       ) : null}
 
       <div className="dashboard-card flex flex-col gap-3 p-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-4">
@@ -168,7 +162,7 @@ export function ScheduleBoardContent() {
           <button
             type="button"
             className="text-sm font-semibold text-primary hover:underline"
-            onClick={() => setDate(DEMO_DATE)}
+            onClick={() => setDate(todayIso())}
           >
             Today
           </button>
@@ -203,8 +197,14 @@ export function ScheduleBoardContent() {
         </div>
       </div>
 
-      {view === "table" ? (
-        <TableView shifts={visible} showDate={range === "week"} />
+      {isLoading ? (
+        <p className="text-sm text-muted">Loading schedule…</p>
+      ) : view === "table" ? (
+        <TableView
+          shifts={visible}
+          showDate={range === "week"}
+          onEdit={setEditShift}
+        />
       ) : range === "day" ? (
         <DayCalendar shifts={visible} />
       ) : (
@@ -223,6 +223,16 @@ export function ScheduleBoardContent() {
         defaultDate={date}
         onClose={() => setCreateOpen(false)}
         onCreated={onCreated}
+      />
+
+      <EditShiftModal
+        shift={editShift}
+        onClose={() => setEditShift(null)}
+        onSaved={() => {
+          setFlash("Shift updated.");
+          window.setTimeout(() => setFlash(""), 2500);
+          void refetch();
+        }}
       />
     </div>
   );
@@ -260,29 +270,30 @@ function Segmented<T extends string>({
 function TableView({
   shifts,
   showDate,
+  onEdit,
 }: {
-  shifts: RosterShift[];
+  shifts: ScheduleShift[];
   showDate: boolean;
+  onEdit: (shift: ScheduleShift) => void;
 }) {
   if (shifts.length === 0) {
     return (
       <div className="dashboard-card px-5 py-12 text-center text-sm text-muted">
-        No shifts for this period. Create a shift to get started.
+        No shifts for this period. Create a draft shift to get started.
       </div>
     );
   }
 
   return (
     <div className="data-table-wrap overflow-x-auto">
-      <table className="data-table min-w-[760px]">
+      <table className="data-table min-w-[860px]">
         <thead>
           <tr>
             {showDate ? <th>Date</th> : null}
             <th>Time</th>
-            <th>Participant</th>
-            <th>Location</th>
+            <th>Participant / location</th>
             <th>Service</th>
-            <th>Assigned worker</th>
+            <th>Worker</th>
             <th>Status</th>
             <th>Action</th>
           </tr>
@@ -296,36 +307,54 @@ function TableView({
               <td className="whitespace-nowrap font-medium">
                 {formatShiftTime(shift.startTime, shift.endTime)}
                 <span className="mt-0.5 block text-xs font-normal text-muted">
-                  {shift.durationHours}h
+                  {formatDuration(shift.durationMinutes)}
                 </span>
               </td>
-              <td>{shift.participantName}</td>
-              <td className="max-w-[10rem] truncate">{shift.locationLabel}</td>
+              <td>
+                <span className="block text-sm font-medium">{shift.participantName}</span>
+                <span className="text-xs text-muted">{shift.locationLabel}</span>
+              </td>
               <td>
                 <span className="block text-sm">{shift.serviceTitle}</span>
                 <span className="text-xs text-muted">{shift.serviceLine}</span>
               </td>
               <td>
-                {!shift.workerId && shift.status !== "OFFERED" ? (
-                  <span className="font-semibold text-amber-800">Unassigned</span>
+                {shift.status === "UNFILLED" ||
+                (shift.status === "DRAFT" && !shift.offeredWorkerId) ? (
+                  <span className="font-semibold text-amber-800">{workerLabel(shift)}</span>
                 ) : (
-                  assignedLabel(shift)
+                  workerLabel(shift)
                 )}
               </td>
               <td>
                 <ShiftStatusPill status={shift.status} />
               </td>
               <td>
-                {shift.status === "UNASSIGNED" || shift.status === "OFFERED" ? (
-                  <Link
-                    href={`/roster/matching?shift=${shift.id}`}
-                    className="text-sm font-semibold text-primary hover:underline"
-                  >
-                    {shift.status === "OFFERED" ? "View offer" : "Match"}
-                  </Link>
-                ) : (
-                  <span className="text-sm text-muted">—</span>
-                )}
+                <div className="flex flex-wrap gap-2">
+                  {shift.status === "DRAFT" ||
+                  shift.status === "UNFILLED" ||
+                  shift.status === "OFFERED" ? (
+                    <Link
+                      href={`/roster/matching?shift=${shift.id}`}
+                      className="text-sm font-semibold text-primary hover:underline"
+                    >
+                      {shift.status === "OFFERED" ? "View offer" : "Match"}
+                    </Link>
+                  ) : null}
+                  {shift.status !== "APPROVED" &&
+                  shift.status !== "REJECTED" &&
+                  shift.status !== "CANCELLED" &&
+                  shift.status !== "IN_PROGRESS" &&
+                  shift.status !== "PENDING_APPROVAL" ? (
+                    <button
+                      type="button"
+                      className="text-sm font-semibold text-muted hover:text-primary hover:underline"
+                      onClick={() => onEdit(shift)}
+                    >
+                      Edit
+                    </button>
+                  ) : null}
+                </div>
               </td>
             </tr>
           ))}
@@ -335,7 +364,7 @@ function TableView({
   );
 }
 
-function DayCalendar({ shifts }: { shifts: RosterShift[] }) {
+function DayCalendar({ shifts }: { shifts: ScheduleShift[] }) {
   return (
     <div className="dashboard-card overflow-hidden">
       <div className="relative border-b border-border/50 bg-[#f8fafc]">
@@ -370,13 +399,13 @@ function DayCalendar({ shifts }: { shifts: RosterShift[] }) {
                     top: `${row * 62 + 8}px`,
                   }}
                   className={`absolute h-14 overflow-hidden rounded-lg border px-2 py-1.5 ${blockTone(shift)}`}
-                  title={`${shift.serviceTitle} · ${assignedLabel(shift)}`}
+                  title={`${shift.serviceTitle} · ${workerLabel(shift)}`}
                 >
                   <p className="truncate text-[11px] font-bold">
                     {shift.startTime}–{shift.endTime}
                   </p>
                   <p className="truncate text-[11px]">{shift.participantName}</p>
-                  <p className="truncate text-[10px] opacity-80">{assignedLabel(shift)}</p>
+                  <p className="truncate text-[10px] opacity-80">{workerLabel(shift)}</p>
                 </div>
               );
             })}
@@ -393,7 +422,7 @@ function WeekCalendar({
   onSelectDay,
 }: {
   dates: string[];
-  shifts: RosterShift[];
+  shifts: ScheduleShift[];
   onSelectDay: (date: string) => void;
 }) {
   return (
@@ -420,7 +449,7 @@ function WeekCalendar({
                     <p className="font-bold">
                       {s.startTime} {s.participantName.split(" ")[0]}
                     </p>
-                    <p className="truncate opacity-80">{assignedLabel(s)}</p>
+                    <p className="truncate opacity-80">{workerLabel(s)}</p>
                   </li>
                 ))}
               </ul>

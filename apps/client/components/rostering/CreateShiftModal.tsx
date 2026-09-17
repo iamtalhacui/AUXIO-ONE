@@ -2,96 +2,164 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  DEMO_PARTICIPANTS,
-  DEMO_SERVICE_LINES,
-  DEMO_SITES,
+  useCreateScheduleShiftsMutation,
+  useListScheduleParticipantsQuery,
+  usePreviewRecurrenceMutation,
+} from "@/lib/api/authApi";
+import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import type {
+  CreateScheduleShiftRequest,
+  RecurrenceFrequency,
+  ShiftLocationKind,
+} from "@/lib/api/types";
+import {
   endTimeFromDuration,
-} from "@/lib/rostering/mock-data";
-import { createShift } from "@/lib/rostering/store";
-import type { LocationKind } from "@/lib/rostering/types";
+  SERVICE_LINE_OPTIONS,
+} from "@/lib/rostering/format";
 
 type Props = {
   open: boolean;
   defaultDate: string;
   onClose: () => void;
-  onCreated: (shiftId: string) => void;
+  onCreated: (count: number) => void;
 };
 
+/**
+ * Create one draft shift or a recurring series.
+ * Worker is NOT chosen here — publish/offer happens from Matching.
+ */
 export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Props) {
-  const [locationKind, setLocationKind] = useState<LocationKind>("PARTICIPANT");
-  const [participantName, setParticipantName] = useState(DEMO_PARTICIPANTS[0]);
-  const [locationLabel, setLocationLabel] = useState(DEMO_SITES[0]);
-  const [otherLocation, setOtherLocation] = useState("");
-  const [serviceLine, setServiceLine] = useState(DEMO_SERVICE_LINES[0]);
+  const { data: participants = [], isLoading: loadingParticipants } =
+    useListScheduleParticipantsQuery(undefined, { skip: !open });
+  const [preview, previewState] = usePreviewRecurrenceMutation();
+  const [create, createState] = useCreateScheduleShiftsMutation();
+
+  const [locationKind, setLocationKind] = useState<ShiftLocationKind>("PARTICIPANT");
+  const [customerId, setCustomerId] = useState("");
+  const [locationLabel, setLocationLabel] = useState("");
+  const [serviceLine, setServiceLine] = useState(SERVICE_LINE_OPTIONS[0]);
   const [serviceTitle, setServiceTitle] = useState("");
   const [date, setDate] = useState(defaultDate);
   const [startTime, setStartTime] = useState("09:00");
-  const [durationHours, setDurationHours] = useState(4);
+  const [hours, setHours] = useState(4);
+  const [minutes, setMinutes] = useState(0);
+  const [notes, setNotes] = useState("");
   const [recurring, setRecurring] = useState(false);
+  const [frequency, setFrequency] = useState<RecurrenceFrequency>("WEEKLY");
+  const [interval, setInterval] = useState(1);
+  const [untilDate, setUntilDate] = useState("");
+  const [previewResult, setPreviewResult] = useState<{ count: number; dates: string[] } | null>(
+    null,
+  );
   const [error, setError] = useState("");
 
+  const durationMinutes = hours * 60 + minutes;
+  const endTime = useMemo(
+    () => (durationMinutes >= 5 ? endTimeFromDuration(startTime, durationMinutes) : "—"),
+    [startTime, durationMinutes],
+  );
+
+  // Reset form each time the modal opens.
   useEffect(() => {
-    if (open) {
-      setDate(defaultDate);
-      setError("");
-    }
+    if (!open) return;
+    setDate(defaultDate);
+    setError("");
+    setPreviewResult(null);
+    setRecurring(false);
+    setServiceTitle("");
+    setNotes("");
+    setHours(4);
+    setMinutes(0);
+    setStartTime("09:00");
+    setLocationKind("PARTICIPANT");
+    setCustomerId("");
+    setLocationLabel("");
   }, [open, defaultDate]);
 
-  const endTime = useMemo(
-    () => endTimeFromDuration(startTime, durationHours),
-    [startTime, durationHours],
-  );
+  // When participant is selected, prefill location from their address if empty.
+  useEffect(() => {
+    if (locationKind !== "PARTICIPANT" || !customerId) return;
+    const p = participants.find((row) => row.id === customerId);
+    if (p?.address && !locationLabel) {
+      setLocationLabel(p.address);
+    }
+  }, [customerId, locationKind, participants, locationLabel]);
 
   if (!open) return null;
 
-  function resolvedLocation() {
-    if (locationKind === "OTHER") return otherLocation.trim();
-    if (locationKind === "SITE") return locationLabel;
-    return locationLabel;
-  }
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-
-    const location = resolvedLocation();
-    if (!participantName.trim()) {
-      setError("Select a participant.");
-      return;
-    }
-    if (!location) {
-      setError("Enter a location.");
-      return;
+  function buildBody(): CreateScheduleShiftRequest | null {
+    if (durationMinutes < 5 || durationMinutes % 5 !== 0) {
+      setError("Duration must be at least 5 minutes, in 5-minute steps.");
+      return null;
     }
     if (!serviceTitle.trim()) {
       setError("Enter a service title.");
-      return;
+      return null;
     }
-    if (durationHours <= 0) {
-      setError("Duration must be greater than zero.");
-      return;
+    if (locationKind === "PARTICIPANT" && !customerId) {
+      setError("Select a participant.");
+      return null;
+    }
+    if (!locationLabel.trim()) {
+      setError("Enter a location.");
+      return null;
+    }
+    if (recurring && !untilDate) {
+      setError("Choose an until date for the recurring series.");
+      return null;
     }
 
-    const shift = createShift({
+    return {
       locationKind,
-      participantName: participantName.trim(),
-      locationLabel: location,
+      customerId: locationKind === "PARTICIPANT" ? customerId : undefined,
+      locationLabel: locationLabel.trim(),
       serviceLine,
       serviceTitle: serviceTitle.trim(),
       date,
       startTime,
-      durationHours,
+      durationMinutes,
+      notes: notes.trim() || undefined,
       recurring,
-    });
-
-    onCreated(shift.id);
-    onClose();
+      frequency: recurring ? frequency : undefined,
+      interval: recurring ? interval : undefined,
+      untilDate: recurring ? untilDate : undefined,
+    };
   }
+
+  async function handlePreview() {
+    setError("");
+    setPreviewResult(null);
+    const body = buildBody();
+    if (!body || !body.recurring) return;
+    try {
+      const result = await preview(body).unwrap();
+      setPreviewResult(result);
+    } catch (err) {
+      setError(getErrorMessage(err, "Could not preview recurrence"));
+    }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    const body = buildBody();
+    if (!body) return;
+
+    try {
+      const result = await create(body).unwrap();
+      onCreated(result.shifts.length);
+      onClose();
+    } catch (err) {
+      setError(getErrorMessage(err, "Could not create shift"));
+    }
+  }
+
+  const busy = createState.isLoading || previewState.isLoading;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div
-        className="max-h-[min(90vh,720px)] w-full max-w-lg overflow-y-auto rounded-2xl border border-border bg-surface shadow-xl"
+        className="max-h-[min(90vh,760px)] w-full max-w-lg overflow-y-auto rounded-2xl border border-border bg-surface shadow-xl"
         role="dialog"
         aria-labelledby="create-shift-title"
       >
@@ -101,7 +169,7 @@ export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Prop
               Create shift
             </h2>
             <p className="mt-0.5 text-sm text-muted">
-              No worker is assigned here — use Matching to offer the shift.
+              Saves as draft. Publish and offer a worker from Matching.
             </p>
           </div>
           <button
@@ -114,6 +182,7 @@ export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Prop
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4 px-5 py-5">
+          {/* Location type */}
           <div>
             <p className="input-label">Location type</p>
             <div className="flex flex-wrap gap-2">
@@ -127,7 +196,11 @@ export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Prop
                 <button
                   key={value}
                   type="button"
-                  onClick={() => setLocationKind(value)}
+                  onClick={() => {
+                    setLocationKind(value);
+                    setCustomerId("");
+                    setLocationLabel("");
+                  }}
                   className={`rounded-lg border px-3 py-2 text-sm font-semibold transition ${
                     locationKind === value
                       ? "border-primary bg-primary/8 text-primary"
@@ -140,56 +213,48 @@ export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Prop
             </div>
           </div>
 
-          <div>
-            <label className="input-label" htmlFor="participant">
-              Participant
-            </label>
-            <select
-              id="participant"
-              className="input-field"
-              value={participantName}
-              onChange={(e) => setParticipantName(e.target.value)}
-            >
-              {DEMO_PARTICIPANTS.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {locationKind === "OTHER" ? (
+          {locationKind === "PARTICIPANT" ? (
             <div>
-              <label className="input-label" htmlFor="other-loc">
-                Other location
-              </label>
-              <input
-                id="other-loc"
-                className="input-field"
-                value={otherLocation}
-                onChange={(e) => setOtherLocation(e.target.value)}
-                placeholder="Address or place name"
-              />
-            </div>
-          ) : (
-            <div>
-              <label className="input-label" htmlFor="site">
-                {locationKind === "SITE" ? "Site / facility" : "Related site"}
+              <label className="input-label" htmlFor="participant">
+                Participant
               </label>
               <select
-                id="site"
+                id="participant"
                 className="input-field"
-                value={locationLabel}
-                onChange={(e) => setLocationLabel(e.target.value)}
+                value={customerId}
+                disabled={loadingParticipants}
+                onChange={(e) => setCustomerId(e.target.value)}
+                required
               >
-                {DEMO_SITES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
+                <option value="">Select participant…</option>
+                {participants.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.displayName}
                   </option>
                 ))}
               </select>
             </div>
-          )}
+          ) : null}
+
+          <div>
+            <label className="input-label" htmlFor="location">
+              {locationKind === "SITE"
+                ? "Site / facility"
+                : locationKind === "OTHER"
+                  ? "Other location"
+                  : "Location / address"}
+            </label>
+            <input
+              id="location"
+              className="input-field"
+              value={locationLabel}
+              onChange={(e) => setLocationLabel(e.target.value)}
+              placeholder={
+                locationKind === "SITE" ? "e.g. Riverside Supported Living" : "Address or place"
+              }
+              required
+            />
+          </div>
 
           <div>
             <label className="input-label" htmlFor="service-line">
@@ -201,7 +266,7 @@ export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Prop
               value={serviceLine}
               onChange={(e) => setServiceLine(e.target.value)}
             >
-              {DEMO_SERVICE_LINES.map((s) => (
+              {SERVICE_LINE_OPTIONS.map((s) => (
                 <option key={s} value={s}>
                   {s}
                 </option>
@@ -219,6 +284,7 @@ export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Prop
               value={serviceTitle}
               onChange={(e) => setServiceTitle(e.target.value)}
               placeholder="e.g. Morning personal care"
+              required
             />
           </div>
 
@@ -233,6 +299,7 @@ export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Prop
                 className="input-field"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
+                required
               />
             </div>
             <div>
@@ -242,50 +309,160 @@ export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Prop
               <input
                 id="start-time"
                 type="time"
+                step={300}
                 className="input-field"
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
+                required
               />
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          {/* Duration in hours + minutes (5-minute steps) */}
+          <div className="grid gap-3 sm:grid-cols-3">
             <div>
-              <label className="input-label" htmlFor="duration">
-                Duration (hours)
+              <label className="input-label" htmlFor="hours">
+                Hours
               </label>
               <input
-                id="duration"
+                id="hours"
                 type="number"
-                min={0.5}
-                step={0.5}
+                min={0}
+                max={23}
                 className="input-field"
-                value={durationHours}
-                onChange={(e) => setDurationHours(Number(e.target.value))}
+                value={hours}
+                onChange={(e) => setHours(Number(e.target.value))}
               />
+            </div>
+            <div>
+              <label className="input-label" htmlFor="mins">
+                Minutes
+              </label>
+              <select
+                id="mins"
+                className="input-field"
+                value={minutes}
+                onChange={(e) => setMinutes(Number(e.target.value))}
+              >
+                {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <p className="input-label">End time</p>
               <p className="rounded-lg border border-border/60 bg-[#f8fafc] px-3.5 py-2.5 text-sm font-medium">
-                {endTime}
+                {durationMinutes >= 5 ? endTime : "—"}
               </p>
             </div>
+          </div>
+
+          <div>
+            <label className="input-label" htmlFor="notes">
+              Notes (optional)
+            </label>
+            <textarea
+              id="notes"
+              className="input-field min-h-[72px]"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
           </div>
 
           <label className="flex items-center gap-3 rounded-xl border border-border/60 px-4 py-3">
             <input
               type="checkbox"
               checked={recurring}
-              onChange={(e) => setRecurring(e.target.checked)}
+              onChange={(e) => {
+                setRecurring(e.target.checked);
+                setPreviewResult(null);
+              }}
               className="h-4 w-4 rounded border-border text-primary"
             />
             <span>
               <span className="block text-sm font-semibold">Recurring shift</span>
               <span className="text-xs text-muted">
-                Optional — demo flag only; pattern setup comes later
+                Create linked drafts for a weekly or monthly pattern
               </span>
             </span>
           </label>
+
+          {recurring ? (
+            <div className="space-y-3 rounded-xl border border-border/60 bg-[#f8fafc] p-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="input-label" htmlFor="freq">
+                    Frequency
+                  </label>
+                  <select
+                    id="freq"
+                    className="input-field"
+                    value={frequency}
+                    onChange={(e) =>
+                      setFrequency(e.target.value as RecurrenceFrequency)
+                    }
+                  >
+                    <option value="WEEKLY">Weekly</option>
+                    <option value="MONTHLY">Monthly</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="input-label" htmlFor="interval">
+                    Every
+                  </label>
+                  <select
+                    id="interval"
+                    className="input-field"
+                    value={interval}
+                    onChange={(e) => setInterval(Number(e.target.value))}
+                  >
+                    {[1, 2, 3, 4].map((n) => (
+                      <option key={n} value={n}>
+                        {n} {frequency === "WEEKLY" ? "week(s)" : "month(s)"}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="input-label" htmlFor="until">
+                  Until date
+                </label>
+                <input
+                  id="until"
+                  type="date"
+                  className="input-field"
+                  value={untilDate}
+                  min={date}
+                  onChange={(e) => {
+                    setUntilDate(e.target.value);
+                    setPreviewResult(null);
+                  }}
+                  required={recurring}
+                />
+              </div>
+              <button
+                type="button"
+                className="btn-secondary !rounded-lg"
+                disabled={busy}
+                onClick={() => void handlePreview()}
+              >
+                {previewState.isLoading ? "Previewing…" : "Preview dates"}
+              </button>
+              {previewResult ? (
+                <p className="text-sm text-muted">
+                  Will create <strong>{previewResult.count}</strong> draft shift
+                  {previewResult.count === 1 ? "" : "s"}
+                  {previewResult.dates.length > 0
+                    ? ` (${previewResult.dates[0]} → ${previewResult.dates[previewResult.dates.length - 1]})`
+                    : ""}
+                  .
+                </p>
+              ) : null}
+            </div>
+          ) : null}
 
           {error ? <p className="text-sm font-medium text-red-600">{error}</p> : null}
 
@@ -293,8 +470,12 @@ export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Prop
             <button type="button" className="btn-secondary !rounded-lg" onClick={onClose}>
               Cancel
             </button>
-            <button type="submit" className="btn-primary">
-              Create shift
+            <button type="submit" className="btn-primary" disabled={busy}>
+              {createState.isLoading
+                ? "Saving…"
+                : recurring
+                  ? "Create series"
+                  : "Create draft"}
             </button>
           </div>
         </form>

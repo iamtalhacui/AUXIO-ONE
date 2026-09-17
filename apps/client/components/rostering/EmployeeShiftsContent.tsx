@@ -5,55 +5,63 @@ import Link from "next/link";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { ShiftStatusPill } from "@/components/rostering/ShiftStatusPill";
 import {
-  DEMO_DATE,
-  DEMO_EMPLOYEE_WORKER_ID,
-  formatShiftTime,
-} from "@/lib/rostering/mock-data";
+  useAcceptShiftOfferMutation,
+  useDeclineShiftOfferMutation,
+  useListMyShiftsQuery,
+} from "@/lib/api/authApi";
+import { getErrorMessage } from "@/lib/api/getErrorMessage";
 import {
-  acceptShiftOffer,
-  declineShiftOffer,
-  useRosterShifts,
-} from "@/lib/rostering/store";
+  formatDuration,
+  formatLongDate,
+  formatShiftTime,
+  todayIso,
+} from "@/lib/rostering/format";
 
 type Tab = "upcoming" | "today" | "past" | "offers";
 
-function formatLongDate(iso: string) {
-  return new Date(`${iso}T12:00:00`).toLocaleDateString("en-AU", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
-}
-
 export function EmployeeShiftsContent() {
-  const shifts = useRosterShifts();
+  const { data: shifts = [], isLoading, error, refetch } = useListMyShiftsQuery();
   const [tab, setTab] = useState<Tab>("upcoming");
+  const [accept, acceptState] = useAcceptShiftOfferMutation();
+  const [decline, declineState] = useDeclineShiftOfferMutation();
+  const [actionError, setActionError] = useState("");
+  const today = todayIso();
 
-  const mine = useMemo(
-    () => shifts.filter((s) => s.workerId === DEMO_EMPLOYEE_WORKER_ID),
-    [shifts],
-  );
-
-  const offers = useMemo(
-    () =>
-      shifts.filter(
-        (s) => s.offeredWorkerId === DEMO_EMPLOYEE_WORKER_ID && s.status === "OFFERED",
-      ),
-    [shifts],
-  );
-
-  const lists = {
-    today: mine.filter((s) => s.date === DEMO_DATE),
-    upcoming: mine
-      .filter((s) => s.date >= DEMO_DATE && s.status !== "COMPLETED")
-      .sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`)),
-    past: mine
-      .filter((s) => s.date < DEMO_DATE || s.status === "COMPLETED")
-      .sort((a, b) => `${b.date}${b.startTime}`.localeCompare(`${a.date}${a.startTime}`)),
-    offers,
-  };
+  const lists = useMemo(() => {
+    const offers = shifts.filter((s) => s.status === "OFFERED");
+    const assigned = shifts.filter(
+      (s) =>
+        s.status === "ACCEPTED" ||
+        s.status === "IN_PROGRESS" ||
+        s.status === "PENDING_APPROVAL" ||
+        s.status === "APPROVED" ||
+        s.status === "REJECTED",
+    );
+    return {
+      offers,
+      today: assigned.filter((s) => s.date === today),
+      upcoming: assigned
+        .filter((s) => s.date >= today && s.status !== "APPROVED" && s.status !== "REJECTED")
+        .sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`)),
+      past: assigned
+        .filter((s) => s.date < today || s.status === "APPROVED" || s.status === "REJECTED")
+        .sort((a, b) => `${b.date}${b.startTime}`.localeCompare(`${a.date}${a.startTime}`)),
+    };
+  }, [shifts, today]);
 
   const items = lists[tab];
+  const busy = acceptState.isLoading || declineState.isLoading;
+
+  async function respond(id: string, action: "accept" | "decline") {
+    setActionError("");
+    try {
+      if (action === "accept") await accept(id).unwrap();
+      else await decline(id).unwrap();
+      void refetch();
+    } catch (err) {
+      setActionError(getErrorMessage(err, "Could not update offer"));
+    }
+  }
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "offers", label: "Offers" },
@@ -62,12 +70,27 @@ export function EmployeeShiftsContent() {
     { id: "past", label: "Past" },
   ];
 
+  if (isLoading) return <p className="text-sm text-muted">Loading shifts…</p>;
+  if (error) {
+    return (
+      <p className="text-sm text-red-600">
+        {getErrorMessage(error, "Could not load shifts.")}
+      </p>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <PageHeader
         title="My shifts"
         description="Assigned shifts and offers from your rostering team."
       />
+
+      {actionError ? (
+        <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {actionError}
+        </p>
+      ) : null}
 
       <div className="dashboard-card">
         <div className="tab-bar">
@@ -92,11 +115,11 @@ export function EmployeeShiftsContent() {
                 ? "No shifts assigned yet."
                 : tab === "today"
                   ? "Nothing scheduled for today."
-                  : "No past shifts in the demo set."}
+                  : "No past shifts yet."}
           </p>
         ) : tab === "offers" ? (
           <ul className="divide-y divide-border/40">
-            {offers.map((shift) => (
+            {lists.offers.map((shift) => (
               <li key={shift.id} className="px-5 py-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div>
@@ -106,7 +129,8 @@ export function EmployeeShiftsContent() {
                       {formatShiftTime(shift.startTime, shift.endTime)}
                     </p>
                     <p className="mt-1 text-xs text-muted">
-                      {shift.locationLabel} · {shift.serviceTitle} · {shift.durationHours}h
+                      {shift.locationLabel} · {shift.serviceTitle} ·{" "}
+                      {formatDuration(shift.durationMinutes)}
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -114,14 +138,16 @@ export function EmployeeShiftsContent() {
                     <button
                       type="button"
                       className="btn-secondary !rounded-lg !px-3 !py-2"
-                      onClick={() => declineShiftOffer(shift.id, DEMO_EMPLOYEE_WORKER_ID)}
+                      disabled={busy}
+                      onClick={() => void respond(shift.id, "decline")}
                     >
                       Decline
                     </button>
                     <button
                       type="button"
                       className="btn-primary !px-3 !py-2"
-                      onClick={() => acceptShiftOffer(shift.id, DEMO_EMPLOYEE_WORKER_ID)}
+                      disabled={busy}
+                      onClick={() => void respond(shift.id, "accept")}
                     >
                       Accept
                     </button>
@@ -145,7 +171,8 @@ export function EmployeeShiftsContent() {
                       {formatShiftTime(shift.startTime, shift.endTime)}
                     </p>
                     <p className="mt-1 text-xs text-muted">
-                      {shift.locationLabel} · {shift.serviceTitle} · {shift.durationHours}h
+                      {shift.locationLabel} · {shift.serviceTitle} ·{" "}
+                      {formatDuration(shift.durationMinutes)}
                     </p>
                   </div>
                   <ShiftStatusPill status={shift.status} />

@@ -1,37 +1,53 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import {
-  DEMO_DATE,
-  DEMO_EMPLOYEE_WORKER_ID,
-  formatShiftTime,
-} from "@/lib/rostering/mock-data";
 import { ShiftStatusPill } from "@/components/rostering/ShiftStatusPill";
 import {
-  acceptShiftOffer,
-  declineShiftOffer,
-  useRosterShifts,
-} from "@/lib/rostering/store";
+  useAcceptShiftOfferMutation,
+  useDeclineShiftOfferMutation,
+  useListMyShiftsQuery,
+} from "@/lib/api/authApi";
+import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import type { ScheduleShift } from "@/lib/api/types";
+import {
+  formatLongDate,
+  formatShiftTime,
+  todayIso,
+} from "@/lib/rostering/format";
+import { useAppSelector } from "@/lib/store/hooks";
 
-function formatLongDate(iso: string) {
-  return new Date(`${iso}T12:00:00`).toLocaleDateString("en-AU", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  });
-}
-
+/** Employee dashboard — offers, next shift, quick links. */
 export function EmployeeHomeContent() {
-  const shifts = useRosterShifts();
-  const offers = shifts.filter(
-    (s) => s.offeredWorkerId === DEMO_EMPLOYEE_WORKER_ID && s.status === "OFFERED",
+  const user = useAppSelector((s) => s.orgAuth.user);
+  const { data: shifts = [], isLoading, error, refetch } = useListMyShiftsQuery();
+  const today = todayIso();
+
+  const offers = shifts.filter((s) => s.status === "OFFERED");
+  const mine = shifts.filter(
+    (s) =>
+      s.status === "ACCEPTED" ||
+      s.status === "IN_PROGRESS" ||
+      s.status === "PENDING_APPROVAL" ||
+      s.status === "APPROVED",
   );
-  const mine = shifts.filter((s) => s.workerId === DEMO_EMPLOYEE_WORKER_ID);
-  const today = mine.filter((s) => s.date === DEMO_DATE);
+  const todayShifts = mine.filter((s) => s.date === today);
   const upcoming = mine
-    .filter((s) => s.date >= DEMO_DATE && s.status !== "COMPLETED" && s.status !== "CANCELLED")
+    .filter((s) => s.date >= today && s.status !== "APPROVED")
     .sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`));
   const next = upcoming[0] ?? null;
+
+  if (isLoading) {
+    return <p className="text-sm text-muted">Loading your shifts…</p>;
+  }
+
+  if (error) {
+    return (
+      <p className="text-sm text-red-600">
+        {getErrorMessage(error, "Could not load your shifts.")}
+      </p>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -40,14 +56,16 @@ export function EmployeeHomeContent() {
           My dashboard
         </p>
         <h1 className="page-title mt-1">Your shifts</h1>
-        <p className="page-subtitle">Published roster for Amina Hassan (demo)</p>
+        <p className="page-subtitle">
+          {user ? `${user.firstName} ${user.lastName}` : "Employee"}
+        </p>
       </div>
 
       {offers.length > 0 ? (
         <section className="space-y-3">
           <h2 className="text-sm font-semibold text-muted">Shift offers</h2>
           {offers.map((shift) => (
-            <OfferCard key={shift.id} shiftId={shift.id} />
+            <OfferCard key={shift.id} shift={shift} onDone={() => void refetch()} />
           ))}
         </section>
       ) : null}
@@ -67,20 +85,20 @@ export function EmployeeHomeContent() {
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <ShiftStatusPill status={next.status} />
             <Link href={`/employee/shifts/${next.id}`} className="btn-primary">
-              {next.date === DEMO_DATE ? "Open today’s shift" : "View shift"}
+              {next.date === today ? "Open today’s shift" : "View shift"}
             </Link>
           </div>
         </section>
       ) : (
         <section className="dashboard-card p-6">
-          <p className="text-sm text-muted">No upcoming assigned shifts.</p>
+          <p className="text-sm text-muted">No upcoming accepted shifts.</p>
         </section>
       )}
 
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="dashboard-card px-5 py-4">
           <p className="text-xs font-medium uppercase tracking-wide text-muted">Today</p>
-          <p className="mt-2 text-3xl font-bold">{today.length}</p>
+          <p className="mt-2 text-3xl font-bold">{todayShifts.length}</p>
         </div>
         <div className="dashboard-card px-5 py-4">
           <p className="text-xs font-medium uppercase tracking-wide text-muted">Upcoming</p>
@@ -91,7 +109,7 @@ export function EmployeeHomeContent() {
           className="dashboard-card flex flex-col justify-center px-5 py-4 transition hover:border-primary/30"
         >
           <p className="text-sm font-semibold text-primary">Manage availability</p>
-          <p className="mt-1 text-xs text-muted">Tell rostering when you can work</p>
+          <p className="mt-1 text-xs text-muted">Used when matching you to shifts</p>
         </Link>
       </div>
 
@@ -102,34 +120,51 @@ export function EmployeeHomeContent() {
             All shifts
           </Link>
         </div>
-        <ul className="divide-y divide-border/40">
-          {upcoming.slice(0, 3).map((shift) => (
-            <li key={shift.id}>
-              <Link
-                href={`/employee/shifts/${shift.id}`}
-                className="flex items-center justify-between gap-3 px-5 py-4 transition hover:bg-[#fafbfc]"
-              >
-                <div>
-                  <p className="text-sm font-semibold">{shift.participantName}</p>
-                  <p className="mt-0.5 text-xs text-muted">
-                    {formatLongDate(shift.date)} · {formatShiftTime(shift.startTime, shift.endTime)} ·{" "}
-                    {shift.durationHours}h
-                  </p>
-                </div>
-                <ShiftStatusPill status={shift.status} />
-              </Link>
-            </li>
-          ))}
-        </ul>
+        {upcoming.length === 0 ? (
+          <p className="px-5 py-8 text-sm text-muted">No upcoming shifts yet.</p>
+        ) : (
+          <ul className="divide-y divide-border/40">
+            {upcoming.slice(0, 3).map((shift) => (
+              <li key={shift.id}>
+                <Link
+                  href={`/employee/shifts/${shift.id}`}
+                  className="flex items-center justify-between gap-3 px-5 py-4 transition hover:bg-[#fafbfc]"
+                >
+                  <div>
+                    <p className="text-sm font-semibold">{shift.participantName}</p>
+                    <p className="mt-0.5 text-xs text-muted">
+                      {formatLongDate(shift.date)} ·{" "}
+                      {formatShiftTime(shift.startTime, shift.endTime)}
+                    </p>
+                  </div>
+                  <ShiftStatusPill status={shift.status} />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </div>
   );
 }
 
-function OfferCard({ shiftId }: { shiftId: string }) {
-  const shifts = useRosterShifts();
-  const shift = shifts.find((s) => s.id === shiftId);
-  if (!shift) return null;
+function OfferCard({ shift, onDone }: { shift: ScheduleShift; onDone: () => void }) {
+  const [accept, acceptState] = useAcceptShiftOfferMutation();
+  const [decline, declineState] = useDeclineShiftOfferMutation();
+  const [error, setError] = useState("");
+
+  async function run(action: "accept" | "decline") {
+    setError("");
+    try {
+      if (action === "accept") await accept(shift.id).unwrap();
+      else await decline(shift.id).unwrap();
+      onDone();
+    } catch (err) {
+      setError(getErrorMessage(err, "Could not update offer"));
+    }
+  }
+
+  const busy = acceptState.isLoading || declineState.isLoading;
 
   return (
     <div className="dashboard-card border-sky-200 bg-sky-50/40 p-5">
@@ -140,25 +175,27 @@ function OfferCard({ shiftId }: { shiftId: string }) {
           </p>
           <h3 className="mt-1 text-lg font-semibold">{shift.participantName}</h3>
           <p className="mt-1 text-sm text-muted">
-            {formatLongDate(shift.date)} · {formatShiftTime(shift.startTime, shift.endTime)} ·{" "}
-            {shift.durationHours}h
+            {formatLongDate(shift.date)} · {formatShiftTime(shift.startTime, shift.endTime)}
           </p>
           <p className="mt-1 text-sm text-muted">
             {shift.locationLabel} · {shift.serviceTitle}
           </p>
+          {error ? <p className="mt-2 text-sm text-red-600">{error}</p> : null}
         </div>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
             className="btn-secondary !rounded-lg"
-            onClick={() => declineShiftOffer(shift.id, DEMO_EMPLOYEE_WORKER_ID)}
+            disabled={busy}
+            onClick={() => void run("decline")}
           >
             Decline
           </button>
           <button
             type="button"
             className="btn-primary"
-            onClick={() => acceptShiftOffer(shift.id, DEMO_EMPLOYEE_WORKER_ID)}
+            disabled={busy}
+            onClick={() => void run("accept")}
           >
             Accept
           </button>

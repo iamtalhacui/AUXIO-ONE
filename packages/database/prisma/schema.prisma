@@ -52,6 +52,11 @@ model Organisation {
   onboardingSubmissions OnboardingSubmission[]
   customers             Customer[]
   crmOpportunities      CrmOpportunity[]
+  shiftSeries           ShiftSeries[]
+  shifts                Shift[]
+  workerAvailabilities  WorkerAvailability[]
+  availabilityExceptions AvailabilityException[]
+  serviceLineTaskTemplates ServiceLineTaskTemplate[]
 }
 
 // ─── User (organisation-scoped) ──────────────────────────
@@ -108,6 +113,13 @@ model User {
   createdCustomers       Customer[]             @relation("CustomerCreatedBy")
   uploadedCustomerDocs   CustomerDocument[]     @relation("CustomerDocUploadedBy")
   ownedOpportunities     CrmOpportunity[]       @relation("OpportunityOwner")
+  // Rostering: shifts this worker was offered or accepted.
+  offeredShifts          Shift[]                @relation("ShiftOfferedTo")
+  assignedShifts         Shift[]                @relation("ShiftAssignedTo")
+  createdShifts          Shift[]                @relation("ShiftCreatedBy")
+  reviewedShifts         Shift[]                @relation("ShiftReviewedBy")
+  weeklyAvailability     WorkerAvailability[]
+  availabilityExceptions AvailabilityException[]
 
   @@index([organisationId])
 }
@@ -200,6 +212,7 @@ model Customer {
   createdBy         User              @relation("CustomerCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
   sourceOpportunity CrmOpportunity?   @relation("OpportunityConvertedCustomer", fields: [sourceOpportunityId], references: [id], onDelete: SetNull)
   documents         CustomerDocument[]
+  shifts            Shift[]
 
   @@index([organisationId])
   @@index([organisationId, status])
@@ -281,9 +294,185 @@ model OrganisationModule {
   enabled        Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-3
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  module       Module       @relation(fields: [moduleId], references: [id])
+
   @@unique([organisationId, moduleId])
   @@index([organisationId])
+}
+
+// ─── Rostering / SCHEDULE + SERVICE_DELIVERY ──────────────
+// Phase A: Draft → publish/offer → accept/decline
+// Phase B: Start → tasks/note → finish (±15 min auto-approve or Org Admin)
+
+enum ShiftStatus {
+  DRAFT
+  UNFILLED
+  OFFERED
+  ACCEPTED
+  IN_PROGRESS
+  // Outside ±15 minute margin — waiting for Org Admin.
+  PENDING_APPROVAL
+  // Auto-approved (within margin) or Org Admin approved.
+  APPROVED
+  // Org Admin rejected the submitted variance.
+  REJECTED
+  CANCELLED
+}
+
+enum ShiftLocationKind {
+  PARTICIPANT
+  SITE
+  OTHER
+}
+
+enum RecurrenceFrequency {
+  WEEKLY
+  MONTHLY
+}
+
+// Org catalogue of required tasks for a service line (v1 — no customer extras).
+model ServiceLineTaskTemplate {
+  id             String   @id @default(uuid())
+  organisationId String
+  serviceLine    String
+  label          String
+  sortOrder      Int      @default(0)
+  required       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@unique([organisationId, serviceLine, label])
+  @@index([organisationId, serviceLine])
+}
+
+// Linked group created when Rostering Expert saves a recurring pattern.
+model ShiftSeries {
+  id             String              @id @default(uuid())
+  organisationId String
+  frequency      RecurrenceFrequency
+  interval       Int                 @default(1)
+  // Inclusive end date of the generated window (date-only stored as UTC midnight).
+  untilDate      DateTime
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  shifts       Shift[]
+
+  @@index([organisationId])
+}
+
+model Shift {
+  id               String            @id @default(uuid())
+  organisationId   String
+  seriesId         String?
+  // Optional link to a Customer when location is participant-based (or always for care).
+  customerId       String?
+  locationKind     ShiftLocationKind
+  // Free-text site / other location (v1 — no Site entity yet).
+  locationLabel    String
+  participantName  String
+  serviceLine      String
+  serviceTitle     String
+  // Calendar date of the shift (UTC midnight).
+  date             DateTime
+  startTime        String
+  endTime          String
+  // Stored in 5-minute increments.
+  durationMinutes  Int
+  status           ShiftStatus       @default(DRAFT)
+  // Rostering planning note (set at create/edit).
+  notes            String?
+  // Employee progress note — only writable while IN_PROGRESS.
+  progressNote     String?
+  offeredWorkerId  String?
+  assignedWorkerId String?
+  createdById      String
+  publishedAt      DateTime?
+  // Phase B execution times (server clock).
+  actualStartedAt  DateTime?
+  actualEndedAt    DateTime?
+  // Signed minutes vs scheduled end (negative = finished early).
+  endVarianceMinutes Int?
+  // Signed minutes vs scheduled start (negative = started early).
+  startVarianceMinutes Int?
+  // Required when start or end variance is outside ±15 minutes.
+  finishReason     String?
+  reviewedById     String?
+  reviewedAt       DateTime?
+  reviewNote       String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  series         ShiftSeries? @relation(fields: [seriesId], references: [id], onDelete: SetNull)
+  customer       Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  offeredWorker  User?        @relation("ShiftOfferedTo", fields: [offeredWorkerId], references: [id], onDelete: SetNull)
+  assignedWorker User?        @relation("ShiftAssignedTo", fields: [assignedWorkerId], references: [id], onDelete: SetNull)
+  createdBy      User         @relation("ShiftCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  reviewedBy     User?        @relation("ShiftReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  tasks          ShiftTask[]
+
+  @@index([organisationId, date])
+  @@index([organisationId, status])
+  @@index([offeredWorkerId])
+  @@index([assignedWorkerId])
+  @@index([customerId])
+  @@index([seriesId])
+}
+
+// Snapshot of required tasks copied from the service-line catalogue at create time.
+model ShiftTask {
+  id          String    @id @default(uuid())
+  shiftId     String
+  label       String
+  sortOrder   Int       @default(0)
+  required    Boolean   @default(true)
+  completedAt DateTime?
+
+  shift Shift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+
+  @@index([shiftId])
+}
+
+// Recurring weekly availability for an employee (Mon=1 … Sun=7).
+model WorkerAvailability {
+  id             String @id @default(uuid())
+  organisationId String
+  userId         String
+  // ISO weekday: 1 = Monday … 7 = Sunday.
+  dayOfWeek      Int
+  enabled        Boolean @default(true)
+  startTime      String  @default("07:00")
+  endTime        String  @default("19:00")
+  updatedAt      DateTime @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dayOfWeek])
+  @@index([organisationId])
+}
+
+// One-off unavailable date ranges that override the weekly pattern.
+model AvailabilityException {
+  id             String   @id @default(uuid())
+  organisationId String
+  userId         String
+  fromDate       DateTime
+  toDate         DateTime
+  reason         String   @default("")
+  createdAt      DateTime @default(now())
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organisationId])
+  @@index([userId, fromDate, toDate])
 }
 
 // ─── Platform settings ───────────────────────────────────

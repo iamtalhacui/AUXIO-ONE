@@ -448,4 +448,178 @@ export type CreateOpportunityRequest = {
 
 export type UpdateOpportunityRequest = Partial<CreateOpportunityRequest>;
 
+// ── Schedule / rostering (SCHEDULE module — Phase A) ──
+
+export type ShiftStatus =
+  | "DRAFT"
+  | "UNFILLED"
+  | "OFFERED"
+  | "ACCEPTED"
+  | "IN_PROGRESS"
+  | "PENDING_APPROVAL"
+  | "APPROVED"
+  | "REJECTED"
+  | "CANCELLED";
+
+export type ShiftLocationKind = "PARTICIPANT" | "SITE" | "OTHER";
+export type RecurrenceFrequency = "WEEKLY" | "MONTHLY";
+export type SeriesEditScope = "THIS" | "THIS_AND_FOLLOWING";
+export type WorkerAvailabilityLevel = "FULL" | "PARTIAL" | "UNAVAILABLE";
+
+export type ShiftTask = {
+  id: string;
+  label: string;
+  sortOrder: number;
+  required: boolean;
+  completedAt: string | null;
+};
+
+export type ScheduleShift = {
+  id: string;
+  organisationId: string;
+  seriesId: string | null;
+  customerId: string | null;
+  locationKind: ShiftLocationKind;
+  locationLabel: string;
+  participantName: string;
+  serviceLine: string;
+  serviceTitle: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  durationMinutes: number;
+  status: ShiftStatus;
+  notes: string | null;
+  progressNote: string | null;
+  offeredWorkerId: string | null;
+  assignedWorkerId: string | null;
+  offeredWorkerName: string | null;
+  assignedWorkerName: string | null;
+  publishedAt: string | null;
+  actualStartedAt: string | null;
+  actualEndedAt: string | null;
+  startVarianceMinutes: number | null;
+  endVarianceMinutes: number | null;
+  finishReason: string | null;
+  reviewedById: string | null;
+  reviewedByName: string | null;
+  reviewedAt: string | null;
+  reviewNote: string | null;
+  tasks: ShiftTask[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ScheduleParticipantOption = {
+  id: string;
+  displayName: string;
+  firstName: string;
+  surname: string;
+  serviceLine: string;
+  status: string;
+  address: string | null;
+};
+
+export type ScheduleWorkerOption = {
+  id: string;
+  firstName: string;
+  lastName: string;
+  displayName: string;
+  complianceOk: boolean;
+  hasAvailabilityPattern: boolean;
+};
+
+export type MatchCandidate = {
+  workerId: string;
+  displayName: string;
+  eligible: boolean;
+  complianceOk: boolean;
+  availability: WorkerAvailabilityLevel;
+  hasConflict: boolean;
+  blockers: string[];
+};
+
+export type CreateScheduleShiftRequest = {
+  locationKind: ShiftLocationKind;
+  customerId?: string;
+  locationLabel: string;
+  serviceLine: string;
+  serviceTitle: string;
+  date: string;
+  startTime: string;
+  durationMinutes: number;
+  notes?: string;
+  recurring: boolean;
+  frequency?: RecurrenceFrequency;
+  interval?: number;
+  untilDate?: string;
+};
+
+export type CreateScheduleShiftResponse = {
+  seriesId: string | null;
+  shifts: ScheduleShift[];
+};
+
+export type RecurrencePreview = {
+  count: number;
+  dates: string[];
+};
+
+export type UpdateScheduleShiftRequest = {
+  locationKind?: ShiftLocationKind;
+  customerId?: string | null;
+  locationLabel?: string;
+  serviceLine?: string;
+  serviceTitle?: string;
+  date?: string;
+  startTime?: string;
+  durationMinutes?: number;
+  notes?: string;
+  seriesScope?: SeriesEditScope;
+};
+
+export type DayAvailability = {
+  dayOfWeek: number;
+  enabled: boolean;
+  startTime: string;
+  endTime: string;
+};
+
+export type AvailabilityException = {
+  id?: string;
+  fromDate: string;
+  toDate: string;
+  reason?: string;
+};
+
+export type WorkerAvailabilityPayload = {
+  weekly: DayAvailability[];
+  exceptions: AvailabilityException[];
+};
+
+export type ParticipantCareView = {
+  customerId: string;
+  displayName: string;
+  supportSummary: string | null;
+  planStartDate: string | null;
+  planEndDate: string | null;
+  emergencyContactName: string | null;
+  emergencyContactPhone: string | null;
+  goals: string | null;
+  risks: string | null;
+  serviceLine: string;
+  shiftRelationships: Array<{
+    shiftId: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    status: ShiftStatus;
+    serviceTitle: string;
+  }>;
+};
+
+export type ServiceLineTaskCatalogue = {
+  serviceLine: string;
+  labels: string[];
+};
 

@@ -9,6 +9,7 @@ import { TeamModule } from './modules/team/team.module';
 import { OnboardingModule } from './modules/onboarding/onboarding.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { DemosModule } from './modules/demos/demos.module';
+import { ScheduleModule } from './modules/schedule/schedule.module';
 import { MailModule } from './common/mail/mail.module';
 
 @Module({
@@ -23,6 +24,7 @@ import { MailModule } from './common/mail/mail.module';
     OnboardingModule,
     CustomersModule,
     DemosModule,
+    ScheduleModule,
   ],
 })
 export class AppModule {}
