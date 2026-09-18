@@ -6,13 +6,14 @@ import {
   useUpdatePlatformSettingsMutation,
 } from "@/lib/api/platformAuthApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { useToast } from "@/components/toast/ToastProvider";
 
 export function SettingsPageContent() {
+  const { toast } = useToast();
   const { data, isLoading, error } = useGetPlatformSettingsQuery();
   const [updateSettings, { isLoading: isSaving, error: saveError, reset }] =
     useUpdatePlatformSettingsMutation();
   const [maintenanceMode, setMaintenanceMode] = useState(false);
-  const [success, setSuccess] = useState("");
 
   useEffect(() => {
     if (data) setMaintenanceMode(data.maintenanceMode);
@@ -20,18 +21,23 @@ export function SettingsPageContent() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setSuccess("");
     reset();
 
     try {
       await updateSettings({ maintenanceMode }).unwrap();
-      setSuccess(
-        maintenanceMode
-          ? "Maintenance mode is on. Organisation logins are blocked."
-          : "Maintenance mode is off. Organisation logins are allowed.",
-      );
-    } catch {
-      // RTK error
+      toast({
+        variant: maintenanceMode ? "warning" : "success",
+        title: maintenanceMode ? "Maintenance mode is on" : "Maintenance mode is off",
+        description: maintenanceMode
+          ? "Organisation logins are blocked."
+          : "Organisation logins are allowed.",
+      });
+    } catch (err) {
+      toast({
+        variant: "error",
+        title: "Could not save platform settings",
+        description: getErrorMessage(err, "Could not save platform settings."),
+      });
     }
   }
 
@@ -79,11 +85,6 @@ export function SettingsPageContent() {
         </p>
       ) : null}
 
-      {success ? (
-        <p className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">
-          {success}
-        </p>
-      ) : null}
 
       <div className="dashboard-card flex flex-wrap gap-3 p-6">
         <button

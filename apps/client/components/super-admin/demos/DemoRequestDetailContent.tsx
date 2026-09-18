@@ -8,6 +8,7 @@ import {
 } from "@/lib/api/platformAuthApi";
 import type { DemoRequestStatus } from "@/lib/api/types";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { useToast } from "@/components/toast/ToastProvider";
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString("en-AU", {
@@ -31,9 +32,23 @@ function formatDateTime(value: string) {
 const STATUSES: DemoRequestStatus[] = ["PENDING", "CONTACTED", "COMPLETED"];
 
 export function DemoRequestDetailContent({ requestId }: { requestId: string }) {
+  const { toast } = useToast();
   const { data: request, isLoading, error } = useGetDemoRequestQuery(requestId);
   const [updateStatus, { isLoading: isUpdating, error: updateError }] =
     useUpdateDemoRequestStatusMutation();
+
+  async function handleStatusChange(status: DemoRequestStatus) {
+    try {
+      await updateStatus({ id: requestId, status }).unwrap();
+      toast({ variant: "success", title: `Status updated to ${status}` });
+    } catch (err) {
+      toast({
+        variant: "error",
+        title: "Could not update status",
+        description: getErrorMessage(err, "Could not update status."),
+      });
+    }
+  }
 
   if (isLoading) {
     return <p className="text-sm text-muted">Loading demo request…</p>;
@@ -127,7 +142,7 @@ export function DemoRequestDetailContent({ requestId }: { requestId: string }) {
               key={status}
               type="button"
               disabled={isUpdating || request.status === status}
-              onClick={() => updateStatus({ id: request.id, status })}
+              onClick={() => void handleStatusChange(status)}
               className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
                 request.status === status
                   ? "bg-primary text-white"

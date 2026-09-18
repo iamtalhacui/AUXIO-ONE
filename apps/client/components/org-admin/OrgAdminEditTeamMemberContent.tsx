@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { useGetOrgTeamMemberQuery, useUpdateTeamMemberMutation } from "@/lib/api/authApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { useToast } from "@/components/toast/ToastProvider";
 import type { UserStatus, WorkforceRole } from "@/lib/api/types";
 import { REGISTERABLE_ROLES } from "@/lib/dashboard/content/org-admin-team";
 import { inputClass, labelClass } from "@/lib/onboarding/form-styles";
@@ -21,10 +22,10 @@ const STATUS_OPTIONS: Array<{ value: UserStatus; label: string }> = [
 
 // Org Admin edit form for a workforce member (not the Org Admin account).
 export function OrgAdminEditTeamMemberContent({ memberId }: OrgAdminEditTeamMemberContentProps) {
+  const { toast } = useToast();
   const { data: member, isLoading, error } = useGetOrgTeamMemberQuery(memberId);
   const [updateMember, { isLoading: isSaving, error: saveError, reset }] =
     useUpdateTeamMemberMutation();
-  const [success, setSuccess] = useState("");
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -49,7 +50,6 @@ export function OrgAdminEditTeamMemberContent({ memberId }: OrgAdminEditTeamMemb
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    setSuccess("");
     reset();
 
     try {
@@ -61,9 +61,13 @@ export function OrgAdminEditTeamMemberContent({ memberId }: OrgAdminEditTeamMemb
         role,
         status,
       }).unwrap();
-      setSuccess("Member updated");
-    } catch {
-      // RTK error
+      toast({ variant: "success", title: "Member updated" });
+    } catch (err) {
+      toast({
+        variant: "error",
+        title: "Could not save changes",
+        description: getErrorMessage(err, "Could not save changes"),
+      });
     }
   }
 
@@ -170,12 +174,6 @@ export function OrgAdminEditTeamMemberContent({ memberId }: OrgAdminEditTeamMemb
         {errorMessage ? (
           <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {errorMessage}
-          </p>
-        ) : null}
-
-        {success ? (
-          <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-            {success}
           </p>
         ) : null}
 

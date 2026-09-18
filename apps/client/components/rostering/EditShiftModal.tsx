@@ -6,6 +6,7 @@ import {
   useUpdateScheduleShiftMutation,
 } from "@/lib/api/authApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { useToast } from "@/components/toast/ToastProvider";
 import type { ScheduleShift, SeriesEditScope } from "@/lib/api/types";
 import { endTimeFromDuration, SERVICE_LINE_OPTIONS } from "@/lib/rostering/format";
 
@@ -17,6 +18,7 @@ type Props = {
 
 /** Edit one shift, or this + following shifts in a recurring series. */
 export function EditShiftModal({ shift, onClose, onSaved }: Props) {
+  const { toast } = useToast();
   const [update, updateState] = useUpdateScheduleShiftMutation();
   const [cancel, cancelState] = useCancelScheduleShiftMutation();
 
@@ -72,9 +74,12 @@ export function EditShiftModal({ shift, onClose, onSaved }: Props) {
         seriesScope: shift!.seriesId ? seriesScope : "THIS",
       }).unwrap();
       onSaved();
+      toast({ variant: "success", title: "Shift updated" });
       onClose();
     } catch (err) {
-      setError(getErrorMessage(err, "Could not update shift"));
+      const message = getErrorMessage(err, "Could not update shift");
+      setError(message);
+      toast({ variant: "error", title: "Could not update shift", description: message });
     }
   }
 
@@ -84,9 +89,12 @@ export function EditShiftModal({ shift, onClose, onSaved }: Props) {
     try {
       await cancel(shift!.id).unwrap();
       onSaved();
+      toast({ variant: "success", title: "Shift cancelled" });
       onClose();
     } catch (err) {
-      setError(getErrorMessage(err, "Could not cancel shift"));
+      const message = getErrorMessage(err, "Could not cancel shift");
+      setError(message);
+      toast({ variant: "error", title: "Could not cancel shift", description: message });
     }
   }
 

@@ -10,6 +10,8 @@ import {
   useListMyShiftsQuery,
 } from "@/lib/api/authApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { LIVE_POLL_MS } from "@/lib/api/liveRefresh";
+import { useToast } from "@/components/toast/ToastProvider";
 import {
   formatDuration,
   formatLongDate,
@@ -20,7 +22,10 @@ import {
 type Tab = "upcoming" | "today" | "past" | "offers";
 
 export function EmployeeShiftsContent() {
-  const { data: shifts = [], isLoading, error, refetch } = useListMyShiftsQuery();
+  const { toast } = useToast();
+  const { data: shifts = [], isLoading, error, refetch } = useListMyShiftsQuery(undefined, {
+    pollingInterval: LIVE_POLL_MS.lists,
+  });
   const [tab, setTab] = useState<Tab>("upcoming");
   const [accept, acceptState] = useAcceptShiftOfferMutation();
   const [decline, declineState] = useDeclineShiftOfferMutation();
@@ -57,9 +62,15 @@ export function EmployeeShiftsContent() {
     try {
       if (action === "accept") await accept(id).unwrap();
       else await decline(id).unwrap();
+      toast({
+        variant: action === "accept" ? "success" : "info",
+        title: action === "accept" ? "Shift accepted" : "Shift declined",
+      });
       void refetch();
     } catch (err) {
-      setActionError(getErrorMessage(err, "Could not update offer"));
+      const message = getErrorMessage(err, "Could not update offer");
+      setActionError(message);
+      toast({ variant: "error", title: "Could not update offer", description: message });
     }
   }
 

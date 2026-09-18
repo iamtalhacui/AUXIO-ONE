@@ -7,6 +7,7 @@ import {
   usePreviewRecurrenceMutation,
 } from "@/lib/api/authApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { useToast } from "@/components/toast/ToastProvider";
 import type {
   CreateScheduleShiftRequest,
   RecurrenceFrequency,
@@ -29,6 +30,7 @@ type Props = {
  * Worker is NOT chosen here — publish/offer happens from Matching.
  */
 export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Props) {
+  const { toast } = useToast();
   const { data: participants = [], isLoading: loadingParticipants } =
     useListScheduleParticipantsQuery(undefined, { skip: !open });
   const [preview, previewState] = usePreviewRecurrenceMutation();
@@ -148,9 +150,16 @@ export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Prop
     try {
       const result = await create(body).unwrap();
       onCreated(result.shifts.length);
+      toast({
+        variant: "success",
+        title: result.shifts.length > 1 ? "Shift series created" : "Shift created",
+        description: `${result.shifts.length} draft shift${result.shifts.length === 1 ? "" : "s"} saved.`,
+      });
       onClose();
     } catch (err) {
-      setError(getErrorMessage(err, "Could not create shift"));
+      const message = getErrorMessage(err, "Could not create shift");
+      setError(message);
+      toast({ variant: "error", title: "Could not create shift", description: message });
     }
   }
 

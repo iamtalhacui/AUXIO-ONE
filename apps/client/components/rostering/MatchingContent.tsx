@@ -12,6 +12,8 @@ import {
   useWithdrawShiftOfferMutation,
 } from "@/lib/api/authApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { LIVE_POLL_MS } from "@/lib/api/liveRefresh";
+import { useToast } from "@/components/toast/ToastProvider";
 import type { ScheduleShift } from "@/lib/api/types";
 import {
   formatDuration,
@@ -25,6 +27,7 @@ import {
  * candidates, then publish+offer (or publish empty / withdraw offer).
  */
 export function MatchingContent() {
+  const { toast } = useToast();
   const searchParams = useSearchParams();
   const initialShift = searchParams.get("shift");
 
@@ -36,14 +39,17 @@ export function MatchingContent() {
     return d.toISOString().slice(0, 10);
   })();
 
-  const { data: allShifts = [], isLoading, error, refetch } = useListScheduleShiftsQuery({
-    from: (() => {
-      const d = new Date(`${from}T12:00:00`);
-      d.setDate(d.getDate() - 7);
-      return d.toISOString().slice(0, 10);
-    })(),
-    to,
-  });
+  const { data: allShifts = [], isLoading, error, refetch } = useListScheduleShiftsQuery(
+    {
+      from: (() => {
+        const d = new Date(`${from}T12:00:00`);
+        d.setDate(d.getDate() - 7);
+        return d.toISOString().slice(0, 10);
+      })(),
+      to,
+    },
+    { pollingInterval: LIVE_POLL_MS.lists },
+  );
 
   const openShifts = useMemo(
     () =>
@@ -58,7 +64,6 @@ export function MatchingContent() {
   );
 
   const [selectedId, setSelectedId] = useState<string | null>(initialShift);
-  const [message, setMessage] = useState("");
   const [actionError, setActionError] = useState("");
 
   const selected =
@@ -83,13 +88,18 @@ export function MatchingContent() {
   async function handleOffer(workerId: string) {
     if (!selected) return;
     setActionError("");
-    setMessage("");
     try {
       await publishOffer({ id: selected.id, workerId }).unwrap();
-      setMessage("Offer published. Waiting for the employee to accept or decline.");
+      toast({
+        variant: "success",
+        title: "Offer published",
+        description: "Waiting for the employee to accept or decline.",
+      });
       void refetch();
     } catch (err) {
-      setActionError(getErrorMessage(err, "Could not publish offer"));
+      const message = getErrorMessage(err, "Could not publish offer");
+      setActionError(message);
+      toast({ variant: "error", title: "Could not publish offer", description: message });
     }
   }
 
@@ -98,10 +108,12 @@ export function MatchingContent() {
     setActionError("");
     try {
       await publishEmpty(selected.id).unwrap();
-      setMessage("Shift published as unfilled.");
+      toast({ variant: "success", title: "Shift published as unfilled" });
       void refetch();
     } catch (err) {
-      setActionError(getErrorMessage(err, "Could not publish"));
+      const message = getErrorMessage(err, "Could not publish");
+      setActionError(message);
+      toast({ variant: "error", title: "Could not publish", description: message });
     }
   }
 
@@ -110,10 +122,12 @@ export function MatchingContent() {
     setActionError("");
     try {
       await withdraw(selected.id).unwrap();
-      setMessage("Offer withdrawn. Shift is unfilled again.");
+      toast({ variant: "success", title: "Offer withdrawn", description: "Shift is unfilled again." });
       void refetch();
     } catch (err) {
-      setActionError(getErrorMessage(err, "Could not withdraw offer"));
+      const message = getErrorMessage(err, "Could not withdraw offer");
+      setActionError(message);
+      toast({ variant: "error", title: "Could not withdraw offer", description: message });
     }
   }
 
@@ -124,11 +138,6 @@ export function MatchingContent() {
         description="Publish and offer shifts to eligible employees. Hard rules: readiness, availability, and conflicts."
       />
 
-      {message ? (
-        <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-medium text-sky-900">
-          {message}
-        </div>
-      ) : null}
       {actionError ? (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
           {actionError}
@@ -160,7 +169,6 @@ export function MatchingContent() {
                   active={selected?.id === shift.id}
                   onSelect={() => {
                     setSelectedId(shift.id);
-                    setMessage("");
                     setActionError("");
                   }}
                 />

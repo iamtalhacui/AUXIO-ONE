@@ -9,6 +9,7 @@ import {
   useListMyShiftsQuery,
 } from "@/lib/api/authApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { LIVE_POLL_MS } from "@/lib/api/liveRefresh";
 import type { ScheduleShift } from "@/lib/api/types";
 import {
   formatLongDate,
@@ -20,7 +21,9 @@ import { useAppSelector } from "@/lib/store/hooks";
 /** Employee dashboard — offers, next shift, quick links. */
 export function EmployeeHomeContent() {
   const user = useAppSelector((s) => s.orgAuth.user);
-  const { data: shifts = [], isLoading, error, refetch } = useListMyShiftsQuery();
+  const { data: shifts = [], isLoading, error, refetch } = useListMyShiftsQuery(undefined, {
+    pollingInterval: LIVE_POLL_MS.lists,
+  });
   const today = todayIso();
 
   const offers = shifts.filter((s) => s.status === "OFFERED");

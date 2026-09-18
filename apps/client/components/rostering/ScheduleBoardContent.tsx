@@ -8,6 +8,7 @@ import { EditShiftModal } from "@/components/rostering/EditShiftModal";
 import { ShiftStatusPill } from "@/components/rostering/ShiftStatusPill";
 import { useListScheduleShiftsQuery } from "@/lib/api/authApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { LIVE_POLL_MS } from "@/lib/api/liveRefresh";
 import type { ScheduleShift } from "@/lib/api/types";
 import {
   addDays,
@@ -77,10 +78,10 @@ export function ScheduleBoardContent() {
   const from = range === "day" ? date : weekDates[0];
   const to = range === "day" ? date : weekDates[6];
 
-  const { data: shifts = [], isLoading, error, refetch } = useListScheduleShiftsQuery({
-    from,
-    to,
-  });
+  const { data: shifts = [], isLoading, error, refetch } = useListScheduleShiftsQuery(
+    { from, to },
+    { pollingInterval: LIVE_POLL_MS.lists },
+  );
 
   const visible = useMemo(() => {
     return shifts

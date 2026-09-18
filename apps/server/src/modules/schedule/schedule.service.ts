@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import type {
   CreateShiftDto,
   PreviewRecurrenceDto,
@@ -96,7 +97,10 @@ type ShiftRow = {
 
 @Injectable()
 export class ScheduleService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   // ─── Role helpers ───────────────────────────────────────
 
@@ -757,6 +761,14 @@ export class ScheduleService {
       },
       include: this.shiftInclude,
     });
+
+    void this.notifications.notifyUser(workerId, organisationId, {
+      type: 'INFO',
+      title: 'New shift offer',
+      message: `You've been offered a ${updated.serviceTitle} shift on ${this.formatDateOnly(updated.date)} (${updated.startTime}–${updated.endTime}).`,
+      link: `/employee/shifts/${updated.id}`,
+    });
+
     return this.toShiftDto(updated);
   }
 
@@ -1008,6 +1020,14 @@ export class ScheduleService {
       },
       include: this.shiftInclude,
     });
+
+    void this.notifications.notifyUser(shift.createdById, organisationId, {
+      type: 'SUCCESS',
+      title: 'Shift offer accepted',
+      message: `${updated.assignedWorker?.firstName ?? 'A worker'} accepted the ${updated.serviceTitle} shift on ${this.formatDateOnly(updated.date)}.`,
+      link: '/roster/schedule',
+    });
+
     return this.toShiftDto(updated);
   }
 
@@ -1034,6 +1054,14 @@ export class ScheduleService {
       },
       include: this.shiftInclude,
     });
+
+    void this.notifications.notifyUser(shift.createdById, organisationId, {
+      type: 'WARNING',
+      title: 'Shift offer declined',
+      message: `The offer for the ${updated.serviceTitle} shift on ${this.formatDateOnly(updated.date)} was declined and needs rematching.`,
+      link: '/roster/matching',
+    });
+
     return this.toShiftDto(updated);
   }
 
@@ -1494,6 +1522,16 @@ export class ScheduleService {
       },
       include: this.shiftInclude,
     });
+
+    if (outsideMargin) {
+      void this.notifications.notifyRole(organisationId, 'ORG_ADMIN', {
+        type: 'WARNING',
+        title: 'Shift needs approval',
+        message: `${updated.assignedWorker?.firstName ?? 'A worker'}'s ${updated.serviceTitle} shift finished outside the ±15 minute margin and needs approval.`,
+        link: '/org-admin/shift-approvals',
+      });
+    }
+
     return this.toShiftDto(updated);
   }
 
@@ -1532,6 +1570,16 @@ export class ScheduleService {
       },
       include: this.shiftInclude,
     });
+
+    if (updated.assignedWorkerId) {
+      void this.notifications.notifyUser(updated.assignedWorkerId, organisationId, {
+        type: 'SUCCESS',
+        title: 'Shift approved',
+        message: `Your ${updated.serviceTitle} shift on ${this.formatDateOnly(updated.date)} was approved.`,
+        link: `/employee/shifts/${updated.id}`,
+      });
+    }
+
     return this.toShiftDto(updated);
   }
 
@@ -1561,6 +1609,16 @@ export class ScheduleService {
       },
       include: this.shiftInclude,
     });
+
+    if (updated.assignedWorkerId) {
+      void this.notifications.notifyUser(updated.assignedWorkerId, organisationId, {
+        type: 'ERROR',
+        title: 'Shift rejected',
+        message: `Your ${updated.serviceTitle} shift on ${this.formatDateOnly(updated.date)} was rejected: ${reviewNote.trim()}`,
+        link: `/employee/shifts/${updated.id}`,
+      });
+    }
+
     return this.toShiftDto(updated);
   }
 }

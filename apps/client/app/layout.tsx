@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import type { ReactNode } from "react";
 import { StoreProvider } from "@/lib/store/StoreProvider";
+import { ToastProvider } from "@/components/toast/ToastProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -31,7 +32,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <StoreProvider>{children}</StoreProvider>
+        <StoreProvider>
+          <ToastProvider>{children}</ToastProvider>
+        </StoreProvider>
       </body>
     </html>
   );

@@ -9,6 +9,7 @@ import {
   useReviewOnboardingMutation,
 } from "@/lib/api/authApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { useToast } from "@/components/toast/ToastProvider";
 import type { OnboardingDocumentMeta } from "@/lib/api/types";
 import { getOnboardingTemplate } from "@/lib/onboarding/templates";
 import { useAppSelector } from "@/lib/store/hooks";
@@ -89,6 +90,7 @@ export function OrgAdminOnboardingReviewContent({
   memberId,
 }: OrgAdminOnboardingReviewContentProps) {
   const router = useRouter();
+  const { toast } = useToast();
   const admin = useAppSelector((state) => state.orgAuth.user);
   const accessToken = useAppSelector((state) => state.orgAuth.accessToken);
   const { data, isLoading, error } = useGetAdminOnboardingQuery(memberId);
@@ -154,9 +156,12 @@ export function OrgAdminOnboardingReviewContent({
     setActionError("");
     try {
       await reviewOnboarding({ userId: memberId, decision: "VERIFIED" }).unwrap();
+      toast({ variant: "success", title: "Onboarding approved", description: `${name} is now verified.` });
       router.push("/org-admin/team");
     } catch (err) {
-      setActionError(getErrorMessage(err, "Could not approve application."));
+      const message = getErrorMessage(err, "Could not approve application.");
+      setActionError(message);
+      toast({ variant: "error", title: "Could not approve application", description: message });
     }
   }
 
@@ -172,9 +177,12 @@ export function OrgAdminOnboardingReviewContent({
         decision: "CHANGES_REQUIRED",
         note: rejectReason.trim(),
       }).unwrap();
+      toast({ variant: "info", title: "Changes requested", description: `${name} was notified.` });
       router.push("/org-admin/team");
     } catch (err) {
-      setRejectError(getErrorMessage(err, "Could not reject application."));
+      const message = getErrorMessage(err, "Could not reject application.");
+      setRejectError(message);
+      toast({ variant: "error", title: "Could not reject application", description: message });
     }
   }
 

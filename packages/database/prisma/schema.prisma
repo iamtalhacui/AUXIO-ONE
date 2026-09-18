@@ -16,6 +16,8 @@ model SuperAdmin {
   passwordHash String
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  notifications Notification[]
 }
 
 // ─── Organisation ────────────────────────────────────────
@@ -120,6 +122,7 @@ model User {
   reviewedShifts         Shift[]                @relation("ShiftReviewedBy")
   weeklyAvailability     WorkerAvailability[]
   availabilityExceptions AvailabilityException[]
+  notifications          Notification[]
 
   @@index([organisationId])
 }
@@ -522,4 +525,40 @@ model DemoRequest {
 
   @@index([status])
   @@index([createdAt])
+}
+
+// ─── In-app notifications ────────────────────────────────
+// Simple, single-table notification feed. Each row belongs to exactly one
+// recipient — either an organisation user (userId) or a Super Admin
+// (superAdminId). No queues/events framework — services just call
+// NotificationsService.notify*() directly after the action that matters.
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+}
+
+model Notification {
+  id             String            @id @default(uuid())
+  // Exactly one of these two is set, depending on recipient kind.
+  userId         String?
+  superAdminId   String?
+  // Denormalised for cheap org-scoped queries/cleanup; not a strict FK need.
+  organisationId String?
+  type           NotificationType  @default(INFO)
+  title          String
+  message        String
+  // Optional client-side deep link, e.g. "/manager/schedule/shifts/<id>".
+  link           String?
+  isRead         Boolean           @default(false)
+  readAt         DateTime?
+  createdAt      DateTime          @default(now())
+
+  user       User?       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  superAdmin SuperAdmin? @relation(fields: [superAdminId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead, createdAt])
+  @@index([superAdminId, isRead, createdAt])
 }

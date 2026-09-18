@@ -6,11 +6,13 @@ import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { useRegisterTeamMemberMutation } from "@/lib/api/authApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { useToast } from "@/components/toast/ToastProvider";
 import type { WorkforceRole } from "@/lib/api/types";
 import { REGISTERABLE_ROLES } from "@/lib/dashboard/content/org-admin-team";
 
 // Invite a new Manager, Rostering Expert, or Employee to this organisation.
 export function RegisterTeamMemberForm() {
+  const { toast } = useToast();
   const router = useRouter();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -24,9 +26,10 @@ export function RegisterTeamMemberForm() {
 
     try {
       await register({ firstName, lastName, email, role }).unwrap();
+      toast({ variant: "success", title: "Invite sent", description: `${firstName} ${lastName} will receive a setup email.` });
       router.replace("/org-admin/team");
-    } catch {
-      // RTK error
+    } catch (err) {
+      toast({ variant: "error", title: "Could not send invite", description: getErrorMessage(err, "Could not send invite") });
     }
   }
 

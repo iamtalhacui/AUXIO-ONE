@@ -3,6 +3,7 @@
 import { useMemo, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
+import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 import { useConfirmOrgSession } from "@/components/auth/useConfirmOrgSession";
 import { useListOrgModulesQuery } from "@/lib/api/authApi";
 import { getDashboardConfigForPath } from "@/lib/dashboard/config";
@@ -20,6 +21,7 @@ type DashboardShellProps = {
 export function DashboardShell({ children }: DashboardShellProps) {
   const pathname = usePathname();
   const orgUser = useAppSelector((state) => state.orgAuth.user);
+  const platformUser = useAppSelector((state) => state.platformAuth.user);
   const isPlatform = pathname.startsWith("/super-admin");
   const config = getDashboardConfigForPath(pathname);
   const sessionOk = useConfirmOrgSession(Boolean(orgUser) && !isPlatform);
@@ -43,10 +45,15 @@ export function DashboardShell({ children }: DashboardShellProps) {
 
   if (!filteredConfig) return null;
 
+  const notificationsEnabled = isPlatform ? Boolean(platformUser) : Boolean(orgUser) && sessionOk;
+
   return (
     <div className="dashboard-shell">
       <DashboardSidebar config={filteredConfig} lockedOnboarding={lockedOnboarding} />
       <main className="dashboard-main">
+        <div className="dashboard-topbar">
+          <NotificationCenter isPlatform={isPlatform} enabled={notificationsEnabled} />
+        </div>
         <div className="dashboard-content">{children}</div>
       </main>
     </div>

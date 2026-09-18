@@ -12,6 +12,7 @@ import {
   useUpdateCrmOpportunityMutation,
 } from "@/lib/api/authApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { useToast } from "@/components/toast/ToastProvider";
 import type { OpportunityStage } from "@/lib/api/types";
 
 const STAGES: OpportunityStage[] = [
@@ -31,6 +32,7 @@ function money(value: number) {
 }
 
 export function ManagerCrmContent() {
+  const { toast } = useToast();
   const router = useRouter();
   const { data: pipeline, isLoading: pipelineLoading } = useGetCrmPipelineQuery();
   const { data: opportunities = [], isLoading, error } = useListCrmOpportunitiesQuery();
@@ -47,14 +49,12 @@ export function ManagerCrmContent() {
   const [estimatedAnnualValue, setEstimatedAnnualValue] = useState("");
   const [nextFollowUpAt, setNextFollowUpAt] = useState("");
   const [followUpNote, setFollowUpNote] = useState("");
-  const [localMessage, setLocalMessage] = useState("");
   const [localError, setLocalError] = useState("");
 
   async function handleCreate(event: FormEvent) {
     event.preventDefault();
     reset();
     setLocalError("");
-    setLocalMessage("");
     try {
       await createOpp({
         title,
@@ -76,21 +76,22 @@ export function ManagerCrmContent() {
       setEstimatedAnnualValue("");
       setNextFollowUpAt("");
       setFollowUpNote("");
-      setLocalMessage("Opportunity created");
-    } catch {
-      // RTK
+      toast({ variant: "success", title: "Opportunity created" });
+    } catch (err) {
+      toast({ variant: "error", title: "Could not create opportunity", description: getErrorMessage(err, "Could not create opportunity") });
     }
   }
 
   async function handleConvert(id: string) {
     setLocalError("");
-    setLocalMessage("");
     try {
       const result = await convertOpp(id).unwrap();
-      setLocalMessage(result.message);
+      toast({ variant: "success", title: result.message });
       router.push(`/manager/customers/${result.customer.id}`);
     } catch (err) {
-      setLocalError(getErrorMessage(err, "Could not convert opportunity"));
+      const message = getErrorMessage(err, "Could not convert opportunity");
+      setLocalError(message);
+      toast({ variant: "error", title: "Could not convert opportunity", description: message });
     }
   }
 
@@ -187,17 +188,11 @@ export function ManagerCrmContent() {
         </button>
       </form>
 
-      {(localError || localMessage) && (
-        <p
-          className={`rounded-xl px-4 py-3 text-sm ${
-            localError
-              ? "border border-red-200 bg-red-50 text-red-700"
-              : "border border-primary/20 bg-primary/5 text-primary"
-          }`}
-        >
-          {localError || localMessage}
+      {localError ? (
+        <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {localError}
         </p>
-      )}
+      ) : null}
 
       <div className="data-table-wrap">
         {opportunities.length === 0 ? (
@@ -232,6 +227,15 @@ export function ManagerCrmContent() {
                           id: opp.id,
                           stage: e.target.value as OpportunityStage,
                         })
+                          .unwrap()
+                          .then(() => toast({ variant: "success", title: "Stage updated" }))
+                          .catch((err) =>
+                            toast({
+                              variant: "error",
+                              title: "Could not update stage",
+                              description: getErrorMessage(err, "Could not update stage"),
+                            }),
+                          )
                       }
                     >
                       {STAGES.map((stage) => (

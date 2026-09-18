@@ -4,20 +4,20 @@ import { FormEvent, useState } from "react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { useChangePasswordMutation } from "@/lib/api/authApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { useToast } from "@/components/toast/ToastProvider";
 
 // Org Admin security page — updates the signed-in user's password only.
 export function OrgAdminPasswordForm() {
+  const { toast } = useToast();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [localError, setLocalError] = useState("");
-  const [success, setSuccess] = useState("");
   const [changePassword, { isLoading, error, reset }] = useChangePasswordMutation();
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLocalError("");
-    setSuccess("");
     reset();
 
     if (newPassword.length < 8) {
@@ -32,12 +32,16 @@ export function OrgAdminPasswordForm() {
 
     try {
       const result = await changePassword({ currentPassword, newPassword }).unwrap();
-      setSuccess(result.message || "Password updated");
+      toast({ variant: "success", title: result.message || "Password updated" });
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-    } catch {
-      // RTK error
+    } catch (err) {
+      toast({
+        variant: "error",
+        title: "Could not update password",
+        description: getErrorMessage(err, "Could not update password"),
+      });
     }
   }
 
@@ -89,12 +93,6 @@ export function OrgAdminPasswordForm() {
         {errorMessage ? (
           <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {errorMessage}
-          </p>
-        ) : null}
-
-        {success ? (
-          <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-            {success}
           </p>
         ) : null}
 

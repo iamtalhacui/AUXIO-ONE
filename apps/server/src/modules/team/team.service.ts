@@ -9,6 +9,7 @@ import {
 import { createHash, randomBytes } from 'crypto';
 import { MailService } from '../../common/mail/mail.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import type { RegisterMemberDto } from './dto/register-member.dto';
 import type { UpdateMemberDto } from './dto/update-member.dto';
 
@@ -38,6 +39,7 @@ export class TeamService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   // All users in this organisation, including the Org Admin.
@@ -116,6 +118,13 @@ export class TeamService {
     } catch (error) {
       this.logger.error(`Failed to send invite email to ${user.email}`, error);
     }
+
+    void this.notifications.notifyRole(organisationId, 'ORG_ADMIN', {
+      type: 'INFO',
+      title: 'New team member invited',
+      message: `${name} (${ROLE_LABEL[user.role] ?? user.role}) was invited to join the team.`,
+      link: `/org-admin/team/${user.id}`,
+    });
 
     return user;
   }
