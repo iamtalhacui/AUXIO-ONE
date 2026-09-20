@@ -11,11 +11,13 @@ import { CustomersModule } from './modules/customers/customers.module';
 import { DemosModule } from './modules/demos/demos.module';
 import { ScheduleModule } from './modules/schedule/schedule.module';
 import { MailModule } from './common/mail/mail.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 @Module({
   imports: [
     PrismaModule,
     MailModule,
+    NotificationsModule,
     PlatformAuthModule,
     PlatformModule,
     OrganisationsModule,

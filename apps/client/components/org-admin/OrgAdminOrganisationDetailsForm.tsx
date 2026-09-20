@@ -9,6 +9,7 @@ import {
   useUploadOrganisationLogoMutation,
 } from "@/lib/api/authApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { useToast } from "@/components/toast/ToastProvider";
 import { setOrganisation } from "@/lib/store/orgAuthSlice";
 import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
 
@@ -23,6 +24,7 @@ const timeZones = [
 const MAX_LOGO_BYTES = 2 * 1024 * 1024;
 
 export function OrgAdminOrganisationDetailsForm() {
+  const { toast } = useToast();
   const dispatch = useAppDispatch();
   const accessToken = useAppSelector((state) => state.orgAuth.accessToken);
   const { data: org, isLoading, error } = useGetOrganisationQuery();
@@ -40,7 +42,6 @@ export function OrgAdminOrganisationDetailsForm() {
   const [pendingLogo, setPendingLogo] = useState<File | null>(null);
   const [removeLogo, setRemoveLogo] = useState(false);
   const [formError, setFormError] = useState("");
-  const [success, setSuccess] = useState("");
 
   useEffect(() => {
     if (!org) return;
@@ -104,7 +105,6 @@ export function OrgAdminOrganisationDetailsForm() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFormError("");
-    setSuccess("");
 
     try {
       let latest = await updateOrganisation({
@@ -125,9 +125,11 @@ export function OrgAdminOrganisationDetailsForm() {
       dispatch(setOrganisation(latest));
       setPendingLogo(null);
       setRemoveLogo(false);
-      setSuccess("Organisation details saved.");
+      toast({ variant: "success", title: "Organisation details saved" });
     } catch (err) {
-      setFormError(getErrorMessage(err, "Could not save organisation details."));
+      const message = getErrorMessage(err, "Could not save organisation details.");
+      setFormError(message);
+      toast({ variant: "error", title: "Could not save organisation details", description: message });
     }
   }
 
@@ -269,11 +271,6 @@ export function OrgAdminOrganisationDetailsForm() {
         {formError ? (
           <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {formError}
-          </p>
-        ) : null}
-        {success ? (
-          <p className="rounded-xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-800">
-            {success}
           </p>
         ) : null}
 

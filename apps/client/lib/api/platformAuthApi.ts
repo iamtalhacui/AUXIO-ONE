@@ -20,6 +20,7 @@ import type {
   PlatformUser,
   RegisterOrganisationRequest,
   RegisterOrganisationResponse,
+  NotificationFeed,
 } from "@/lib/api/types";
 import { logoutPlatform } from "@/lib/store/platformAuthSlice";
 
@@ -49,6 +50,9 @@ const baseQueryWithAuth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQuery
 export const platformAuthApi = createApi({
   reducerPath: "platformAuthApi",
   baseQuery: baseQueryWithAuth,
+  refetchOnFocus: true,
+  refetchOnReconnect: true,
+  refetchOnMountOrArgChange: 15,
   tagTypes: [
     "Organisations",
     "Audit",
@@ -58,6 +62,7 @@ export const platformAuthApi = createApi({
     "Settings",
     "Demos",
     "Overview",
+    "Notifications",
   ],
   endpoints: (builder) => ({
     platformLogin: builder.mutation<
@@ -199,6 +204,26 @@ export const platformAuthApi = createApi({
         "Overview",
       ],
     }),
+
+    // ── Notifications (global bell / drawer) ──
+    listPlatformNotifications: builder.query<NotificationFeed, void>({
+      query: () => "/platform/notifications",
+      providesTags: ["Notifications"],
+    }),
+    markPlatformNotificationRead: builder.mutation<void, string>({
+      query: (id) => ({
+        url: `/platform/notifications/${id}/read`,
+        method: "PATCH",
+      }),
+      invalidatesTags: ["Notifications"],
+    }),
+    markAllPlatformNotificationsRead: builder.mutation<{ message: string }, void>({
+      query: () => ({
+        url: "/platform/notifications/read-all",
+        method: "POST",
+      }),
+      invalidatesTags: ["Notifications"],
+    }),
   }),
 });
 
@@ -221,4 +246,7 @@ export const {
   useListDemoRequestsQuery,
   useGetDemoRequestQuery,
   useUpdateDemoRequestStatusMutation,
+  useListPlatformNotificationsQuery,
+  useMarkPlatformNotificationReadMutation,
+  useMarkAllPlatformNotificationsReadMutation,
 } = platformAuthApi;

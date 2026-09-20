@@ -43,6 +43,7 @@ import type {
   WorkerAvailabilityPayload,
   ParticipantCareView,
   ServiceLineTaskCatalogue,
+  NotificationFeed,
 } from "@/lib/api/types";
 import { isMaintenanceError, rememberMaintenanceLogout } from "@/lib/api/getErrorMessage";
 import { logoutOrg } from "@/lib/store/orgAuthSlice";
@@ -74,6 +75,11 @@ const baseQueryWithAuth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQuery
 export const authApi = createApi({
   reducerPath: "authApi",
   baseQuery: baseQueryWithAuth,
+  // Cross-user updates (e.g. employee finishes → admin sees it) need a refetch.
+  // setupListeners in StoreProvider enables focus/reconnect; this turns them on.
+  refetchOnFocus: true,
+  refetchOnReconnect: true,
+  refetchOnMountOrArgChange: 15,
   tagTypes: [
     "OrgModules",
     "OrgTeam",
@@ -92,6 +98,7 @@ export const authApi = createApi({
     "PendingApprovals",
     "ServiceLineTasks",
     "OrgOverview",
+    "Notifications",
   ],
   endpoints: (builder) => ({
     setupAccount: builder.mutation<SetupAccountResponse, SetupAccountRequest>({
@@ -624,6 +631,26 @@ export const authApi = createApi({
       }),
       invalidatesTags: ["ServiceLineTasks"],
     }),
+
+    // ── Notifications (global bell / drawer) ──
+    listNotifications: builder.query<NotificationFeed, void>({
+      query: () => "/organisation/notifications",
+      providesTags: ["Notifications"],
+    }),
+    markNotificationRead: builder.mutation<void, string>({
+      query: (id) => ({
+        url: `/organisation/notifications/${id}/read`,
+        method: "PATCH",
+      }),
+      invalidatesTags: ["Notifications"],
+    }),
+    markAllNotificationsRead: builder.mutation<{ message: string }, void>({
+      query: () => ({
+        url: "/organisation/notifications/read-all",
+        method: "POST",
+      }),
+      invalidatesTags: ["Notifications"],
+    }),
   }),
 });
 
@@ -693,4 +720,7 @@ export const {
   useRejectPendingShiftMutation,
   useListServiceLineTasksQuery,
   useSaveServiceLineTasksMutation,
+  useListNotificationsQuery,
+  useMarkNotificationReadMutation,
+  useMarkAllNotificationsReadMutation,
 } = authApi;

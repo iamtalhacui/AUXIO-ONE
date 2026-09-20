@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { DemoRequestStatus } from 'database';
 import { MailService } from '../../common/mail/mail.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateDemoRequestDto } from './dto/create-demo-request.dto';
 import { UpdateDemoRequestStatusDto } from './dto/update-demo-request-status.dto';
 
@@ -12,6 +13,7 @@ export class DemosService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async create(dto: CreateDemoRequestDto) {
@@ -45,6 +47,13 @@ export class DemosService {
           err instanceof Error ? err.stack : undefined,
         );
       });
+
+    void this.notifications.notifySuperAdmins({
+      type: 'INFO',
+      title: 'New demo request',
+      message: `${request.contactName} from ${request.organisationName} requested a demo.`,
+      link: `/super-admin/demos/${request.id}`,
+    });
 
     return {
       id: request.id,

@@ -12,6 +12,7 @@ import {
   useStartMyShiftMutation,
 } from "@/lib/api/authApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { useToast } from "@/components/toast/ToastProvider";
 import {
   formatDuration,
   formatLongDate,
@@ -26,6 +27,7 @@ const VARIANCE_MARGIN_MINUTES = 15;
  * Start → complete tasks + progress note → Finish (auto-approve or pending Org Admin).
  */
 export function EmployeeShiftDetailContent({ shiftId }: { shiftId: string }) {
+  const { toast } = useToast();
   const { data: shift, isLoading, error, refetch } = useGetMyShiftQuery(shiftId);
   const [start, startState] = useStartMyShiftMutation();
   const [completeTask, taskState] = useCompleteMyShiftTaskMutation();
@@ -35,7 +37,6 @@ export function EmployeeShiftDetailContent({ shiftId }: { shiftId: string }) {
   const [progressNote, setProgressNote] = useState("");
   const [finishReason, setFinishReason] = useState("");
   const [actionError, setActionError] = useState("");
-  const [message, setMessage] = useState("");
 
   useEffect(() => {
     if (shift?.progressNote != null) setProgressNote(shift.progressNote);
@@ -76,10 +77,16 @@ export function EmployeeShiftDetailContent({ shiftId }: { shiftId: string }) {
     setActionError("");
     try {
       await start(shiftId).unwrap();
-      setMessage("Shift started. Complete your tasks and progress note.");
+      toast({
+        variant: "success",
+        title: "Shift started",
+        description: "Complete your tasks and progress note.",
+      });
       void refetch();
     } catch (err) {
-      setActionError(getErrorMessage(err, "Could not start shift"));
+      const message = getErrorMessage(err, "Could not start shift");
+      setActionError(message);
+      toast({ variant: "error", title: "Could not start shift", description: message });
     }
   }
 
@@ -89,7 +96,9 @@ export function EmployeeShiftDetailContent({ shiftId }: { shiftId: string }) {
       await completeTask({ shiftId, taskId }).unwrap();
       void refetch();
     } catch (err) {
-      setActionError(getErrorMessage(err, "Could not complete task"));
+      const message = getErrorMessage(err, "Could not complete task");
+      setActionError(message);
+      toast({ variant: "error", title: "Could not complete task", description: message });
     }
   }
 
@@ -97,10 +106,12 @@ export function EmployeeShiftDetailContent({ shiftId }: { shiftId: string }) {
     setActionError("");
     try {
       await saveNote({ shiftId, progressNote }).unwrap();
-      setMessage("Progress note saved.");
+      toast({ variant: "success", title: "Progress note saved" });
       void refetch();
     } catch (err) {
-      setActionError(getErrorMessage(err, "Could not save note"));
+      const message = getErrorMessage(err, "Could not save note");
+      setActionError(message);
+      toast({ variant: "error", title: "Could not save note", description: message });
     }
   }
 
@@ -117,14 +128,19 @@ export function EmployeeShiftDetailContent({ shiftId }: { shiftId: string }) {
         shiftId,
         finishReason: variancePreview?.outside ? finishReason.trim() : undefined,
       }).unwrap();
-      setMessage(
-        result.status === "APPROVED"
-          ? "Shift finished and auto-approved (within ±15 minutes)."
-          : "Shift finished — waiting for Org Admin approval.",
-      );
+      toast({
+        variant: "success",
+        title: "Shift finished",
+        description:
+          result.status === "APPROVED"
+            ? "Auto-approved (within ±15 minutes)."
+            : "Waiting for Org Admin approval.",
+      });
       void refetch();
     } catch (err) {
-      setActionError(getErrorMessage(err, "Could not finish shift"));
+      const message = getErrorMessage(err, "Could not finish shift");
+      setActionError(message);
+      toast({ variant: "error", title: "Could not finish shift", description: message });
     }
   }
 
@@ -166,11 +182,6 @@ export function EmployeeShiftDetailContent({ shiftId }: { shiftId: string }) {
         action={<ShiftStatusPill status={shift.status} />}
       />
 
-      {message ? (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
-          {message}
-        </div>
-      ) : null}
       {actionError ? (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
           {actionError}

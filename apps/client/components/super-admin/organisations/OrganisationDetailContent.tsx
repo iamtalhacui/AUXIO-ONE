@@ -10,6 +10,7 @@ import {
   useRejectOrgAdminMutation,
 } from "@/lib/api/platformAuthApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { useToast } from "@/components/toast/ToastProvider";
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString("en-AU", {
@@ -29,6 +30,7 @@ const APPROVAL_LABEL: Record<string, string> = {
 };
 
 export function OrganisationDetailContent({ organisationId }: { organisationId: string }) {
+  const { toast } = useToast();
   const { data: org, isLoading, error } = useGetOrganisationQuery(organisationId);
   const [approve, approveState] = useApproveOrgAdminMutation();
   const [reject, rejectState] = useRejectOrgAdminMutation();
@@ -56,12 +58,15 @@ export function OrganisationDetailContent({ organisationId }: { organisationId: 
   const canApprove = approvalStatus === "AWAITING_APPROVAL";
   const busy = approveState.isLoading || rejectState.isLoading || changeState.isLoading;
 
-  async function runAction(fn: () => Promise<unknown>) {
+  async function runAction(fn: () => Promise<unknown>, successMessage?: string) {
     setActionError("");
     try {
       await fn();
+      if (successMessage) toast({ variant: "success", title: successMessage });
     } catch (err) {
-      setActionError(getErrorMessage(err, "Action failed"));
+      const message = getErrorMessage(err, "Action failed");
+      setActionError(message);
+      toast({ variant: "error", title: "Action failed", description: message });
     }
   }
 
@@ -78,7 +83,7 @@ export function OrganisationDetailContent({ organisationId }: { organisationId: 
       setEmail("");
       setFirstName("");
       setLastName("");
-    });
+    }, "Admin email updated and invite resent");
   }
 
   return (
@@ -120,7 +125,7 @@ export function OrganisationDetailContent({ organisationId }: { organisationId: 
                   void runAction(async () => {
                     await reject(organisationId).unwrap();
                     setShowRejectDialog(false);
-                  });
+                  }, "Org Admin rejected");
                 }}
               >
                 {rejectState.isLoading ? "Rejecting…" : "Reject"}
@@ -189,7 +194,7 @@ export function OrganisationDetailContent({ organisationId }: { organisationId: 
                 type="button"
                 disabled={!canApprove || busy}
                 className="btn-primary disabled:opacity-50"
-                onClick={() => runAction(() => approve(organisationId).unwrap())}
+                onClick={() => runAction(() => approve(organisationId).unwrap(), "Org Admin approved")}
               >
                 {approveState.isLoading ? "Approving…" : "Approve"}
               </button>

@@ -6,6 +6,7 @@ import { OnboardingStatusPill } from "@/components/onboarding/OnboardingStatusPi
 import { TeamMemberActionsMenu } from "@/components/org-admin/TeamMemberActionsMenu";
 import { useListOrgTeamQuery } from "@/lib/api/authApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { LIVE_POLL_MS } from "@/lib/api/liveRefresh";
 import type { OnboardingStatus, OrgTeamMember } from "@/lib/api/types";
 
 type Tab = "all" | "pending" | "in_progress" | "verified";
@@ -71,7 +72,9 @@ function filterMembers(members: OrgTeamMember[], tab: Tab, query: string) {
 }
 
 export function OrgAdminTeamContent() {
-  const { data: members = [], isLoading, error } = useListOrgTeamQuery();
+  const { data: members = [], isLoading, error } = useListOrgTeamQuery(undefined, {
+    pollingInterval: LIVE_POLL_MS.lists,
+  });
   const [tab, setTab] = useState<Tab>("all");
   const [query, setQuery] = useState("");
 

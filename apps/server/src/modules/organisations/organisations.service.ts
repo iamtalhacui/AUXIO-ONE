@@ -13,6 +13,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { LocalFileStorageService } from '../../common/storage/local-file-storage.service';
 import { MailService } from '../../common/mail/mail.service';
 import { PlatformService } from '../platform/platform.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import {
   isCoreModule,
   isOptionalModule,
@@ -54,6 +55,7 @@ export class OrganisationsService {
     private readonly mail: MailService,
     private readonly platform: PlatformService,
     private readonly storage: LocalFileStorageService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   /**
@@ -336,6 +338,12 @@ export class OrganisationsService {
       details: `Approved Org Admin ${admin.email}`,
     });
 
+    void this.notifications.notifyUser(admin.id, organisationId, {
+      type: 'SUCCESS',
+      title: 'Account approved',
+      message: 'Your organisation admin account has been approved. Welcome aboard!',
+    });
+
     return this.getById(organisationId);
   }
 
@@ -364,6 +372,12 @@ export class OrganisationsService {
       actorEmail,
       organisationName: org.name,
       details: `Rejected Org Admin ${admin.email}`,
+    });
+
+    void this.notifications.notifyUser(admin.id, organisationId, {
+      type: 'ERROR',
+      title: 'Account rejected',
+      message: 'Your organisation admin account approval was rejected by the platform team.',
     });
 
     return this.getById(organisationId);

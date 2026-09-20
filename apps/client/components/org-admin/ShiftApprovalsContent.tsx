@@ -9,6 +9,8 @@ import {
   useRejectPendingShiftMutation,
 } from "@/lib/api/authApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { LIVE_POLL_MS } from "@/lib/api/liveRefresh";
+import { useToast } from "@/components/toast/ToastProvider";
 import type { ScheduleShift } from "@/lib/api/types";
 import {
   formatDuration,
@@ -20,14 +22,16 @@ import {
  * Org Admin queue for shifts finished outside the ±15 minute margin.
  */
 export function ShiftApprovalsContent() {
+  const { toast } = useToast();
   const { data: shifts = [], isLoading, error, refetch } =
-    useListPendingShiftApprovalsQuery();
+    useListPendingShiftApprovalsQuery(undefined, {
+      pollingInterval: LIVE_POLL_MS.lists,
+    });
   const [approve, approveState] = useApprovePendingShiftMutation();
   const [reject, rejectState] = useRejectPendingShiftMutation();
   const [selected, setSelected] = useState<ScheduleShift | null>(null);
   const [reviewNote, setReviewNote] = useState("");
   const [actionError, setActionError] = useState("");
-  const [message, setMessage] = useState("");
 
   const busy = approveState.isLoading || rejectState.isLoading;
 
@@ -39,12 +43,14 @@ export function ShiftApprovalsContent() {
         id: selected.id,
         reviewNote: reviewNote.trim() || undefined,
       }).unwrap();
-      setMessage("Shift approved.");
+      toast({ variant: "success", title: "Shift approved" });
       setSelected(null);
       setReviewNote("");
       void refetch();
     } catch (err) {
-      setActionError(getErrorMessage(err, "Could not approve"));
+      const message = getErrorMessage(err, "Could not approve");
+      setActionError(message);
+      toast({ variant: "error", title: "Could not approve", description: message });
     }
   }
 
@@ -57,12 +63,14 @@ export function ShiftApprovalsContent() {
     }
     try {
       await reject({ id: selected.id, reviewNote: reviewNote.trim() }).unwrap();
-      setMessage("Shift rejected.");
+      toast({ variant: "success", title: "Shift rejected" });
       setSelected(null);
       setReviewNote("");
       void refetch();
     } catch (err) {
-      setActionError(getErrorMessage(err, "Could not reject"));
+      const message = getErrorMessage(err, "Could not reject");
+      setActionError(message);
+      toast({ variant: "error", title: "Could not reject", description: message });
     }
   }
 
@@ -82,11 +90,6 @@ export function ShiftApprovalsContent() {
         description="Shifts finished more than 15 minutes early or late need your approve or reject."
       />
 
-      {message ? (
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
-          {message}
-        </div>
-      ) : null}
       {actionError ? (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
           {actionError}

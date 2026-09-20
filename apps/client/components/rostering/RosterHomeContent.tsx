@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ShiftStatusPill } from "@/components/rostering/ShiftStatusPill";
 import { useListScheduleShiftsQuery } from "@/lib/api/authApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { LIVE_POLL_MS } from "@/lib/api/liveRefresh";
 import {
   formatLongDate,
   formatShiftTime,
@@ -13,10 +14,10 @@ import {
 /** Rostering Expert home — today's coverage snapshot. */
 export function RosterHomeContent() {
   const today = todayIso();
-  const { data: shifts = [], isLoading, error } = useListScheduleShiftsQuery({
-    from: today,
-    to: today,
-  });
+  const { data: shifts = [], isLoading, error } = useListScheduleShiftsQuery(
+    { from: today, to: today },
+    { pollingInterval: LIVE_POLL_MS.lists },
+  );
 
   const draft = shifts.filter((s) => s.status === "DRAFT").length;
   const unfilled = shifts.filter((s) => s.status === "UNFILLED").length;

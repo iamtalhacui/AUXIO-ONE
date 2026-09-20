@@ -752,3 +752,23 @@ export type ServiceLineTaskCatalogue = {
   labels: string[];
 };
 
+// ── Notifications ──
+
+export type NotificationType = "INFO" | "SUCCESS" | "WARNING" | "ERROR";
+
+export type AppNotification = {
+  id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  link: string | null;
+  isRead: boolean;
+  readAt: string | null;
+  createdAt: string;
+};
+
+export type NotificationFeed = {
+  items: AppNotification[];
+  unreadCount: number;
+};
+

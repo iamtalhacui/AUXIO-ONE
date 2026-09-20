@@ -11,6 +11,7 @@ import { readFileSync } from 'fs';
 import { LocalFileStorageService } from '../../common/storage/local-file-storage.service';
 import { MailService } from '../../common/mail/mail.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import type { SaveOnboardingDraftDto } from './dto/save-onboarding-draft.dto';
 import { OnboardingTemplatesService } from './onboarding-templates.service';
 import type { OnboardingPayload } from './onboarding-templates';
@@ -49,6 +50,7 @@ export class OnboardingService {
     private readonly templates: OnboardingTemplatesService,
     private readonly storage: LocalFileStorageService,
     private readonly mail: MailService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   // Load the caller's onboarding state; creates nothing until first draft save.
@@ -294,6 +296,18 @@ export class OnboardingService {
     } catch (error) {
       this.logger.error('Failed to send onboarding submitted email', error);
     }
+
+    void this.prisma.user
+      .findUnique({ where: { id: user.id }, select: { firstName: true, lastName: true, role: true } })
+      .then((member) => {
+        if (!member) return;
+        return this.notifications.notifyRole(organisationId, 'ORG_ADMIN', {
+          type: 'INFO',
+          title: 'Onboarding submitted for review',
+          message: `${member.firstName} ${member.lastName} submitted their onboarding for review.`,
+          link: `/org-admin/onboarding/${user.id}`,
+        });
+      });
 
     return {
       onboardingStatus: 'PENDING_REVIEW' as const,
@@ -709,6 +723,16 @@ export class OnboardingService {
     } catch (error) {
       this.logger.error('Failed to send onboarding decision email', error);
     }
+
+    void this.notifications.notifyUser(memberUserId, organisationId, {
+      type: decision === 'VERIFIED' ? 'SUCCESS' : 'WARNING',
+      title:
+        decision === 'VERIFIED' ? 'Onboarding verified' : 'Changes requested on your onboarding',
+      message:
+        decision === 'VERIFIED'
+          ? 'Your onboarding has been verified. You now have full access.'
+          : `Changes are needed: ${note?.trim()}`,
+    });
 
     return {
       onboardingStatus: decision,

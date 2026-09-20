@@ -6,8 +6,10 @@ import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { useCreateCustomerMutation } from "@/lib/api/authApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { useToast } from "@/components/toast/ToastProvider";
 
 export function ManagerCreateCustomerForm() {
+  const { toast } = useToast();
   const router = useRouter();
   const [createCustomer, { isLoading, error, reset }] = useCreateCustomerMutation();
   const [firstName, setFirstName] = useState("");
@@ -39,9 +41,10 @@ export function ManagerCreateCustomerForm() {
         planStartDate: planStartDate || undefined,
         planEndDate: planEndDate || undefined,
       }).unwrap();
+      toast({ variant: "success", title: "Customer registered", description: `${firstName} ${surname} was created.` });
       router.replace(`/manager/customers/${customer.id}`);
-    } catch {
-      // RTK error
+    } catch (err) {
+      toast({ variant: "error", title: "Could not create customer", description: getErrorMessage(err, "Could not create customer") });
     }
   }
 

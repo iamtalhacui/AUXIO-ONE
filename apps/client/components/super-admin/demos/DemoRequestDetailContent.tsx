@@ -9,6 +9,7 @@ import {
 } from "@/lib/api/platformAuthApi";
 import type { DemoRequestStatus } from "@/lib/api/types";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { useToast } from "@/components/toast/ToastProvider";
 
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString("en-AU", {
@@ -32,22 +33,29 @@ function formatDateTime(value: string) {
 const STATUSES: DemoRequestStatus[] = ["PENDING", "CONTACTED", "COMPLETED"];
 
 export function DemoRequestDetailContent({ requestId }: { requestId: string }) {
+  const { toast } = useToast();
   const { data: request, isLoading, error } = useGetDemoRequestQuery(requestId);
-  const [updateStatus, { isLoading: isUpdating, error: updateError, isSuccess }] =
+  const [updateStatus, { isLoading: isUpdating }] =
     useUpdateDemoRequestStatusMutation();
   const [selectedStatus, setSelectedStatus] = useState<DemoRequestStatus>("PENDING");
-  const [savedFlash, setSavedFlash] = useState(false);
 
   useEffect(() => {
     if (request) setSelectedStatus(request.status);
   }, [request]);
 
-  useEffect(() => {
-    if (!isSuccess) return;
-    setSavedFlash(true);
-    const timer = window.setTimeout(() => setSavedFlash(false), 2000);
-    return () => window.clearTimeout(timer);
-  }, [isSuccess]);
+  async function handleSaveStatus() {
+    if (!request || selectedStatus === request.status || isUpdating) return;
+    try {
+      await updateStatus({ id: request.id, status: selectedStatus }).unwrap();
+      toast({ variant: "success", title: `Status updated to ${selectedStatus}` });
+    } catch (err) {
+      toast({
+        variant: "error",
+        title: "Could not update status",
+        description: getErrorMessage(err, "Could not update status."),
+      });
+    }
+  }
 
   if (isLoading) {
     return <p className="text-sm text-muted">Loading demo request…</p>;
@@ -145,8 +153,7 @@ export function DemoRequestDetailContent({ requestId }: { requestId: string }) {
           className="mt-4 flex flex-wrap items-end gap-3"
           onSubmit={(event) => {
             event.preventDefault();
-            if (!dirty || isUpdating) return;
-            void updateStatus({ id: request.id, status: selectedStatus });
+            void handleSaveStatus();
           }}
         >
           <label className="flex min-w-[12rem] flex-col gap-1.5 text-sm">
@@ -177,15 +184,6 @@ export function DemoRequestDetailContent({ requestId }: { requestId: string }) {
             {isUpdating ? "Saving…" : "Save status"}
           </button>
         </form>
-
-        {savedFlash && !dirty ? (
-          <p className="mt-3 text-sm font-medium text-primary">Status updated.</p>
-        ) : null}
-        {updateError ? (
-          <p className="mt-3 text-sm text-red-600">
-            {getErrorMessage(updateError, "Could not update status.")}
-          </p>
-        ) : null}
       </div>
     </div>
   );
