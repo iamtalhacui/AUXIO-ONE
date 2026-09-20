@@ -10,6 +10,7 @@ import { ScheduleService } from './schedule.service';
 
 /**
  * Org Admin: variance approval queue + service-line task catalogues.
+ * Both are execution concerns, so they sit under SERVICE_DELIVERY.
  */
 @Controller('organisation/schedule/admin')
 @UseGuards(
@@ -18,7 +19,7 @@ import { ScheduleService } from './schedule.service';
   VerifiedOnboardingGuard,
   ModuleAccessGuard,
 )
-@RequireModule('SCHEDULE')
+@RequireModule('SERVICE_DELIVERY')
 export class OrgAdminScheduleController {
   constructor(private readonly schedule: ScheduleService) {}
 

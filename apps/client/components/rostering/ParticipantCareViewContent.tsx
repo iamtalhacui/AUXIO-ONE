@@ -64,12 +64,8 @@ export function ParticipantCareViewContent({ customerId }: { customerId: string 
           }
         />
         <CareRow
-          label="Emergency contact"
-          value={
-            data.emergencyContactName || data.emergencyContactPhone
-              ? `${data.emergencyContactName ?? "—"} · ${data.emergencyContactPhone ?? "—"}`
-              : "—"
-          }
+          label="Phone"
+          value={data.emergencyContactPhone || "—"}
         />
         <CareRow label="Goals" value={data.goals || "—"} />
         <CareRow label="Risks" value={data.risks || "—"} />

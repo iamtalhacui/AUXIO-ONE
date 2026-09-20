@@ -11,6 +11,11 @@ import { PlatformService } from './platform.service';
 export class PlatformController {
   constructor(private readonly platform: PlatformService) {}
 
+  @Get('overview')
+  getOverview() {
+    return this.platform.getOverview();
+  }
+
   @Get('settings')
   getSettings() {
     return this.platform.getSettings();

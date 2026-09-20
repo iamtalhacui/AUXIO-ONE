@@ -1102,8 +1102,9 @@ export class ScheduleService {
       planEndDate: customer.planEndDate
         ? this.formatDateOnly(customer.planEndDate)
         : null,
+      // v1: use the customer phone field (dedicated emergency contact not collected yet).
       emergencyContactName: customer.emergencyContactName,
-      emergencyContactPhone: customer.emergencyContactPhone,
+      emergencyContactPhone: customer.emergencyContactPhone ?? customer.phone,
       goals: customer.goals,
       risks: customer.risks,
       serviceLine: customer.serviceLine,

@@ -40,6 +40,15 @@ export class OrganisationController {
     return this.organisationsService.getOrganisation(user.organisationId);
   }
 
+  // Org Admin home dashboard aggregate — team, onboarding, approvals, modules.
+  @Get('overview')
+  getOverview(@CurrentOrgUser() user: OrgJwtPayload) {
+    return this.organisationsService.getOrgAdminOverview(
+      user.organisationId,
+      user.role,
+    );
+  }
+
   @Patch()
   @UseGuards(VerifiedOnboardingGuard)
   update(

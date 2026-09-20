@@ -1,35 +1,62 @@
 "use client";
 
 import Link from "next/link";
-import { featuredWorkflow } from "@/lib/dashboard/content/super-admin";
 import { useAppSelector } from "@/lib/store/hooks";
 
-export function WelcomeBanner() {
-  const user = useAppSelector((state) => state.platformAuth.user);
+const QUICK_ACTIONS = [
+  { label: "Register organisation", href: "/super-admin/organisations/new", primary: true },
+  { label: "Demo requests", href: "/super-admin/demos", primary: false },
+  { label: "Pending invites", href: "/super-admin/invites", primary: false },
+  { label: "Audit log", href: "/super-admin/audit", primary: false },
+] as const;
 
-  return (
-    <div className="dashboard-card p-6">
-      <p className="text-sm text-muted">Welcome back</p>
-      <h1 className="mt-1 text-2xl font-semibold tracking-tight">{user?.name ?? "Super Admin"}</h1>
-      <p className="mt-2 max-w-lg text-sm text-muted">
-        Register organisations, assign a plan, and invite the first Organisation Admin.
-      </p>
-      <Link href="/super-admin/organisations/new" className="btn-primary mt-5">
-        Register organisation
-      </Link>
-    </div>
-  );
+function greetingForHour(hour: number) {
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
 }
 
-export function FeaturedWorkflowCard() {
+type WelcomeBannerProps = {
+  maintenanceMode: boolean;
+};
+
+export function WelcomeBanner({ maintenanceMode }: WelcomeBannerProps) {
+  const user = useAppSelector((state) => state.platformAuth.user);
+  const greeting = greetingForHour(new Date().getHours());
+
   return (
     <div className="dashboard-card p-6">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted">{featuredWorkflow.tag}</p>
-      <h2 className="mt-2 text-lg font-semibold">{featuredWorkflow.title}</h2>
-      <p className="mt-2 text-sm text-muted">{featuredWorkflow.description}</p>
-      <Link href={featuredWorkflow.href} className="mt-4 inline-flex text-sm font-medium text-primary">
-        {featuredWorkflow.cta} →
-      </Link>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-sm text-muted">{greeting}</p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">
+            {user?.name ?? "Super Admin"}
+          </h1>
+          <p className="mt-2 max-w-lg text-sm text-muted">
+            Platform control room — review what needs action, then check portfolio health.
+          </p>
+        </div>
+        {maintenanceMode ? (
+          <Link
+            href="/super-admin/settings"
+            className="inline-flex items-center rounded-full bg-accent/15 px-3 py-1.5 text-xs font-semibold text-accent"
+          >
+            Maintenance mode ON
+          </Link>
+        ) : null}
+      </div>
+
+      <div className="mt-5 flex flex-wrap gap-2">
+        {QUICK_ACTIONS.map((action) => (
+          <Link
+            key={action.href}
+            href={action.href}
+            className={action.primary ? "btn-primary" : "btn-secondary"}
+          >
+            {action.label}
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { DemoStatusBadge } from "@/components/dashboard/StatusBadge";
 import {
   useGetDemoRequestQuery,
@@ -32,8 +33,21 @@ const STATUSES: DemoRequestStatus[] = ["PENDING", "CONTACTED", "COMPLETED"];
 
 export function DemoRequestDetailContent({ requestId }: { requestId: string }) {
   const { data: request, isLoading, error } = useGetDemoRequestQuery(requestId);
-  const [updateStatus, { isLoading: isUpdating, error: updateError }] =
+  const [updateStatus, { isLoading: isUpdating, error: updateError, isSuccess }] =
     useUpdateDemoRequestStatusMutation();
+  const [selectedStatus, setSelectedStatus] = useState<DemoRequestStatus>("PENDING");
+  const [savedFlash, setSavedFlash] = useState(false);
+
+  useEffect(() => {
+    if (request) setSelectedStatus(request.status);
+  }, [request]);
+
+  useEffect(() => {
+    if (!isSuccess) return;
+    setSavedFlash(true);
+    const timer = window.setTimeout(() => setSavedFlash(false), 2000);
+    return () => window.clearTimeout(timer);
+  }, [isSuccess]);
 
   if (isLoading) {
     return <p className="text-sm text-muted">Loading demo request…</p>;
@@ -46,6 +60,8 @@ export function DemoRequestDetailContent({ requestId }: { requestId: string }) {
       </p>
     );
   }
+
+  const dirty = selectedStatus !== request.status;
 
   return (
     <div className="space-y-6">
@@ -121,23 +137,50 @@ export function DemoRequestDetailContent({ requestId }: { requestId: string }) {
 
       <div className="dashboard-card p-6">
         <h2 className="text-lg font-semibold">Update status</h2>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {STATUSES.map((status) => (
-            <button
-              key={status}
-              type="button"
-              disabled={isUpdating || request.status === status}
-              onClick={() => updateStatus({ id: request.id, status })}
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                request.status === status
-                  ? "bg-primary text-white"
-                  : "border border-border bg-background hover:border-primary/40 disabled:opacity-50"
-              }`}
+        <p className="mt-1 text-sm text-muted">
+          Move this request through PENDING → CONTACTED → COMPLETED.
+        </p>
+
+        <form
+          className="mt-4 flex flex-wrap items-end gap-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!dirty || isUpdating) return;
+            void updateStatus({ id: request.id, status: selectedStatus });
+          }}
+        >
+          <label className="flex min-w-[12rem] flex-col gap-1.5 text-sm">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted">
+              Status
+            </span>
+            <select
+              value={selectedStatus}
+              onChange={(event) =>
+                setSelectedStatus(event.target.value as DemoRequestStatus)
+              }
+              className="input-field"
+              disabled={isUpdating}
             >
-              {status}
-            </button>
-          ))}
-        </div>
+              {STATUSES.map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <button
+            type="submit"
+            disabled={!dirty || isUpdating}
+            className="btn-primary disabled:opacity-50"
+          >
+            {isUpdating ? "Saving…" : "Save status"}
+          </button>
+        </form>
+
+        {savedFlash && !dirty ? (
+          <p className="mt-3 text-sm font-medium text-primary">Status updated.</p>
+        ) : null}
         {updateError ? (
           <p className="mt-3 text-sm text-red-600">
             {getErrorMessage(updateError, "Could not update status.")}

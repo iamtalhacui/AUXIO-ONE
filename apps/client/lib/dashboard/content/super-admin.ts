@@ -76,12 +76,3 @@ export const reports = [
     format: "CSV",
   },
 ] as const;
-
-export const featuredWorkflow = {
-  tag: "Featured workflow",
-  title: "W-01 · Register an organisation",
-  description:
-    "Create a tenant, grant the module ceiling, and invite the first Org Admin — all in one transaction.",
-  cta: "Open register flow",
-  href: "/super-admin/organisations/new",
-} as const;

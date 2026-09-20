@@ -1,35 +1,16 @@
-import { OrgPlan } from 'database';
-
-/**
- * Maps each plan to the module codes it entitles.
- * This is the single source of truth for plan → module entitlement.
- */
-const BASIC_MODULES = [
-  'HOME',
-  'CRM',
-  'CUSTOMERS',
-  'WORKFORCE',
-  'SCHEDULE',
-] as const;
-
-const ADVANCED_MODULES = [
-  'HOME',
-  'CRM',
-  'CUSTOMERS',
-  'WORKFORCE',
-  'SCHEDULE',
-  'SERVICE_DELIVERY',
-  'INCIDENTS',
-  'FINANCE',
-  'INSIGHTS',
-] as const;
-
-export const PLAN_MODULES: Record<OrgPlan, readonly string[]> = {
-  BASIC: BASIC_MODULES,
-  ADVANCED: ADVANCED_MODULES,
-};
-
-/** Returns the module codes entitled by the given plan. */
-export function getEntitledModuleCodes(plan: OrgPlan): readonly string[] {
-  return PLAN_MODULES[plan];
-}
+// Plan → module entitlement lives in the shared database package so the API
+// and the seed backfill can never disagree.
+//
+// Imported via the "database/plan-modules" subpath rather than the package
+// barrel: the barrel re-exports @prisma/client (CommonJS), and Node's
+// require(esm) interop drops sibling named exports in that case, which this
+// CommonJS build would see as undefined at runtime.
+export {
+  CORE_MODULES,
+  OPTIONAL_MODULES,
+  PLAN_MODULES,
+  getEntitledModuleCodes,
+  isCoreModule,
+  isOptionalModule,
+  resolveEntitledModuleCodes,
+} from 'database/plan-modules';

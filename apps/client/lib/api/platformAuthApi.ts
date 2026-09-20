@@ -15,6 +15,7 @@ import type {
   PlatformModule,
   PlatformOrganisation,
   PlatformOrganisationDetail,
+  PlatformOverview,
   PlatformSettings,
   PlatformUser,
   RegisterOrganisationRequest,
@@ -48,7 +49,16 @@ const baseQueryWithAuth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQuery
 export const platformAuthApi = createApi({
   reducerPath: "platformAuthApi",
   baseQuery: baseQueryWithAuth,
-  tagTypes: ["Organisations", "Audit", "Modules", "Entitlements", "Invites", "Settings", "Demos"],
+  tagTypes: [
+    "Organisations",
+    "Audit",
+    "Modules",
+    "Entitlements",
+    "Invites",
+    "Settings",
+    "Demos",
+    "Overview",
+  ],
   endpoints: (builder) => ({
     platformLogin: builder.mutation<
       PlatformLoginResponse,
@@ -62,6 +72,10 @@ export const platformAuthApi = createApi({
     }),
     platformMe: builder.query<PlatformUser, void>({
       query: () => "/platform/auth/me",
+    }),
+    getPlatformOverview: builder.query<PlatformOverview, void>({
+      query: () => "/platform/overview",
+      providesTags: ["Overview"],
     }),
     listOrganisations: builder.query<PlatformOrganisation[], void>({
       query: () => "/platform/organisations",
@@ -80,6 +94,7 @@ export const platformAuthApi = createApi({
         "Organisations",
         { type: "Organisations", id },
         "Audit",
+        "Overview",
       ],
     }),
     rejectOrgAdmin: builder.mutation<PlatformOrganisationDetail, string>({
@@ -91,6 +106,7 @@ export const platformAuthApi = createApi({
         "Organisations",
         { type: "Organisations", id },
         "Audit",
+        "Overview",
       ],
     }),
     changeOrgAdminEmail: builder.mutation<
@@ -112,6 +128,7 @@ export const platformAuthApi = createApi({
         { type: "Organisations", id },
         "Audit",
         "Invites",
+        "Overview",
       ],
     }),
     registerOrganisation: builder.mutation<
@@ -123,7 +140,13 @@ export const platformAuthApi = createApi({
         method: "POST",
         body,
       }),
-      invalidatesTags: ["Organisations", "Audit", "Invites", "Entitlements"],
+      invalidatesTags: [
+        "Organisations",
+        "Audit",
+        "Invites",
+        "Entitlements",
+        "Overview",
+      ],
     }),
     listPlatformModules: builder.query<PlatformModule[], void>({
       query: () => "/platform/modules",
@@ -151,7 +174,7 @@ export const platformAuthApi = createApi({
         method: "PATCH",
         body,
       }),
-      invalidatesTags: ["Settings", "Audit"],
+      invalidatesTags: ["Settings", "Audit", "Overview"],
     }),
     listDemoRequests: builder.query<DemoRequest[], void>({
       query: () => "/platform/demos",
@@ -170,7 +193,11 @@ export const platformAuthApi = createApi({
         method: "PATCH",
         body: { status },
       }),
-      invalidatesTags: (_result, _error, { id }) => ["Demos", { type: "Demos", id }],
+      invalidatesTags: (_result, _error, { id }) => [
+        "Demos",
+        { type: "Demos", id },
+        "Overview",
+      ],
     }),
   }),
 });
@@ -178,6 +205,7 @@ export const platformAuthApi = createApi({
 export const {
   usePlatformLoginMutation,
   usePlatformMeQuery,
+  useGetPlatformOverviewQuery,
   useListOrganisationsQuery,
   useGetOrganisationQuery,
   useApproveOrgAdminMutation,

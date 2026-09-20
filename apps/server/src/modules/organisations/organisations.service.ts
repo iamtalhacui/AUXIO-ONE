@@ -13,7 +13,11 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { LocalFileStorageService } from '../../common/storage/local-file-storage.service';
 import { MailService } from '../../common/mail/mail.service';
 import { PlatformService } from '../platform/platform.service';
-import { getEntitledModuleCodes } from './plan-modules';
+import {
+  isCoreModule,
+  isOptionalModule,
+  resolveEntitledModuleCodes,
+} from './plan-modules';
 import type { RegisterOrganisationDto } from './dto/register-organisation.dto';
 import type { UpdateOrganisationDto } from './dto/update-organisation.dto';
 
@@ -24,6 +28,14 @@ const ALLOWED_LOGO_MIME = new Set([
   'image/svg+xml',
   'image/gif',
 ]);
+
+function dateKey(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+function startOfUtcDay(d: Date): Date {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+}
 
 type LogoUpload = {
   originalname: string;
@@ -63,8 +75,29 @@ export class OrganisationsService {
     const setupTokenHash = createHash('sha256').update(rawToken).digest('hex');
     const setupTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
-    // Get module codes for the selected plan
-    const entitledCodes = getEntitledModuleCodes(dto.plan);
+    // CUSTOM lets the Super Admin pick add-ons on top of the core set. The core
+    // modules come along regardless, so only the add-ons need validating.
+    const requestedAddOns = (dto.moduleCodes ?? []).map((code) =>
+      code.trim().toUpperCase(),
+    );
+
+    if (dto.plan !== 'CUSTOM' && requestedAddOns.length > 0) {
+      throw new BadRequestException(
+        'Module selection is only accepted for the Custom plan',
+      );
+    }
+
+    const invalidAddOns = requestedAddOns.filter(
+      (code) => !isOptionalModule(code),
+    );
+
+    if (invalidAddOns.length > 0) {
+      throw new BadRequestException(
+        `Not selectable modules: ${invalidAddOns.join(', ')}`,
+      );
+    }
+
+    const entitledCodes = resolveEntitledModuleCodes(dto.plan, requestedAddOns);
 
     // Fetch matching module records
     const modules = await this.prisma.module.findMany({
@@ -435,7 +468,11 @@ export class OrganisationsService {
    * Plan-entitled modules for this organisation, with current enabled state.
    * Modules not in the plan are omitted — Org Admin cannot toggle those.
    */
-  async listOrgModules(organisationId: string) {
+  /**
+   * Full module entitlement for one organisation. CUSTOM plans read their
+   * add-ons from the granted rows; every plan keeps the core set.
+   */
+  private async resolveEntitlement(organisationId: string) {
     const org = await this.prisma.organisation.findUnique({
       where: { id: organisationId },
       select: { plan: true },
@@ -445,7 +482,26 @@ export class OrganisationsService {
       throw new NotFoundException('Organisation not found');
     }
 
-    const entitledCodes = getEntitledModuleCodes(org.plan);
+    const granted =
+      org.plan === 'CUSTOM'
+        ? await this.prisma.organisationModule.findMany({
+            where: { organisationId },
+            select: { module: { select: { code: true } } },
+          })
+        : [];
+
+    return {
+      plan: org.plan,
+      codes: resolveEntitledModuleCodes(
+        org.plan,
+        granted.map((row: { module: { code: string } }) => row.module.code),
+      ),
+    };
+  }
+
+  async listOrgModules(organisationId: string) {
+    const { codes: entitledCodes } =
+      await this.resolveEntitlement(organisationId);
 
     const catalog = await this.prisma.module.findMany({
       where: { code: { in: [...entitledCodes] } },
@@ -475,7 +531,9 @@ export class OrganisationsService {
         name: mod.name,
         description: mod.description,
         isCore: mod.isCore,
-        enabled: enabledByCode.get(mod.code) ?? false,
+        // Core modules are on by definition, so a missing or stale row must
+        // never present them as switched off.
+        enabled: mod.isCore ? true : (enabledByCode.get(mod.code) ?? false),
       }),
     );
   }
@@ -496,21 +554,18 @@ export class OrganisationsService {
       );
     }
 
-    const org = await this.prisma.organisation.findUnique({
-      where: { id: organisationId },
-      select: { plan: true },
-    });
-
-    if (!org) {
-      throw new NotFoundException('Organisation not found');
-    }
-
     const code = moduleCode.trim().toUpperCase();
-    const entitled = getEntitledModuleCodes(org.plan);
+    const { codes: entitled } = await this.resolveEntitlement(organisationId);
 
     if (!entitled.includes(code)) {
       throw new ForbiddenException(
         `Module "${code}" is not included in your organisation's plan`,
+      );
+    }
+
+    if (isCoreModule(code)) {
+      throw new ForbiddenException(
+        `Module "${code}" is part of every plan and cannot be turned off`,
       );
     }
 
@@ -551,16 +606,8 @@ export class OrganisationsService {
    * based on its current plan.
    */
   async getEntitledModules(organisationId: string) {
-    const org = await this.prisma.organisation.findUnique({
-      where: { id: organisationId },
-      select: { plan: true },
-    });
-
-    if (!org) {
-      throw new NotFoundException('Organisation not found');
-    }
-
-    return getEntitledModuleCodes(org.plan);
+    const { codes } = await this.resolveEntitlement(organisationId);
+    return codes;
   }
 
   /**
@@ -568,23 +615,18 @@ export class OrganisationsService {
    * AND enabled for the organisation. Throws if not.
    */
   async assertModuleAccess(organisationId: string, moduleCode: string) {
-    const org = await this.prisma.organisation.findUnique({
-      where: { id: organisationId },
-      select: { id: true, plan: true },
-    });
-
-    if (!org) {
-      throw new NotFoundException('Organisation not found');
-    }
-
     // 1. Is the module in the org's plan?
     const code = moduleCode.trim().toUpperCase();
-    const entitled = getEntitledModuleCodes(org.plan);
+    const { codes: entitled } = await this.resolveEntitlement(organisationId);
     if (!entitled.includes(code)) {
       throw new ForbiddenException(
         `Module "${code}" is not included in your organisation's plan`,
       );
     }
+
+    // Core modules cannot be switched off, so skip the row lookup entirely —
+    // a missing row must not lock an organisation out of its own plan.
+    if (isCoreModule(code)) return;
 
     // 2. Is the module enabled for this org?
     const orgModule = await this.prisma.organisationModule.findFirst({
@@ -608,6 +650,190 @@ export class OrganisationsService {
     });
     if (!org) throw new NotFoundException('Organisation not found');
     return this.toOrgProfileDto(org);
+  }
+
+  /**
+   * Org Admin home dashboard aggregate — team, onboarding, shift approvals,
+   * and modules. Mirrors PlatformService.getOverview()'s shape/approach but
+   * scoped to a single organisation and only the data Org Admin already
+   * has API access to (no Customers/CRM).
+   */
+  async getOrgAdminOverview(organisationId: string, role: string) {
+    this.assertOrgAdmin(role);
+
+    const now = new Date();
+    const teamWindowStart = startOfUtcDay(
+      new Date(now.getTime() - 13 * 24 * 60 * 60 * 1000),
+    );
+    const approvalWindowStart = new Date(
+      now.getTime() - 29 * 24 * 60 * 60 * 1000,
+    );
+
+    const [org, users, pendingOnboarding, pendingShifts, approvalShifts, moduleRows] =
+      await Promise.all([
+        this.prisma.organisation.findUnique({
+          where: { id: organisationId },
+          select: { name: true, plan: true, status: true },
+        }),
+        this.prisma.user.findMany({
+          where: { organisationId },
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            role: true,
+            status: true,
+            onboardingStatus: true,
+            createdAt: true,
+            setupTokenExpiresAt: true,
+          },
+        }),
+        this.prisma.onboardingSubmission.findMany({
+          where: { organisationId, status: 'PENDING_REVIEW' },
+          orderBy: { submittedAt: 'asc' },
+          select: {
+            userId: true,
+            submittedAt: true,
+            user: { select: { firstName: true, lastName: true, role: true } },
+          },
+        }),
+        this.prisma.shift.findMany({
+          where: { organisationId, status: 'PENDING_APPROVAL' },
+          orderBy: { actualEndedAt: 'asc' },
+          select: {
+            id: true,
+            participantName: true,
+            startVarianceMinutes: true,
+            endVarianceMinutes: true,
+            actualEndedAt: true,
+          },
+        }),
+        this.prisma.shift.findMany({
+          where: {
+            organisationId,
+            actualEndedAt: { gte: approvalWindowStart },
+            status: { in: ['APPROVED', 'REJECTED'] },
+          },
+          select: { status: true, reviewedById: true },
+        }),
+        this.prisma.organisationModule.findMany({
+          where: { organisationId },
+          select: { enabled: true },
+        }),
+      ]);
+
+    if (!org) throw new NotFoundException('Organisation not found');
+
+    const teamTotal = users.length;
+    const teamActive = users.filter((u) => u.status === 'ACTIVE').length;
+    const workforceUsers = users.filter((u) => u.role !== 'ORG_ADMIN');
+
+    const joinCounts = new Map<string, number>();
+    for (let i = 0; i < 14; i++) {
+      const day = new Date(teamWindowStart.getTime() + i * 24 * 60 * 60 * 1000);
+      joinCounts.set(dateKey(day), 0);
+    }
+    for (const u of users) {
+      const key = dateKey(u.createdAt);
+      if (joinCounts.has(key)) {
+        joinCounts.set(key, (joinCounts.get(key) ?? 0) + 1);
+      }
+    }
+
+    const staleInvites = users
+      .filter(
+        (u) =>
+          u.status === 'INVITED' &&
+          Boolean(u.setupTokenExpiresAt && u.setupTokenExpiresAt < now),
+      )
+      .map((u) => ({
+        userId: u.id,
+        name: `${u.firstName} ${u.lastName}`,
+        email: u.email,
+        invitedAt: u.createdAt,
+      }));
+
+    // Org Admin has no onboarding template of its own — funnel/role-mix are
+    // workforce-only (MANAGER / ROSTERING_EXPERT / EMPLOYEE).
+    const onboardingFunnel = {
+      NOT_STARTED: 0,
+      IN_PROGRESS: 0,
+      PENDING_REVIEW: 0,
+      VERIFIED: 0,
+      CHANGES_REQUIRED: 0,
+    };
+    for (const u of workforceUsers) {
+      onboardingFunnel[u.onboardingStatus] += 1;
+    }
+
+    const roleMix = { MANAGER: 0, ROSTERING_EXPERT: 0, EMPLOYEE: 0 };
+    for (const u of workforceUsers) {
+      if (
+        u.role === 'MANAGER' ||
+        u.role === 'ROSTERING_EXPERT' ||
+        u.role === 'EMPLOYEE'
+      ) {
+        roleMix[u.role] += 1;
+      }
+    }
+
+    const modulesGranted = moduleRows.length;
+    const modulesEnabled = moduleRows.filter((m) => m.enabled).length;
+
+    let autoApproved = 0;
+    let needsReview = 0;
+    let rejected = 0;
+    for (const s of approvalShifts) {
+      if (s.status === 'REJECTED') rejected += 1;
+      else if (s.reviewedById) needsReview += 1;
+      else autoApproved += 1;
+    }
+
+    const pendingOnboardingReviews = pendingOnboarding.map((s) => ({
+      userId: s.userId,
+      name: `${s.user.firstName} ${s.user.lastName}`,
+      role: s.user.role,
+      submittedAt: s.submittedAt ?? now,
+    }));
+
+    const pendingShiftApprovals = pendingShifts.map((s) => ({
+      shiftId: s.id,
+      participantName: s.participantName,
+      variance: Math.max(
+        Math.abs(s.startVarianceMinutes ?? 0),
+        Math.abs(s.endVarianceMinutes ?? 0),
+      ),
+      endedAt: s.actualEndedAt,
+    }));
+
+    const awaitingAction =
+      pendingOnboardingReviews.length +
+      pendingShiftApprovals.length +
+      staleInvites.length;
+
+    return {
+      organisation: { name: org.name, plan: org.plan, status: org.status },
+      kpis: {
+        teamTotal,
+        teamActive,
+        awaitingAction,
+        modulesEnabled,
+        modulesGranted,
+      },
+      teamJoinsLast14Days: [...joinCounts.entries()].map(([date, count]) => ({
+        date,
+        count,
+      })),
+      attention: {
+        pendingOnboardingReviews,
+        pendingShiftApprovals,
+        staleInvites,
+      },
+      onboardingFunnel,
+      roleMix,
+      approvalLoadLast30Days: { autoApproved, needsReview, rejected },
+    };
   }
 
   async updateOrganisation(

@@ -1,4 +1,11 @@
-import { IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import {
+  IsArray,
+  IsEmail,
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 import { OrgPlan } from 'database';
 
 export class RegisterOrganisationDto {
@@ -19,6 +26,12 @@ export class RegisterOrganisationDto {
 
   @IsEnum(OrgPlan)
   plan: OrgPlan;
+
+  /** Add-on modules for the Custom plan. Core modules are granted regardless. */
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  moduleCodes?: string[];
 
   @IsString()
   @IsNotEmpty()

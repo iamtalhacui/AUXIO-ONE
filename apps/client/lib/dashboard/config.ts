@@ -61,7 +61,7 @@ const superAdminNav: NavGroup[] = [
 const orgAdminNav: NavGroup[] = [
   {
     title: "Overview",
-    items: [{ label: "Dashboard", href: "/org-admin" }],
+    items: [{ label: "Dashboard", href: "/org-admin", module: "DASHBOARD" }],
   },
   {
     title: "Organisation",
@@ -83,7 +83,7 @@ const orgAdminNav: NavGroup[] = [
           {
             label: "Service line tasks",
             href: "/org-admin/settings/service-tasks",
-            module: "SCHEDULE",
+            module: "SERVICE_DELIVERY",
           },
           { label: "Security", href: "/org-admin/settings/password" },
         ],
@@ -91,7 +91,7 @@ const orgAdminNav: NavGroup[] = [
       {
         label: "Shift approvals",
         href: "/org-admin/shift-approvals",
-        module: "SCHEDULE",
+        module: "SERVICE_DELIVERY",
       },
     ],
   },
@@ -100,12 +100,11 @@ const orgAdminNav: NavGroup[] = [
 const managerNav: NavGroup[] = [
   {
     title: "Overview",
-    items: [{ label: "Dashboard", href: "/manager" }],
+    items: [{ label: "Dashboard", href: "/manager", module: "DASHBOARD" }],
   },
   {
     title: "Operations",
     items: [
-      { label: "Workforce", href: "/manager/workforce", module: "WORKFORCE" },
       { label: "Customers", href: "/manager/customers", module: "CUSTOMERS" },
       { label: "CRM", href: "/manager/crm", module: "CRM" },
     ],
@@ -119,7 +118,7 @@ const managerNav: NavGroup[] = [
 const rosterNav: NavGroup[] = [
   {
     title: "Overview",
-    items: [{ label: "Dashboard", href: "/roster" }],
+    items: [{ label: "Dashboard", href: "/roster", module: "DASHBOARD" }],
   },
   {
     title: "Rostering",
@@ -137,7 +136,7 @@ const rosterNav: NavGroup[] = [
 const employeeNav: NavGroup[] = [
   {
     title: "Overview",
-    items: [{ label: "Dashboard", href: "/employee" }],
+    items: [{ label: "Dashboard", href: "/employee", module: "DASHBOARD" }],
   },
   {
     title: "My work",
@@ -147,7 +146,7 @@ const employeeNav: NavGroup[] = [
         children: [
           { label: "Shifts", href: "/employee/shifts", module: "SCHEDULE" },
           { label: "Availability", href: "/employee/availability", module: "SCHEDULE" },
-          { label: "Timesheets", href: "/employee/timesheets", module: "SERVICE_DELIVERY" },
+          { label: "Timesheets", href: "/employee/timesheets", module: "FINANCE" },
         ],
       },
     ],

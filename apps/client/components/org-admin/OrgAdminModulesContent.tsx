@@ -59,7 +59,8 @@ export function OrgAdminModulesContent() {
       <div className="dashboard-card overflow-hidden">
         <div className="border-b border-border px-6 py-4">
           <p className="text-sm text-muted">
-            Only modules in your plan are listed here. Enable the ones your organisation is ready to use.
+            Only modules in your plan are listed here. Enable the ones your
+            organisation is ready to use — core modules stay on for everyone.
           </p>
         </div>
 
@@ -80,18 +81,24 @@ export function OrgAdminModulesContent() {
                 <p className="text-xs text-muted">{mod.description || `Code ${mod.code}`}</p>
               </div>
 
-              <label className="inline-flex items-center gap-3 text-sm">
-                <span className={mod.enabled ? "text-primary" : "text-muted"}>
-                  {mod.enabled ? "Enabled" : "Disabled"}
+              {mod.isCore ? (
+                <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                  Always on
                 </span>
-                <input
-                  type="checkbox"
-                  checked={mod.enabled}
-                  disabled={isSaving && pendingCode === mod.code}
-                  onChange={(event) => handleToggle(mod.code, event.target.checked)}
-                  className="h-4 w-4 rounded border-border text-primary focus:ring-primary/20"
-                />
-              </label>
+              ) : (
+                <label className="inline-flex items-center gap-3 text-sm">
+                  <span className={mod.enabled ? "text-primary" : "text-muted"}>
+                    {mod.enabled ? "Enabled" : "Disabled"}
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={mod.enabled}
+                    disabled={isSaving && pendingCode === mod.code}
+                    onChange={(event) => handleToggle(mod.code, event.target.checked)}
+                    className="h-4 w-4 rounded border-border text-primary focus:ring-primary/20"
+                  />
+                </label>
+              )}
             </li>
           ))}
         </ul>

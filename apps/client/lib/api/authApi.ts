@@ -11,6 +11,7 @@ import type {
   OrgModule,
   OrgSummary,
   OrgTeamMember,
+  OrgAdminOverview,
   RegisterTeamMemberRequest,
   UpdateTeamMemberRequest,
   UpdateOrganisationRequest,
@@ -90,6 +91,7 @@ export const authApi = createApi({
     "ParticipantCare",
     "PendingApprovals",
     "ServiceLineTasks",
+    "OrgOverview",
   ],
   endpoints: (builder) => ({
     setupAccount: builder.mutation<SetupAccountResponse, SetupAccountRequest>({
@@ -126,6 +128,10 @@ export const authApi = createApi({
     getOrganisation: builder.query<OrgSummary, void>({
       query: () => "/organisation",
       providesTags: ["Organisation"],
+    }),
+    getOrgAdminOverview: builder.query<OrgAdminOverview, void>({
+      query: () => "/organisation/overview",
+      providesTags: ["OrgOverview"],
     }),
     updateOrganisation: builder.mutation<OrgSummary, UpdateOrganisationRequest>({
       query: (body) => ({
@@ -164,7 +170,7 @@ export const authApi = createApi({
         method: "PATCH",
         body: { enabled },
       }),
-      invalidatesTags: ["OrgModules"],
+      invalidatesTags: ["OrgModules", "OrgOverview"],
     }),
     listOrgTeam: builder.query<OrgTeamMember[], void>({
       query: () => "/organisation/team",
@@ -176,7 +182,7 @@ export const authApi = createApi({
         method: "POST",
         body,
       }),
-      invalidatesTags: ["OrgTeam"],
+      invalidatesTags: ["OrgTeam", "OrgOverview"],
     }),
     getOrgTeamMember: builder.query<OrgTeamMember, string>({
       query: (id) => `/organisation/team/${id}`,
@@ -191,7 +197,11 @@ export const authApi = createApi({
         method: "PATCH",
         body,
       }),
-      invalidatesTags: (_result, _error, { id }) => ["OrgTeam", { type: "OrgTeam", id }],
+      invalidatesTags: (_result, _error, { id }) => [
+        "OrgTeam",
+        "OrgOverview",
+        { type: "OrgTeam", id },
+      ],
     }),
     changePassword: builder.mutation<
       { message: string },
@@ -226,7 +236,7 @@ export const authApi = createApi({
         url: "/onboarding/me/submit",
         method: "POST",
       }),
-      invalidatesTags: ["OnboardingMe", "OrgTeam"],
+      invalidatesTags: ["OnboardingMe", "OrgTeam", "OrgOverview"],
     }),
     uploadOnboardingDocument: builder.mutation<OnboardingDocumentMeta, { fieldKey: string; file: File }>({
       query: ({ fieldKey, file }) => {
@@ -260,7 +270,7 @@ export const authApi = createApi({
         method: "POST",
         body,
       }),
-      invalidatesTags: ["OnboardingAdmin", "OrgTeam", "OnboardingMe"],
+      invalidatesTags: ["OnboardingAdmin", "OrgTeam", "OnboardingMe", "OrgOverview"],
     }),
 
     // ── Customers (CUSTOMERS module) ──
@@ -559,7 +569,7 @@ export const authApi = createApi({
         method: "POST",
         body: { finishReason },
       }),
-      invalidatesTags: ["MyShifts", "ScheduleShifts", "PendingApprovals"],
+      invalidatesTags: ["MyShifts", "ScheduleShifts", "PendingApprovals", "OrgOverview"],
     }),
 
     // Org Admin — variance approvals + task catalogues
@@ -576,7 +586,12 @@ export const authApi = createApi({
         method: "POST",
         body: { reviewNote },
       }),
-      invalidatesTags: ["PendingApprovals", "MyShifts", "ScheduleShifts"],
+      invalidatesTags: [
+        "PendingApprovals",
+        "MyShifts",
+        "ScheduleShifts",
+        "OrgOverview",
+      ],
     }),
     rejectPendingShift: builder.mutation<
       ScheduleShift,
@@ -587,7 +602,12 @@ export const authApi = createApi({
         method: "POST",
         body: { reviewNote },
       }),
-      invalidatesTags: ["PendingApprovals", "MyShifts", "ScheduleShifts"],
+      invalidatesTags: [
+        "PendingApprovals",
+        "MyShifts",
+        "ScheduleShifts",
+        "OrgOverview",
+      ],
     }),
     listServiceLineTasks: builder.query<ServiceLineTaskCatalogue[], void>({
       query: () => "/organisation/schedule/admin/service-line-tasks",
@@ -614,6 +634,7 @@ export const {
   useOrgLoginMutation,
   useOrgMeQuery,
   useGetOrganisationQuery,
+  useGetOrgAdminOverviewQuery,
   useUpdateOrganisationMutation,
   useUploadOrganisationLogoMutation,
   useDeleteOrganisationLogoMutation,

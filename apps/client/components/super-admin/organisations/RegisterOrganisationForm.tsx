@@ -2,7 +2,10 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useRegisterOrganisationMutation } from "@/lib/api/platformAuthApi";
+import {
+  useListPlatformModulesQuery,
+  useRegisterOrganisationMutation,
+} from "@/lib/api/platformAuthApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
 import type { OrgPlan } from "@/lib/api/types";
 
@@ -15,8 +18,21 @@ const timeZones = [
 ];
 
 const PLANS: { value: OrgPlan; label: string; modules: string }[] = [
-  { value: "BASIC", label: "Basic", modules: "Home, CRM, Customers, Workforce, Schedule" },
-  { value: "ADVANCED", label: "Advanced", modules: "All 9 modules" },
+  {
+    value: "BASIC",
+    label: "Basic",
+    modules: "Workforce, Customers, Schedule, Service Delivery",
+  },
+  {
+    value: "ADVANCED",
+    label: "Advanced",
+    modules: "Basic plus Dashboard, CRM, Finance Handoff, Incidents",
+  },
+  {
+    value: "CUSTOM",
+    label: "Custom",
+    modules: "Basic plus the add-ons you choose below",
+  },
 ];
 
 const inputClass = "input-field";
@@ -30,10 +46,25 @@ export function RegisterOrganisationForm() {
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [plan, setPlan] = useState<OrgPlan>("BASIC");
+  const [addOns, setAddOns] = useState<string[]>([]);
   const [adminFirstName, setAdminFirstName] = useState("");
   const [adminLastName, setAdminLastName] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
   const [success, setSuccess] = useState("");
+
+  // Core vs optional comes from the live catalogue so this form can never
+  // drift from the server's plan definitions.
+  const { data: catalogue = [] } = useListPlatformModulesQuery();
+  const coreModules = catalogue.filter((mod) => mod.isCore);
+  const optionalModules = catalogue.filter((mod) => !mod.isCore);
+
+  function toggleAddOn(code: string) {
+    setAddOns((current) =>
+      current.includes(code)
+        ? current.filter((existing) => existing !== code)
+        : [...current, code],
+    );
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -47,6 +78,7 @@ export function RegisterOrganisationForm() {
         contactEmail,
         contactPhone: contactPhone || undefined,
         plan,
+        moduleCodes: plan === "CUSTOM" ? addOns : undefined,
         adminFirstName,
         adminLastName,
         adminEmail,
@@ -101,7 +133,7 @@ export function RegisterOrganisationForm() {
 
       <section className="dashboard-card p-5">
         <h2 className="text-base font-semibold">Plan</h2>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
           {PLANS.map((option) => (
             <button
               key={option.value}
@@ -118,6 +150,37 @@ export function RegisterOrganisationForm() {
             </button>
           ))}
         </div>
+
+        {plan === "CUSTOM" ? (
+          <div className="mt-5 border-t border-border pt-5">
+            <p className="text-sm font-medium">Add-on modules</p>
+            <p className="mt-1 text-xs text-muted">
+              {coreModules.map((mod) => mod.name).join(", ")} are included in
+              every plan and cannot be removed.
+            </p>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              {optionalModules.map((mod) => (
+                <label
+                  key={mod.code}
+                  className="flex items-start gap-3 rounded-lg border border-border px-4 py-3"
+                >
+                  <input
+                    type="checkbox"
+                    checked={addOns.includes(mod.code)}
+                    onChange={() => toggleAddOn(mod.code)}
+                    className="mt-0.5 h-4 w-4 rounded border-border text-primary focus:ring-primary/20"
+                  />
+                  <span>
+                    <span className="block text-sm font-medium">{mod.name}</span>
+                    <span className="block text-xs text-muted">
+                      {mod.description || mod.code}
+                    </span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </section>
 
       <section className="dashboard-card p-5">

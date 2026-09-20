@@ -9,7 +9,7 @@ export type PlatformLoginResponse = {
   user: PlatformUser;
 };
 
-export type OrgPlan = "BASIC" | "ADVANCED";
+export type OrgPlan = "BASIC" | "ADVANCED" | "CUSTOM";
 export type OrgStatus = "ACTIVE" | "SUSPENDED";
 export type UserStatus = "INVITED" | "ACTIVE" | "SUSPENDED";
 export type OnboardingStatus =
@@ -25,6 +25,8 @@ export type RegisterOrganisationRequest = {
   contactEmail: string;
   contactPhone?: string;
   plan: OrgPlan;
+  /** Add-on modules for the Custom plan. Core modules are granted regardless. */
+  moduleCodes?: string[];
   adminFirstName: string;
   adminLastName: string;
   adminEmail: string;
@@ -160,6 +162,56 @@ export type OrgTeamMember = {
   emailVerifiedAt: string | null;
 };
 
+// GET /organisation/overview — Org Admin home dashboard aggregate.
+export type OrgAdminOverview = {
+  organisation: { name: string; plan: OrgPlan; status: OrgStatus };
+  kpis: {
+    teamTotal: number;
+    teamActive: number;
+    awaitingAction: number;
+    modulesEnabled: number;
+    modulesGranted: number;
+  };
+  teamJoinsLast14Days: Array<{ date: string; count: number }>;
+  attention: {
+    pendingOnboardingReviews: Array<{
+      userId: string;
+      name: string;
+      role: string;
+      submittedAt: string;
+    }>;
+    pendingShiftApprovals: Array<{
+      shiftId: string;
+      participantName: string;
+      variance: number;
+      endedAt: string | null;
+    }>;
+    staleInvites: Array<{
+      userId: string;
+      name: string;
+      email: string;
+      invitedAt: string;
+    }>;
+  };
+  onboardingFunnel: {
+    NOT_STARTED: number;
+    IN_PROGRESS: number;
+    PENDING_REVIEW: number;
+    VERIFIED: number;
+    CHANGES_REQUIRED: number;
+  };
+  roleMix: {
+    MANAGER: number;
+    ROSTERING_EXPERT: number;
+    EMPLOYEE: number;
+  };
+  approvalLoadLast30Days: {
+    autoApproved: number;
+    needsReview: number;
+    rejected: number;
+  };
+};
+
 export type RegisterTeamMemberRequest = {
   firstName: string;
   lastName: string;
@@ -285,6 +337,83 @@ export type PlatformInvite = {
 export type PlatformSettings = {
   maintenanceMode: boolean;
   updatedAt: string;
+};
+
+export type PlatformOverview = {
+  maintenanceMode: boolean;
+  kpis: {
+    organisationsTotal: number;
+    organisationsActive: number;
+    organisationsSuspended: number;
+    awaitingAction: number;
+    planMix: { BASIC: number; ADVANCED: number; CUSTOM: number };
+    dominantPlan: OrgPlan | null;
+    optionalModulesEnabled: number;
+    optionalModulesGranted: number;
+  };
+  attention: {
+    awaitingApproval: Array<{
+      organisationId: string;
+      organisationName: string;
+      adminName: string;
+      adminEmail: string;
+      createdAt: string;
+    }>;
+    pendingDemos: Array<{
+      id: string;
+      organisationName: string;
+      contactName: string;
+      preferredDate: string;
+      createdAt: string;
+    }>;
+    suspendedOrgs: Array<{
+      id: string;
+      name: string;
+      createdAt: string;
+    }>;
+    staleInvites: Array<{
+      id: string;
+      name: string;
+      email: string;
+      role: string;
+      organisationId: string;
+      organisationName: string;
+      invitedAt: string;
+    }>;
+  };
+  registrationsLast30Days: Array<{ date: string; count: number }>;
+  demoPipeline: { PENDING: number; CONTACTED: number; COMPLETED: number };
+  moduleAdoption: Array<{
+    code: string;
+    name: string;
+    entitledOrgs: number;
+    enabledOrgs: number;
+    percent: number;
+  }>;
+  recentOrganisations: Array<{
+    id: string;
+    name: string;
+    email: string;
+    plan: OrgPlan;
+    status: OrgStatus;
+    modulesEnabled: number;
+    modulesGranted: number;
+    createdAt: string;
+    adminApprovalStatus:
+      | "INVITED"
+      | "AWAITING_APPROVAL"
+      | "APPROVED"
+      | "REJECTED"
+      | null;
+  }>;
+  recentAudit: Array<{
+    id: string;
+    action: string;
+    actorEmail: string;
+    organisationName: string | null;
+    details: string;
+    createdAt: string;
+  }>;
 };
 
 export type DemoRequestStatus = "PENDING" | "CONTACTED" | "COMPLETED";

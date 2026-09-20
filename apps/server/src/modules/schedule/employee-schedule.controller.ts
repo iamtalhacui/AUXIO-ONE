@@ -13,8 +13,11 @@ import {
 import { ScheduleService } from './schedule.service';
 
 /**
- * Employee schedule + Phase B execution APIs.
- * Start / tasks / notes / finish require the SCHEDULE module.
+ * Employee schedule + shift execution APIs.
+ *
+ * Rostering endpoints (list, accept/decline, availability, care view) require
+ * SCHEDULE. Execution endpoints (start, tasks, notes, finish) require
+ * SERVICE_DELIVERY and override the class-level module below.
  */
 @Controller('organisation/schedule/my')
 @UseGuards(
@@ -49,11 +52,13 @@ export class EmployeeScheduleController {
 
   /** Phase B — record server start time and enable tasks/notes. */
   @Post('shifts/:id/start')
+  @RequireModule('SERVICE_DELIVERY')
   start(@CurrentOrgUser() user: OrgJwtPayload, @Param('id') id: string) {
     return this.schedule.startMyShift(user.organisationId, user.sub, user.role, id);
   }
 
   @Post('shifts/:id/tasks/:taskId/complete')
+  @RequireModule('SERVICE_DELIVERY')
   completeTask(
     @CurrentOrgUser() user: OrgJwtPayload,
     @Param('id') id: string,
@@ -69,6 +74,7 @@ export class EmployeeScheduleController {
   }
 
   @Put('shifts/:id/progress-note')
+  @RequireModule('SERVICE_DELIVERY')
   saveNote(
     @CurrentOrgUser() user: OrgJwtPayload,
     @Param('id') id: string,
@@ -84,6 +90,7 @@ export class EmployeeScheduleController {
   }
 
   @Post('shifts/:id/finish')
+  @RequireModule('SERVICE_DELIVERY')
   finish(
     @CurrentOrgUser() user: OrgJwtPayload,
     @Param('id') id: string,

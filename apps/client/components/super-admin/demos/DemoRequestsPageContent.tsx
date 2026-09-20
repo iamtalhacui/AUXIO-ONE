@@ -90,6 +90,7 @@ export function DemoRequestsPageContent() {
                 <th>Preferred</th>
                 <th>Status</th>
                 <th>Submitted</th>
+                <th className="text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -98,7 +99,7 @@ export function DemoRequestsPageContent() {
                   <td>
                     <Link
                       href={`/super-admin/demos/${request.id}`}
-                      className="font-medium hover:text-primary"
+                      className="font-medium text-primary underline-offset-2 hover:underline"
                     >
                       {request.organisationName}
                     </Link>
@@ -115,6 +116,18 @@ export function DemoRequestsPageContent() {
                     <DemoStatusBadge status={request.status} />
                   </td>
                   <td className="text-muted">{formatDate(request.createdAt)}</td>
+                  <td className="text-right">
+                    <Link
+                      href={`/super-admin/demos/${request.id}`}
+                      className={
+                        request.status === "PENDING"
+                          ? "btn-primary inline-flex px-3 py-1.5 text-xs"
+                          : "btn-secondary inline-flex px-3 py-1.5 text-xs"
+                      }
+                    >
+                      {request.status === "PENDING" ? "Review" : "Open"}
+                    </Link>
+                  </td>
                 </tr>
               ))}
             </tbody>

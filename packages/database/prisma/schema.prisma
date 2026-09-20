@@ -23,6 +23,7 @@ model SuperAdmin {
 enum OrgPlan {
   BASIC
   ADVANCED
+  CUSTOM
 }
 
 enum OrgStatus {
