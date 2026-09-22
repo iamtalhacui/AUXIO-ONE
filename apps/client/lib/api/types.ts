@@ -212,6 +212,195 @@ export type OrgAdminOverview = {
   };
 };
 
+// GET /organisation/manager/overview — Manager home dashboard aggregate.
+export type ManagerOverview = {
+  organisation: { name: string };
+  modules: { customersEnabled: boolean; crmEnabled: boolean };
+  kpis: {
+    customersTotal: number;
+    customersActive: number;
+    awaitingAction: number;
+    openPipelineCount: number;
+  };
+  customerJoinsLast14Days: Array<{ date: string; count: number }>;
+  attention: {
+    readyToActivate: Array<{
+      customerId: string;
+      displayName: string;
+      serviceLine: string;
+    }>;
+    incompleteOnboarding: Array<{
+      customerId: string;
+      displayName: string;
+      missingDocs: number;
+      serviceLine: string;
+    }>;
+    overdueFollowUps: Array<{
+      opportunityId: string;
+      title: string;
+      stage: string;
+      nextFollowUpAt: string;
+      contactName: string | null;
+    }>;
+    acceptedNotConverted: Array<{
+      opportunityId: string;
+      title: string;
+      contactName: string | null;
+      estimatedAnnualValue: number | null;
+    }>;
+  };
+  customerStatusMix: {
+    ONBOARDING: number;
+    ACTIVE: number;
+    PAUSED: number;
+    ARCHIVED: number;
+  };
+  crmPipeline: {
+    ENQUIRY: number;
+    QUALIFIED: number;
+    PROPOSAL: number;
+    ACCEPTED: number;
+    LOST: number;
+  };
+  pipelineValueByStage: {
+    ENQUIRY: number;
+    QUALIFIED: number;
+    PROPOSAL: number;
+  };
+};
+
+// GET /organisation/roster/overview — Rostering Expert home dashboard.
+export type RosterOverview = {
+  organisation: { name: string };
+  modules: { scheduleEnabled: boolean };
+  today: string;
+  kpis: {
+    shiftsToday: number;
+    coveredToday: number;
+    awaitingAction: number;
+    coverageFilled: number;
+    coverageTotal: number;
+  };
+  shiftsCreatedLast14Days: Array<{ date: string; count: number }>;
+  attention: {
+    drafts: Array<{
+      shiftId: string;
+      date: string;
+      startTime: string;
+      participantName: string;
+      serviceTitle: string;
+      locationLabel: string;
+    }>;
+    unfilled: Array<{
+      shiftId: string;
+      date: string;
+      startTime: string;
+      participantName: string;
+      serviceTitle: string;
+      locationLabel: string;
+    }>;
+    offersPending: Array<{
+      shiftId: string;
+      date: string;
+      startTime: string;
+      participantName: string;
+      serviceTitle: string;
+      locationLabel: string;
+      offeredWorkerName?: string | null;
+    }>;
+    urgentOpen: Array<{
+      shiftId: string;
+      date: string;
+      startTime: string;
+      participantName: string;
+      serviceTitle: string;
+      locationLabel: string;
+      offeredWorkerName?: string | null;
+      startsAt?: string;
+    }>;
+  };
+  coverageFunnelNext7Days: {
+    DRAFT: number;
+    UNFILLED: number;
+    OFFERED: number;
+    ACCEPTED: number;
+    IN_PROGRESS_OR_DONE: number;
+  };
+  todayStatusMix: {
+    DRAFT: number;
+    UNFILLED: number;
+    OFFERED: number;
+    COVERED: number;
+  };
+  weekLoad: Array<{ date: string; filled: number; open: number }>;
+};
+
+// GET /organisation/employee/overview — Employee home dashboard.
+export type EmployeeOverview = {
+  organisation: { name: string };
+  modules: { scheduleEnabled: boolean; serviceDeliveryEnabled: boolean };
+  today: string;
+  kpis: {
+    shiftsToday: number;
+    inProgressToday: number;
+    awaitingMe: number;
+    weekShiftCount: number;
+  };
+  attention: {
+    offers: Array<{
+      shiftId: string;
+      date: string;
+      startTime: string;
+      endTime: string;
+      participantName: string;
+      serviceTitle: string;
+      locationLabel: string;
+      status: string;
+    }>;
+    inProgress: Array<{
+      shiftId: string;
+      date: string;
+      startTime: string;
+      endTime: string;
+      participantName: string;
+      serviceTitle: string;
+      locationLabel: string;
+      status: string;
+    }>;
+    readyToStartToday: Array<{
+      shiftId: string;
+      date: string;
+      startTime: string;
+      endTime: string;
+      participantName: string;
+      serviceTitle: string;
+      locationLabel: string;
+      status: string;
+    }>;
+    nextShift: {
+      shiftId: string;
+      date: string;
+      startTime: string;
+      endTime: string;
+      participantName: string;
+      serviceTitle: string;
+      locationLabel: string;
+      status: string;
+    } | null;
+  };
+  weekLoad: Array<{ date: string; count: number }>;
+  myStatusMix: {
+    OFFERED: number;
+    ACCEPTED: number;
+    IN_PROGRESS: number;
+    DONE: number;
+  };
+  availabilityNext7Days: Array<{
+    date: string;
+    level: "FULL" | "UNAVAILABLE" | null;
+  }>;
+};
+
 export type RegisterTeamMemberRequest = {
   firstName: string;
   lastName: string;

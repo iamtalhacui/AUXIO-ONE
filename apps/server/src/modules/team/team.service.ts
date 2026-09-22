@@ -161,6 +161,18 @@ export class TeamService {
       }
     }
 
+    // INVITED is the pre-setup lifecycle state only. Once someone has set a
+    // password (or left INVITED), they cannot be moved back to INVITED —
+    // use ACTIVE / SUSPENDED for access control instead.
+    if (
+      dto.status === 'INVITED' &&
+      (member.status !== 'INVITED' || Boolean(member.passwordHash))
+    ) {
+      throw new BadRequestException(
+        'Invited is only for members who have not finished account setup. Use Active or Suspended instead.',
+      );
+    }
+
     if (dto.status === 'ACTIVE' && !member.passwordHash) {
       throw new BadRequestException(
         'This member has not set a password yet, so they cannot be marked active',

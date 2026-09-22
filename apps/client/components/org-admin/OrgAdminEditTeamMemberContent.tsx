@@ -14,11 +14,17 @@ type OrgAdminEditTeamMemberContentProps = {
   memberId: string;
 };
 
-const STATUS_OPTIONS: Array<{ value: UserStatus; label: string }> = [
+const ALL_STATUS_OPTIONS: Array<{ value: UserStatus; label: string }> = [
   { value: "INVITED", label: "Invited — waiting to set password" },
   { value: "ACTIVE", label: "Active — can sign in" },
   { value: "SUSPENDED", label: "Suspended — cannot sign in" },
 ];
+
+/** Access toggles once setup is done — INVITED is lifecycle-only, not a revert target. */
+function statusOptionsForMember(current: UserStatus) {
+  if (current === "INVITED") return ALL_STATUS_OPTIONS;
+  return ALL_STATUS_OPTIONS.filter((option) => option.value !== "INVITED");
+}
 
 // Org Admin edit form for a workforce member (not the Org Admin account).
 export function OrgAdminEditTeamMemberContent({ memberId }: OrgAdminEditTeamMemberContentProps) {
@@ -92,6 +98,7 @@ export function OrgAdminEditTeamMemberContent({ memberId }: OrgAdminEditTeamMemb
   }
 
   const errorMessage = saveError ? getErrorMessage(saveError, "Could not save changes") : null;
+  const statusOptions = statusOptionsForMember(member.status);
 
   return (
     <div className="space-y-6">
@@ -156,12 +163,23 @@ export function OrgAdminEditTeamMemberContent({ memberId }: OrgAdminEditTeamMemb
               value={status}
               onChange={(e) => setStatus(e.target.value as UserStatus)}
             >
-              {STATUS_OPTIONS.map((option) => (
+              {statusOptions.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
               ))}
             </select>
+            {member.status !== "INVITED" ? (
+              <p className="mt-2 text-xs text-muted">
+                Invited is only used before the member sets a password. Use Suspended to block
+                access.
+              </p>
+            ) : (
+              <p className="mt-2 text-xs text-muted">
+                This member has not finished account setup yet. They become Active after
+                setting a password.
+              </p>
+            )}
           </label>
         </div>
 

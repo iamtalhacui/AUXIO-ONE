@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { OrganisationsService } from '../organisations/organisations.service';
 import type {
   CreateShiftDto,
   PreviewRecurrenceDto,
@@ -21,6 +22,40 @@ import {
 
 /** ±15 minutes — inside this band finish is auto-approved. */
 export const VARIANCE_MARGIN_MINUTES = 15;
+
+const COVERED_STATUSES = new Set([
+  'ACCEPTED',
+  'IN_PROGRESS',
+  'PENDING_APPROVAL',
+  'APPROVED',
+]);
+
+const OPEN_ACTION_STATUSES = new Set(['DRAFT', 'UNFILLED', 'OFFERED']);
+
+const DONE_BUCKET_STATUSES = new Set([
+  'IN_PROGRESS',
+  'PENDING_APPROVAL',
+  'APPROVED',
+]);
+
+function dateKeyInTimeZone(d: Date, timeZone: string): string {
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(d);
+  } catch {
+    return d.toISOString().slice(0, 10);
+  }
+}
+
+function addDaysIso(isoDate: string, days: number): string {
+  const d = new Date(`${isoDate}T12:00:00.000Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
 
 /** Statuses visible to employees on their work list. */
 const PUBLISHED_STATUSES = [
@@ -100,6 +135,7 @@ export class ScheduleService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly organisations: OrganisationsService,
   ) {}
 
   // ─── Role helpers ───────────────────────────────────────
@@ -1621,5 +1657,513 @@ export class ScheduleService {
     }
 
     return this.toShiftDto(updated);
+  }
+
+  /**
+   * Rostering Expert home dashboard — coverage + open matching work.
+   * Soft-gates when SCHEDULE module is disabled.
+   */
+  async getRosterOverview(organisationId: string, role: string) {
+    this.assertRosteringExpert(role);
+
+    const now = new Date();
+
+    const [org, moduleRows] = await Promise.all([
+      this.prisma.organisation.findUnique({
+        where: { id: organisationId },
+        select: { name: true, timezone: true },
+      }),
+      this.organisations.listOrgModules(organisationId),
+    ]);
+
+    if (!org) throw new NotFoundException('Organisation not found');
+
+    const scheduleEnabled = moduleRows.some(
+      (m) => m.code === 'SCHEDULE' && m.enabled,
+    );
+
+    const emptyFunnel = {
+      DRAFT: 0,
+      UNFILLED: 0,
+      OFFERED: 0,
+      ACCEPTED: 0,
+      IN_PROGRESS_OR_DONE: 0,
+    };
+    const emptyTodayMix = {
+      DRAFT: 0,
+      UNFILLED: 0,
+      OFFERED: 0,
+      COVERED: 0,
+    };
+
+    const timezone = org.timezone || 'UTC';
+    const todayKey = dateKeyInTimeZone(now, timezone);
+    const weekEndKey = addDaysIso(todayKey, 6);
+    const sparkStartKey = addDaysIso(todayKey, -13);
+    const urgentCutoff = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+    const sparkCounts = new Map<string, number>();
+    for (let i = 0; i < 14; i++) {
+      sparkCounts.set(addDaysIso(sparkStartKey, i), 0);
+    }
+
+    const weekLoad: Array<{ date: string; filled: number; open: number }> = [];
+    for (let i = 0; i < 7; i++) {
+      weekLoad.push({ date: addDaysIso(todayKey, i), filled: 0, open: 0 });
+    }
+    const weekLoadByDate = new Map(weekLoad.map((row) => [row.date, row]));
+
+    if (!scheduleEnabled) {
+      return {
+        organisation: { name: org.name },
+        modules: { scheduleEnabled },
+        today: todayKey,
+        kpis: {
+          shiftsToday: 0,
+          coveredToday: 0,
+          awaitingAction: 0,
+          coverageFilled: 0,
+          coverageTotal: 0,
+        },
+        shiftsCreatedLast14Days: [...sparkCounts.entries()].map(
+          ([date, count]) => ({ date, count }),
+        ),
+        attention: {
+          drafts: [],
+          unfilled: [],
+          offersPending: [],
+          urgentOpen: [],
+        },
+        coverageFunnelNext7Days: emptyFunnel,
+        todayStatusMix: emptyTodayMix,
+        weekLoad,
+      };
+    }
+
+    const shifts = await this.prisma.shift.findMany({
+      where: {
+        organisationId,
+        OR: [
+          {
+            date: {
+              gte: this.parseDateOnly(todayKey),
+              lte: this.parseDateOnly(weekEndKey),
+            },
+            status: { notIn: ['CANCELLED'] },
+          },
+          {
+            createdAt: {
+              gte: this.parseDateOnly(sparkStartKey),
+            },
+          },
+        ],
+      },
+      select: {
+        id: true,
+        date: true,
+        startTime: true,
+        participantName: true,
+        serviceTitle: true,
+        locationLabel: true,
+        status: true,
+        createdAt: true,
+        offeredWorker: {
+          select: { firstName: true, lastName: true },
+        },
+      },
+      orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+    });
+
+    const coverageFunnelNext7Days = { ...emptyFunnel };
+    const todayStatusMix = { ...emptyTodayMix };
+    let shiftsToday = 0;
+    let coveredToday = 0;
+    let coverageFilled = 0;
+    let coverageTotal = 0;
+
+    type AttentionItem = {
+      shiftId: string;
+      date: string;
+      startTime: string;
+      participantName: string;
+      serviceTitle: string;
+      locationLabel: string;
+      offeredWorkerName?: string | null;
+      startsAt?: string;
+    };
+
+    const drafts: AttentionItem[] = [];
+    const unfilled: AttentionItem[] = [];
+    const offersPending: AttentionItem[] = [];
+    const urgentOpen: AttentionItem[] = [];
+    const seenUrgent = new Set<string>();
+
+    for (const shift of shifts) {
+      const dateKey = this.formatDateOnly(shift.date);
+      const createdKey = this.formatDateOnly(shift.createdAt);
+      if (sparkCounts.has(createdKey)) {
+        sparkCounts.set(createdKey, (sparkCounts.get(createdKey) ?? 0) + 1);
+      }
+
+      const inWeek =
+        dateKey >= todayKey &&
+        dateKey <= weekEndKey &&
+        shift.status !== 'CANCELLED' &&
+        shift.status !== 'REJECTED';
+
+      if (!inWeek && dateKey !== todayKey) continue;
+
+      if (inWeek) {
+        coverageTotal += 1;
+        if (COVERED_STATUSES.has(shift.status)) coverageFilled += 1;
+
+        if (shift.status === 'DRAFT') coverageFunnelNext7Days.DRAFT += 1;
+        else if (shift.status === 'UNFILLED') coverageFunnelNext7Days.UNFILLED += 1;
+        else if (shift.status === 'OFFERED') coverageFunnelNext7Days.OFFERED += 1;
+        else if (shift.status === 'ACCEPTED') coverageFunnelNext7Days.ACCEPTED += 1;
+        else if (DONE_BUCKET_STATUSES.has(shift.status)) {
+          coverageFunnelNext7Days.IN_PROGRESS_OR_DONE += 1;
+        }
+
+        const load = weekLoadByDate.get(dateKey);
+        if (load) {
+          if (COVERED_STATUSES.has(shift.status)) load.filled += 1;
+          else if (OPEN_ACTION_STATUSES.has(shift.status)) load.open += 1;
+        }
+      }
+
+      if (dateKey === todayKey && shift.status !== 'CANCELLED' && shift.status !== 'REJECTED') {
+        shiftsToday += 1;
+        if (COVERED_STATUSES.has(shift.status)) {
+          coveredToday += 1;
+          todayStatusMix.COVERED += 1;
+        } else if (shift.status === 'DRAFT') todayStatusMix.DRAFT += 1;
+        else if (shift.status === 'UNFILLED') todayStatusMix.UNFILLED += 1;
+        else if (shift.status === 'OFFERED') todayStatusMix.OFFERED += 1;
+      }
+
+      if (inWeek && OPEN_ACTION_STATUSES.has(shift.status)) {
+        const item: AttentionItem = {
+          shiftId: shift.id,
+          date: dateKey,
+          startTime: shift.startTime,
+          participantName: shift.participantName,
+          serviceTitle: shift.serviceTitle,
+          locationLabel: shift.locationLabel,
+          offeredWorkerName: this.workerName(shift.offeredWorker),
+        };
+
+        if (shift.status === 'DRAFT' && drafts.length < 5) drafts.push(item);
+        if (shift.status === 'UNFILLED' && unfilled.length < 5) unfilled.push(item);
+        if (shift.status === 'OFFERED' && offersPending.length < 5) {
+          offersPending.push(item);
+        }
+
+        // Urgent: starts within 24h and still open.
+        const startAt = new Date(`${dateKey}T${shift.startTime}:00`);
+        if (
+          !Number.isNaN(startAt.getTime()) &&
+          startAt >= now &&
+          startAt <= urgentCutoff &&
+          !seenUrgent.has(shift.id) &&
+          urgentOpen.length < 5
+        ) {
+          seenUrgent.add(shift.id);
+          urgentOpen.push({ ...item, startsAt: startAt.toISOString() });
+        }
+      }
+    }
+
+    const awaitingAction =
+      coverageFunnelNext7Days.DRAFT +
+      coverageFunnelNext7Days.UNFILLED +
+      coverageFunnelNext7Days.OFFERED;
+
+    return {
+      organisation: { name: org.name },
+      modules: { scheduleEnabled },
+      today: todayKey,
+      kpis: {
+        shiftsToday,
+        coveredToday,
+        awaitingAction,
+        coverageFilled,
+        coverageTotal,
+      },
+      shiftsCreatedLast14Days: [...sparkCounts.entries()].map(([date, count]) => ({
+        date,
+        count,
+      })),
+      attention: {
+        drafts,
+        unfilled,
+        offersPending,
+        urgentOpen,
+      },
+      coverageFunnelNext7Days,
+      todayStatusMix,
+      weekLoad,
+    };
+  }
+
+  /**
+   * Employee home dashboard — personal offers, shifts, availability.
+   * Soft-gates SCHEDULE / SERVICE_DELIVERY modules.
+   */
+  async getEmployeeOverview(
+    organisationId: string,
+    userId: string,
+    role: string,
+  ) {
+    this.assertEmployee(role);
+
+    const now = new Date();
+
+    const [org, moduleRows] = await Promise.all([
+      this.prisma.organisation.findUnique({
+        where: { id: organisationId },
+        select: { name: true, timezone: true },
+      }),
+      this.organisations.listOrgModules(organisationId),
+    ]);
+
+    if (!org) throw new NotFoundException('Organisation not found');
+
+    const scheduleEnabled = moduleRows.some(
+      (m) => m.code === 'SCHEDULE' && m.enabled,
+    );
+    const serviceDeliveryEnabled = moduleRows.some(
+      (m) => m.code === 'SERVICE_DELIVERY' && m.enabled,
+    );
+
+    const timezone = org.timezone || 'UTC';
+    const todayKey = dateKeyInTimeZone(now, timezone);
+    const weekEndKey = addDaysIso(todayKey, 6);
+
+    const emptyStatusMix = {
+      OFFERED: 0,
+      ACCEPTED: 0,
+      IN_PROGRESS: 0,
+      DONE: 0,
+    };
+
+    const weekLoad: Array<{ date: string; count: number }> = [];
+    for (let i = 0; i < 7; i++) {
+      weekLoad.push({ date: addDaysIso(todayKey, i), count: 0 });
+    }
+    const weekLoadByDate = new Map(weekLoad.map((row) => [row.date, row]));
+
+    const availabilityNext7Days: Array<{
+      date: string;
+      level: 'FULL' | 'UNAVAILABLE' | null;
+    }> = weekLoad.map((row) => ({ date: row.date, level: null }));
+
+    if (!scheduleEnabled) {
+      return {
+        organisation: { name: org.name },
+        modules: { scheduleEnabled, serviceDeliveryEnabled },
+        today: todayKey,
+        kpis: {
+          shiftsToday: 0,
+          inProgressToday: 0,
+          awaitingMe: 0,
+          weekShiftCount: 0,
+        },
+        attention: {
+          offers: [],
+          inProgress: [],
+          readyToStartToday: [],
+          nextShift: null,
+        },
+        weekLoad,
+        myStatusMix: emptyStatusMix,
+        availabilityNext7Days,
+      };
+    }
+
+    const [shifts, weeklyAvail, exceptions] = await Promise.all([
+      this.prisma.shift.findMany({
+        where: {
+          organisationId,
+          OR: [
+            { offeredWorkerId: userId, status: 'OFFERED' },
+            { assignedWorkerId: userId },
+          ],
+        },
+        select: {
+          id: true,
+          date: true,
+          startTime: true,
+          endTime: true,
+          participantName: true,
+          serviceTitle: true,
+          locationLabel: true,
+          status: true,
+          offeredWorkerId: true,
+          assignedWorkerId: true,
+        },
+        orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+      }),
+      this.prisma.workerAvailability.findMany({
+        where: { userId, organisationId },
+        select: { dayOfWeek: true, enabled: true },
+      }),
+      this.prisma.availabilityException.findMany({
+        where: { userId, organisationId },
+        select: { fromDate: true, toDate: true },
+      }),
+    ]);
+
+    const visible = shifts.filter((s) =>
+      PUBLISHED_STATUSES.includes(s.status as (typeof PUBLISHED_STATUSES)[number]),
+    );
+
+    type ShiftAttention = {
+      shiftId: string;
+      date: string;
+      startTime: string;
+      endTime: string;
+      participantName: string;
+      serviceTitle: string;
+      locationLabel: string;
+      status: string;
+    };
+
+    const offers: ShiftAttention[] = [];
+    const inProgress: ShiftAttention[] = [];
+    const readyToStartToday: ShiftAttention[] = [];
+    const myStatusMix = { ...emptyStatusMix };
+    let shiftsToday = 0;
+    let inProgressToday = 0;
+    let weekShiftCount = 0;
+    let nextShift: ShiftAttention | null = null;
+
+    const toItem = (s: (typeof visible)[number]): ShiftAttention => ({
+      shiftId: s.id,
+      date: this.formatDateOnly(s.date),
+      startTime: s.startTime,
+      endTime: s.endTime,
+      participantName: s.participantName,
+      serviceTitle: s.serviceTitle,
+      locationLabel: s.locationLabel,
+      status: s.status,
+    });
+
+    for (const shift of visible) {
+      const dateKey = this.formatDateOnly(shift.date);
+      const inWeek = dateKey >= todayKey && dateKey <= weekEndKey;
+      const isMineAssigned = shift.assignedWorkerId === userId;
+      const isOffer =
+        shift.status === 'OFFERED' && shift.offeredWorkerId === userId;
+
+      if (isOffer) {
+        myStatusMix.OFFERED += 1;
+        if (offers.length < 8) offers.push(toItem(shift));
+      }
+
+      if (isMineAssigned) {
+        if (shift.status === 'ACCEPTED') myStatusMix.ACCEPTED += 1;
+        else if (shift.status === 'IN_PROGRESS') myStatusMix.IN_PROGRESS += 1;
+        else if (
+          shift.status === 'APPROVED' ||
+          shift.status === 'PENDING_APPROVAL'
+        ) {
+          myStatusMix.DONE += 1;
+        }
+
+        if (inWeek && COVERED_STATUSES.has(shift.status)) {
+          weekShiftCount += 1;
+          const load = weekLoadByDate.get(dateKey);
+          if (load) load.count += 1;
+        }
+
+        if (
+          dateKey === todayKey &&
+          COVERED_STATUSES.has(shift.status)
+        ) {
+          shiftsToday += 1;
+          if (shift.status === 'IN_PROGRESS') inProgressToday += 1;
+        }
+
+        if (shift.status === 'IN_PROGRESS' && inProgress.length < 5) {
+          inProgress.push(toItem(shift));
+        }
+
+        if (
+          serviceDeliveryEnabled &&
+          shift.status === 'ACCEPTED' &&
+          dateKey === todayKey &&
+          readyToStartToday.length < 5
+        ) {
+          readyToStartToday.push(toItem(shift));
+        }
+
+        // Next upcoming assigned shift (not yet approved/done terminal for "next work")
+        if (
+          !nextShift &&
+          dateKey >= todayKey &&
+          (shift.status === 'ACCEPTED' ||
+            shift.status === 'IN_PROGRESS' ||
+            shift.status === 'PENDING_APPROVAL')
+        ) {
+          nextShift = toItem(shift);
+        }
+      }
+    }
+
+    // Prefer in-progress as nextShift when present.
+    if (inProgress[0]) nextShift = inProgress[0];
+
+    const awaitingMe =
+      myStatusMix.OFFERED +
+      (serviceDeliveryEnabled ? readyToStartToday.length : 0) +
+      inProgress.length;
+
+    // Availability snapshot for next 7 days.
+    const weeklyByDay = new Map(
+      weeklyAvail.map((w) => [w.dayOfWeek, w.enabled]),
+    );
+    const hasAnyWeekly = weeklyAvail.length > 0;
+
+    for (const row of availabilityNext7Days) {
+      const d = new Date(`${row.date}T12:00:00.000Z`);
+      const jsDay = d.getUTCDay();
+      const dayOfWeek = jsDay === 0 ? 7 : jsDay;
+      const dateVal = this.parseDateOnly(row.date);
+
+      const onException = exceptions.some(
+        (e) => e.fromDate <= dateVal && e.toDate >= dateVal,
+      );
+      if (onException) {
+        row.level = 'UNAVAILABLE';
+        continue;
+      }
+      if (!hasAnyWeekly) {
+        row.level = null;
+        continue;
+      }
+      row.level = weeklyByDay.get(dayOfWeek) ? 'FULL' : 'UNAVAILABLE';
+    }
+
+    return {
+      organisation: { name: org.name },
+      modules: { scheduleEnabled, serviceDeliveryEnabled },
+      today: todayKey,
+      kpis: {
+        shiftsToday,
+        inProgressToday,
+        awaitingMe,
+        weekShiftCount,
+      },
+      attention: {
+        offers,
+        inProgress,
+        readyToStartToday,
+        nextShift,
+      },
+      weekLoad,
+      myStatusMix,
+      availabilityNext7Days,
+    };
   }
 }

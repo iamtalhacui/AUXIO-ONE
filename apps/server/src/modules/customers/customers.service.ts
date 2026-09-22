@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { LocalFileStorageService } from '../../common/storage/local-file-storage.service';
+import { OrganisationsService } from '../organisations/organisations.service';
 import {
   isMandatoryFieldKey,
   mandatoryLabel,
@@ -22,11 +23,20 @@ type UploadedFile = {
   buffer?: Buffer;
 };
 
+function dateKey(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+function startOfUtcDay(d: Date): Date {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+}
+
 @Injectable()
 export class CustomersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: LocalFileStorageService,
+    private readonly organisations: OrganisationsService,
   ) {}
 
   // ── Role gate: Manager only for CRM / customers in v1 ──
@@ -638,6 +648,222 @@ export class CustomersService {
       opportunityId: opportunity.id,
       customer,
       message: 'Opportunity converted to customer onboarding',
+    };
+  }
+
+  /**
+   * Manager home dashboard aggregate — customers + CRM only.
+   * Soft-gates sections by whether CUSTOMERS / CRM modules are enabled.
+   */
+  async getManagerOverview(organisationId: string, role: string) {
+    this.assertManager(role);
+
+    const now = new Date();
+    const joinWindowStart = startOfUtcDay(
+      new Date(now.getTime() - 13 * 24 * 60 * 60 * 1000),
+    );
+
+    const [org, moduleRows] = await Promise.all([
+      this.prisma.organisation.findUnique({
+        where: { id: organisationId },
+        select: { name: true },
+      }),
+      this.organisations.listOrgModules(organisationId),
+    ]);
+
+    if (!org) throw new NotFoundException('Organisation not found');
+
+    const customersEnabled = moduleRows.some(
+      (m) => m.code === 'CUSTOMERS' && m.enabled,
+    );
+    const crmEnabled = moduleRows.some((m) => m.code === 'CRM' && m.enabled);
+
+    const emptyStatusMix = {
+      ONBOARDING: 0,
+      ACTIVE: 0,
+      PAUSED: 0,
+      ARCHIVED: 0,
+    };
+    const emptyPipeline = {
+      ENQUIRY: 0,
+      QUALIFIED: 0,
+      PROPOSAL: 0,
+      ACCEPTED: 0,
+      LOST: 0,
+    };
+    const emptyPipelineValue = { ENQUIRY: 0, QUALIFIED: 0, PROPOSAL: 0 };
+
+    const joinCounts = new Map<string, number>();
+    for (let i = 0; i < 14; i++) {
+      const day = new Date(joinWindowStart.getTime() + i * 24 * 60 * 60 * 1000);
+      joinCounts.set(dateKey(day), 0);
+    }
+
+    let customersTotal = 0;
+    let customersActive = 0;
+    const readyToActivate: Array<{
+      customerId: string;
+      displayName: string;
+      serviceLine: string;
+    }> = [];
+    const incompleteOnboarding: Array<{
+      customerId: string;
+      displayName: string;
+      missingDocs: number;
+      serviceLine: string;
+    }> = [];
+    const customerStatusMix = { ...emptyStatusMix };
+
+    if (customersEnabled) {
+      const customers = await this.prisma.customer.findMany({
+        where: { organisationId },
+        select: {
+          id: true,
+          firstName: true,
+          middleName: true,
+          preferredName: true,
+          surname: true,
+          serviceLine: true,
+          status: true,
+          createdAt: true,
+          documents: {
+            where: { kind: 'MANDATORY' },
+            select: { fieldKey: true },
+          },
+        },
+      });
+
+      customersTotal = customers.length;
+      for (const c of customers) {
+        customerStatusMix[c.status] += 1;
+        if (c.status === 'ACTIVE') customersActive += 1;
+
+        const key = dateKey(c.createdAt);
+        if (joinCounts.has(key)) {
+          joinCounts.set(key, (joinCounts.get(key) ?? 0) + 1);
+        }
+
+        if (c.status === 'ONBOARDING') {
+          const uploaded = new Set(c.documents.map((d) => d.fieldKey));
+          const missing = MANDATORY_CUSTOMER_DOCS.filter(
+            (slot) => !uploaded.has(slot.fieldKey),
+          ).length;
+          const name = this.displayName(c);
+          if (missing === 0) {
+            readyToActivate.push({
+              customerId: c.id,
+              displayName: name,
+              serviceLine: c.serviceLine,
+            });
+          } else {
+            incompleteOnboarding.push({
+              customerId: c.id,
+              displayName: name,
+              missingDocs: missing,
+              serviceLine: c.serviceLine,
+            });
+          }
+        }
+      }
+    }
+
+    const overdueFollowUps: Array<{
+      opportunityId: string;
+      title: string;
+      stage: string;
+      nextFollowUpAt: Date;
+      contactName: string | null;
+    }> = [];
+    const acceptedNotConverted: Array<{
+      opportunityId: string;
+      title: string;
+      contactName: string | null;
+      estimatedAnnualValue: number | null;
+    }> = [];
+    const crmPipeline = { ...emptyPipeline };
+    const pipelineValueByStage = { ...emptyPipelineValue };
+    let openPipelineCount = 0;
+
+    if (crmEnabled) {
+      const opportunities = await this.prisma.crmOpportunity.findMany({
+        where: { organisationId },
+        select: {
+          id: true,
+          title: true,
+          stage: true,
+          contactName: true,
+          estimatedAnnualValue: true,
+          nextFollowUpAt: true,
+          convertedCustomer: { select: { id: true } },
+        },
+      });
+
+      for (const o of opportunities) {
+        crmPipeline[o.stage] += 1;
+
+        if (
+          o.stage === 'ENQUIRY' ||
+          o.stage === 'QUALIFIED' ||
+          o.stage === 'PROPOSAL'
+        ) {
+          openPipelineCount += 1;
+          pipelineValueByStage[o.stage] += o.estimatedAnnualValue ?? 0;
+        }
+
+        if (
+          o.nextFollowUpAt &&
+          o.nextFollowUpAt < now &&
+          o.stage !== 'ACCEPTED' &&
+          o.stage !== 'LOST'
+        ) {
+          overdueFollowUps.push({
+            opportunityId: o.id,
+            title: o.title,
+            stage: o.stage,
+            nextFollowUpAt: o.nextFollowUpAt,
+            contactName: o.contactName,
+          });
+        }
+
+        if (o.stage === 'ACCEPTED' && !o.convertedCustomer) {
+          acceptedNotConverted.push({
+            opportunityId: o.id,
+            title: o.title,
+            contactName: o.contactName,
+            estimatedAnnualValue: o.estimatedAnnualValue,
+          });
+        }
+      }
+    }
+
+    const awaitingAction =
+      readyToActivate.length +
+      incompleteOnboarding.length +
+      overdueFollowUps.length +
+      acceptedNotConverted.length;
+
+    return {
+      organisation: { name: org.name },
+      modules: { customersEnabled, crmEnabled },
+      kpis: {
+        customersTotal,
+        customersActive,
+        awaitingAction,
+        openPipelineCount,
+      },
+      customerJoinsLast14Days: [...joinCounts.entries()].map(([date, count]) => ({
+        date,
+        count,
+      })),
+      attention: {
+        readyToActivate,
+        incompleteOnboarding,
+        overdueFollowUps,
+        acceptedNotConverted,
+      },
+      customerStatusMix,
+      crmPipeline,
+      pipelineValueByStage,
     };
   }
 }

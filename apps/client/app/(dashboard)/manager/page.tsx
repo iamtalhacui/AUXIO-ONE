@@ -1,7 +1,7 @@
 "use client";
 
 import { LockedOnboardingHome } from "@/components/onboarding/LockedOnboardingHome";
-import { RoleHomeContent } from "@/components/dashboard/RoleHomeContent";
+import { ManagerOverviewDashboard } from "@/components/manager/dashboard/ManagerOverviewDashboard";
 import { needsOnboardingLock } from "@/lib/onboarding/access";
 import { useAppSelector } from "@/lib/store/hooks";
 
@@ -15,5 +15,5 @@ export default function ManagerPage() {
     );
   }
 
-  return <RoleHomeContent roleLabel="Manager" />;
+  return <ManagerOverviewDashboard />;
 }

@@ -12,6 +12,9 @@ import type {
   OrgSummary,
   OrgTeamMember,
   OrgAdminOverview,
+  ManagerOverview,
+  RosterOverview,
+  EmployeeOverview,
   RegisterTeamMemberRequest,
   UpdateTeamMemberRequest,
   UpdateOrganisationRequest,
@@ -98,6 +101,9 @@ export const authApi = createApi({
     "PendingApprovals",
     "ServiceLineTasks",
     "OrgOverview",
+    "ManagerOverview",
+    "RosterOverview",
+    "EmployeeOverview",
     "Notifications",
   ],
   endpoints: (builder) => ({
@@ -139,6 +145,18 @@ export const authApi = createApi({
     getOrgAdminOverview: builder.query<OrgAdminOverview, void>({
       query: () => "/organisation/overview",
       providesTags: ["OrgOverview"],
+    }),
+    getManagerOverview: builder.query<ManagerOverview, void>({
+      query: () => "/organisation/manager/overview",
+      providesTags: ["ManagerOverview"],
+    }),
+    getRosterOverview: builder.query<RosterOverview, void>({
+      query: () => "/organisation/roster/overview",
+      providesTags: ["RosterOverview"],
+    }),
+    getEmployeeOverview: builder.query<EmployeeOverview, void>({
+      query: () => "/organisation/employee/overview",
+      providesTags: ["EmployeeOverview"],
     }),
     updateOrganisation: builder.mutation<OrgSummary, UpdateOrganisationRequest>({
       query: (body) => ({
@@ -295,7 +313,7 @@ export const authApi = createApi({
         method: "POST",
         body,
       }),
-      invalidatesTags: ["Customers"],
+      invalidatesTags: ["Customers", "ManagerOverview"],
     }),
     updateCustomer: builder.mutation<Customer, { id: string } & Partial<CreateCustomerRequest>>({
       query: ({ id, ...body }) => ({
@@ -303,14 +321,22 @@ export const authApi = createApi({
         method: "PATCH",
         body,
       }),
-      invalidatesTags: (_r, _e, { id }) => ["Customers", { type: "Customers", id }],
+      invalidatesTags: (_r, _e, { id }) => [
+        "Customers",
+        "ManagerOverview",
+        { type: "Customers", id },
+      ],
     }),
     activateCustomer: builder.mutation<Customer, string>({
       query: (id) => ({
         url: `/organisation/customers/${id}/activate`,
         method: "POST",
       }),
-      invalidatesTags: (_r, _e, id) => ["Customers", { type: "Customers", id }],
+      invalidatesTags: (_r, _e, id) => [
+        "Customers",
+        "ManagerOverview",
+        { type: "Customers", id },
+      ],
     }),
     uploadCustomerMandatoryDoc: builder.mutation<
       CustomerDocumentMeta,
@@ -327,6 +353,7 @@ export const authApi = createApi({
       },
       invalidatesTags: (_r, _e, { customerId }) => [
         "Customers",
+        "ManagerOverview",
         { type: "Customers", id: customerId },
       ],
     }),
@@ -346,6 +373,7 @@ export const authApi = createApi({
       },
       invalidatesTags: (_r, _e, { customerId }) => [
         "Customers",
+        "ManagerOverview",
         { type: "Customers", id: customerId },
       ],
     }),
@@ -359,6 +387,7 @@ export const authApi = createApi({
       }),
       invalidatesTags: (_r, _e, { customerId }) => [
         "Customers",
+        "ManagerOverview",
         { type: "Customers", id: customerId },
       ],
     }),
@@ -378,7 +407,7 @@ export const authApi = createApi({
         method: "POST",
         body,
       }),
-      invalidatesTags: ["CrmOpportunities"],
+      invalidatesTags: ["CrmOpportunities", "ManagerOverview"],
     }),
     updateCrmOpportunity: builder.mutation<
       CrmOpportunity,
@@ -389,7 +418,7 @@ export const authApi = createApi({
         method: "PATCH",
         body,
       }),
-      invalidatesTags: ["CrmOpportunities"],
+      invalidatesTags: ["CrmOpportunities", "ManagerOverview"],
     }),
     convertCrmOpportunity: builder.mutation<
       { opportunityId: string; customer: Customer; message: string },
@@ -399,7 +428,7 @@ export const authApi = createApi({
         url: `/organisation/crm/opportunities/${id}/convert`,
         method: "POST",
       }),
-      invalidatesTags: ["CrmOpportunities", "Customers"],
+      invalidatesTags: ["CrmOpportunities", "Customers", "ManagerOverview"],
     }),
 
     // ── Schedule / rostering (SCHEDULE module — Phase A) ──
@@ -445,7 +474,7 @@ export const authApi = createApi({
         method: "POST",
         body,
       }),
-      invalidatesTags: ["ScheduleShifts"],
+      invalidatesTags: ["ScheduleShifts", "RosterOverview"],
     }),
     updateScheduleShift: builder.mutation<
       { updatedCount: number; shift: ScheduleShift },
@@ -456,21 +485,26 @@ export const authApi = createApi({
         method: "PATCH",
         body,
       }),
-      invalidatesTags: ["ScheduleShifts", "MyShifts"],
+      invalidatesTags: ["ScheduleShifts", "MyShifts", "RosterOverview"],
     }),
     cancelScheduleShift: builder.mutation<ScheduleShift, string>({
       query: (id) => ({
         url: `/organisation/schedule/shifts/${id}/cancel`,
         method: "POST",
       }),
-      invalidatesTags: ["ScheduleShifts", "MyShifts", "MatchCandidates"],
+      invalidatesTags: [
+        "ScheduleShifts",
+        "MyShifts",
+        "MatchCandidates",
+        "RosterOverview",
+      ],
     }),
     publishUnfilledShift: builder.mutation<ScheduleShift, string>({
       query: (id) => ({
         url: `/organisation/schedule/shifts/${id}/publish`,
         method: "POST",
       }),
-      invalidatesTags: ["ScheduleShifts", "MatchCandidates"],
+      invalidatesTags: ["ScheduleShifts", "MatchCandidates", "RosterOverview"],
     }),
     publishOfferShift: builder.mutation<
       ScheduleShift,
@@ -481,14 +515,24 @@ export const authApi = createApi({
         method: "POST",
         body: { workerId },
       }),
-      invalidatesTags: ["ScheduleShifts", "MyShifts", "MatchCandidates"],
+      invalidatesTags: [
+        "ScheduleShifts",
+        "MyShifts",
+        "MatchCandidates",
+        "RosterOverview",
+      ],
     }),
     withdrawShiftOffer: builder.mutation<ScheduleShift, string>({
       query: (id) => ({
         url: `/organisation/schedule/shifts/${id}/withdraw-offer`,
         method: "POST",
       }),
-      invalidatesTags: ["ScheduleShifts", "MyShifts", "MatchCandidates"],
+      invalidatesTags: [
+        "ScheduleShifts",
+        "MyShifts",
+        "MatchCandidates",
+        "RosterOverview",
+      ],
     }),
     listMatchCandidates: builder.query<MatchCandidate[], string>({
       query: (id) => `/organisation/schedule/shifts/${id}/candidates`,
@@ -509,14 +553,26 @@ export const authApi = createApi({
         url: `/organisation/schedule/my/shifts/${id}/accept`,
         method: "POST",
       }),
-      invalidatesTags: ["MyShifts", "ScheduleShifts", "MatchCandidates"],
+      invalidatesTags: [
+        "MyShifts",
+        "ScheduleShifts",
+        "MatchCandidates",
+        "RosterOverview",
+        "EmployeeOverview",
+      ],
     }),
     declineShiftOffer: builder.mutation<ScheduleShift, string>({
       query: (id) => ({
         url: `/organisation/schedule/my/shifts/${id}/decline`,
         method: "POST",
       }),
-      invalidatesTags: ["MyShifts", "ScheduleShifts", "MatchCandidates"],
+      invalidatesTags: [
+        "MyShifts",
+        "ScheduleShifts",
+        "MatchCandidates",
+        "RosterOverview",
+        "EmployeeOverview",
+      ],
     }),
     getParticipantCareView: builder.query<ParticipantCareView, string>({
       query: (customerId) => `/organisation/schedule/my/participants/${customerId}`,
@@ -535,7 +591,12 @@ export const authApi = createApi({
         method: "PUT",
         body,
       }),
-      invalidatesTags: ["MyAvailability", "MatchCandidates", "ScheduleWorkers"],
+      invalidatesTags: [
+        "MyAvailability",
+        "MatchCandidates",
+        "ScheduleWorkers",
+        "EmployeeOverview",
+      ],
     }),
 
     // Phase B — employee execution
@@ -544,7 +605,12 @@ export const authApi = createApi({
         url: `/organisation/schedule/my/shifts/${id}/start`,
         method: "POST",
       }),
-      invalidatesTags: ["MyShifts", "ScheduleShifts"],
+      invalidatesTags: [
+        "MyShifts",
+        "ScheduleShifts",
+        "EmployeeOverview",
+        "RosterOverview",
+      ],
     }),
     completeMyShiftTask: builder.mutation<
       ScheduleShift,
@@ -576,7 +642,14 @@ export const authApi = createApi({
         method: "POST",
         body: { finishReason },
       }),
-      invalidatesTags: ["MyShifts", "ScheduleShifts", "PendingApprovals", "OrgOverview"],
+      invalidatesTags: [
+        "MyShifts",
+        "ScheduleShifts",
+        "PendingApprovals",
+        "OrgOverview",
+        "EmployeeOverview",
+        "RosterOverview",
+      ],
     }),
 
     // Org Admin — variance approvals + task catalogues
@@ -662,6 +735,9 @@ export const {
   useOrgMeQuery,
   useGetOrganisationQuery,
   useGetOrgAdminOverviewQuery,
+  useGetManagerOverviewQuery,
+  useGetRosterOverviewQuery,
+  useGetEmployeeOverviewQuery,
   useUpdateOrganisationMutation,
   useUploadOrganisationLogoMutation,
   useDeleteOrganisationLogoMutation,

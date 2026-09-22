@@ -1,7 +1,7 @@
 "use client";
 
 import { LockedOnboardingHome } from "@/components/onboarding/LockedOnboardingHome";
-import { RosterHomeContent } from "@/components/rostering/RosterHomeContent";
+import { RosterOverviewDashboard } from "@/components/rostering/dashboard/RosterOverviewDashboard";
 import { needsOnboardingLock } from "@/lib/onboarding/access";
 import { useAppSelector } from "@/lib/store/hooks";
 
@@ -18,5 +18,5 @@ export default function RosterPage() {
     );
   }
 
-  return <RosterHomeContent />;
+  return <RosterOverviewDashboard />;
 }

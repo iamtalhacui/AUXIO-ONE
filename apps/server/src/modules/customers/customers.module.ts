@@ -6,10 +6,11 @@ import { PlatformModule } from '../platform/platform.module';
 import { CrmController } from './crm.controller';
 import { CustomersController } from './customers.controller';
 import { CustomersService } from './customers.service';
+import { ManagerOverviewController } from './manager-overview.controller';
 
 @Module({
   imports: [AuthModule, OrganisationsModule, PlatformModule],
-  controllers: [CustomersController, CrmController],
+  controllers: [CustomersController, CrmController, ManagerOverviewController],
   providers: [CustomersService, LocalFileStorageService],
   exports: [CustomersService],
 })
