@@ -1,6 +1,7 @@
 import './load-env';
 import { Module } from '@nestjs/common';
 import { PrismaModule } from './common/prisma/prisma.module';
+import { PermissionsModule } from './modules/permissions/permissions.module';
 import { PlatformAuthModule } from './modules/platform-auth/platform-auth.module';
 import { PlatformModule } from './modules/platform/platform.module';
 import { OrganisationsModule } from './modules/organisations/organisations.module';
@@ -16,6 +17,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 @Module({
   imports: [
     PrismaModule,
+    PermissionsModule,
     MailModule,
     NotificationsModule,
     PlatformAuthModule,
