@@ -961,3 +961,30 @@ export type NotificationFeed = {
   unreadCount: number;
 };
 
+export type PermissionType = "PAGE" | "ACTION";
+
+export type RolePermissionItem = {
+  code: string;
+  type: PermissionType;
+  name: string;
+  description: string;
+  roles: Record<WorkforceRole, boolean>;
+};
+
+export type RolePermissionGroup = {
+  groupCode: string;
+  groupLabel: string;
+  permissions: RolePermissionItem[];
+};
+
+export type RolePermissionsMatrix = {
+  roles: WorkforceRole[];
+  groups: RolePermissionGroup[];
+};
+
+export type RolePermissionChange = {
+  role: WorkforceRole;
+  permissionCode: string;
+  enabled: boolean;
+};
+
