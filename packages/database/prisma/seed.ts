@@ -26,6 +26,53 @@ const MODULES = [
 /** Module codes retired from the catalogue — removed on every seed run. */
 const RETIRED_MODULE_CODES = ["HOME", "INSIGHTS"] as const;
 
+// ─── Role permission catalogue ───────────────────────────
+// Mirrors apps/client/lib/dashboard/content/org-admin-roles.ts.
+// PAGE = can the role open this section. ACTION = what it may change there.
+const PERMISSIONS = [
+  // Organisation & configuration
+  { code: "view_org_settings", type: "PAGE", groupCode: "organisation", groupLabel: "Organisation & configuration", name: "View organisation settings", description: "Read organisation name, contact details, and branding." },
+  { code: "edit_org_settings", type: "ACTION", groupCode: "organisation", groupLabel: "Organisation & configuration", name: "Edit organisation settings", description: "Update profile, branding, and organisation-level preferences." },
+  { code: "view_module_config", type: "PAGE", groupCode: "organisation", groupLabel: "Organisation & configuration", name: "View module configuration", description: "See which modules are enabled within the org ceiling." },
+  { code: "edit_module_config", type: "ACTION", groupCode: "organisation", groupLabel: "Organisation & configuration", name: "Edit module configuration", description: "Enable or disable modules for the organisation." },
+  // Team management
+  { code: "view_team", type: "PAGE", groupCode: "team", groupLabel: "Team management", name: "View team members", description: "See the list of users and their roles in the organisation." },
+  { code: "invite_team_members", type: "ACTION", groupCode: "team", groupLabel: "Team management", name: "Invite team members", description: "Send invitations and assign roles to new users." },
+  { code: "deactivate_team_members", type: "ACTION", groupCode: "team", groupLabel: "Team management", name: "Deactivate team members", description: "Suspend or remove access for existing users." },
+  // Participants
+  { code: "view_assigned_participants", type: "PAGE", groupCode: "participants", groupLabel: "Participants", name: "View assigned participants", description: "See participants linked to the user's own shifts." },
+  { code: "view_all_participants", type: "PAGE", groupCode: "participants", groupLabel: "Participants", name: "View all participant records", description: "Browse every participant in the organisation." },
+  { code: "edit_participant_records", type: "ACTION", groupCode: "participants", groupLabel: "Participants", name: "Edit participant records", description: "Update care plans, contacts, and participant details." },
+  { code: "create_participants", type: "ACTION", groupCode: "participants", groupLabel: "Participants", name: "Create participants", description: "Onboard new participants into the organisation." },
+  // Workforce & compliance
+  { code: "view_workforce_compliance", type: "PAGE", groupCode: "workforce", groupLabel: "Workforce & compliance", name: "View workforce compliance", description: "See certifications, expiries, and policy status." },
+  { code: "edit_workforce_records", type: "ACTION", groupCode: "workforce", groupLabel: "Workforce & compliance", name: "Edit workforce records", description: "Update worker profiles and compliance documentation." },
+  { code: "onboard_workers", type: "ACTION", groupCode: "workforce", groupLabel: "Workforce & compliance", name: "Onboard new workers", description: "Start onboarding workflows for support workers." },
+  // Rostering & shifts
+  { code: "view_schedules", type: "PAGE", groupCode: "rostering", groupLabel: "Rostering & shifts", name: "View schedules", description: "See published and draft rosters." },
+  { code: "create_edit_schedules", type: "ACTION", groupCode: "rostering", groupLabel: "Rostering & shifts", name: "Create & edit schedules", description: "Build rosters and adjust shift timings." },
+  { code: "assign_shifts", type: "ACTION", groupCode: "rostering", groupLabel: "Rostering & shifts", name: "Assign shifts", description: "Match workers to shifts and publish assignments." },
+  { code: "approve_shift_changes", type: "ACTION", groupCode: "rostering", groupLabel: "Rostering & shifts", name: "Approve shift changes", description: "Review and approve swap or cancellation requests." },
+  // Time & attendance
+  { code: "view_own_timesheets", type: "PAGE", groupCode: "time", groupLabel: "Time & attendance", name: "View own timesheets", description: "See hours logged for the signed-in user." },
+  { code: "view_all_timesheets", type: "PAGE", groupCode: "time", groupLabel: "Time & attendance", name: "View all timesheets", description: "Browse timesheets across the whole workforce." },
+  { code: "approve_timesheets", type: "ACTION", groupCode: "time", groupLabel: "Time & attendance", name: "Approve timesheets", description: "Sign off hours before finance handoff." },
+  // Care documentation
+  { code: "view_progress_notes", type: "PAGE", groupCode: "care", groupLabel: "Care documentation", name: "View progress notes", description: "Read notes recorded for participants." },
+  { code: "create_progress_notes", type: "ACTION", groupCode: "care", groupLabel: "Care documentation", name: "Create progress notes", description: "Write shift notes and voice-to-text entries." },
+  { code: "view_incidents", type: "PAGE", groupCode: "care", groupLabel: "Care documentation", name: "View incident reports", description: "Access logged incidents and follow-up status." },
+  { code: "report_incidents", type: "ACTION", groupCode: "care", groupLabel: "Care documentation", name: "Report incidents", description: "Submit new incident reports from the field." },
+  // Documents & forms
+  { code: "view_documents", type: "PAGE", groupCode: "documents", groupLabel: "Documents & forms", name: "View documents", description: "Open organisation and participant document libraries." },
+  { code: "manage_documents", type: "ACTION", groupCode: "documents", groupLabel: "Documents & forms", name: "Manage documents", description: "Upload, version, and archive documents and forms." },
+  // Reporting & exports
+  { code: "view_reports", type: "PAGE", groupCode: "reporting", groupLabel: "Reporting & exports", name: "View reports & analytics", description: "Open dashboards and operational reports." },
+  { code: "export_data", type: "ACTION", groupCode: "reporting", groupLabel: "Reporting & exports", name: "Export data", description: "Download CSV or PDF extracts for external use." },
+  // Finance handoff
+  { code: "view_finance_handoff", type: "PAGE", groupCode: "finance", groupLabel: "Finance handoff", name: "View finance handoff", description: "See approved hours and billing line items." },
+  { code: "submit_finance_data", type: "ACTION", groupCode: "finance", groupLabel: "Finance handoff", name: "Submit finance data", description: "Push approved records to finance workflows." },
+] as const;
+
 async function main() {
   // ── Seed Super Admin ──
   const email = process.env.SUPER_ADMIN_EMAIL?.trim().toLowerCase();
@@ -137,6 +184,30 @@ async function main() {
     create: { id: "default", maintenanceMode: false },
   });
   console.log("Seeded platform settings.");
+
+  // ── Seed role permission catalogue ──
+  // Catalogue only. Never create RolePermission rows here.
+  for (const perm of PERMISSIONS) {
+    await prisma.permission.upsert({
+      where: { code: perm.code },
+      update: {
+        type: perm.type,
+        groupCode: perm.groupCode,
+        groupLabel: perm.groupLabel,
+        name: perm.name,
+        description: perm.description,
+      },
+      create: {
+        code: perm.code,
+        type: perm.type,
+        groupCode: perm.groupCode,
+        groupLabel: perm.groupLabel,
+        name: perm.name,
+        description: perm.description,
+      },
+    });
+  }
+  console.log(`Seeded ${PERMISSIONS.length} permissions.`);
 }
 
 main()

@@ -60,6 +60,7 @@ model Organisation {
   workerAvailabilities  WorkerAvailability[]
   availabilityExceptions AvailabilityException[]
   serviceLineTaskTemplates ServiceLineTaskTemplate[]
+  rolePermissions          RolePermission[]
 }
 
 // ─── User (organisation-scoped) ──────────────────────────
@@ -124,6 +125,7 @@ model User {
   weeklyAvailability     WorkerAvailability[]
   availabilityExceptions AvailabilityException[]
   notifications          Notification[]
+    permissionUpdates      RolePermission[]       @relation("PermissionUpdates")
 
   @@index([organisationId])
 }
@@ -562,4 +564,47 @@ model Notification {
 
   @@index([userId, isRead, createdAt])
   @@index([superAdminId, isRead, createdAt])
+}
+
+// ─── Role permissions ────────────────────────────────────
+// Catalogue of configurable permissions (seeded, not user-editable) plus
+// per-organisation toggles. ORG_ADMIN is never configurable and never has
+// RolePermission rows. No row for a role+permission means unrestricted.
+
+enum PermissionType {
+  PAGE
+  ACTION
+}
+
+model Permission {
+  id          String         @id @default(uuid())
+  code        String         @unique
+  type        PermissionType
+  groupCode   String
+  groupLabel  String
+  name        String
+  description String         @default("")
+  createdAt   DateTime       @default(now())
+
+  rolePermissions RolePermission[]
+
+  @@index([groupCode])
+}
+
+model RolePermission {
+  id             String   @id @default(uuid())
+  organisationId String
+  role           UserRole
+  permissionId   String
+  enabled        Boolean
+  updatedById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  permission   Permission   @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  updatedBy    User?        @relation("PermissionUpdates", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@unique([organisationId, role, permissionId])
+  @@index([organisationId, role])
 }

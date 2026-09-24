@@ -15,6 +15,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Response } from 'express';
 import { ModuleAccessGuard, RequireModule } from '../../common/guards/module-access.guard';
+import { PermissionGuard, RequirePermission } from '../../common/guards/permission.guard';
 import { PlatformApprovedGuard } from '../../common/guards/platform-approved.guard';
 import { CurrentOrgUser } from '../auth/current-org-user.decorator';
 import type { OrgJwtPayload } from '../auth/current-org-user.decorator';
@@ -31,26 +32,30 @@ type MulterUpload = {
 
 // Customer master data + document onboarding (CUSTOMERS module, Manager only).
 @Controller('organisation/customers')
-@UseGuards(OrgJwtGuard, PlatformApprovedGuard, ModuleAccessGuard)
+@UseGuards(OrgJwtGuard, PlatformApprovedGuard, ModuleAccessGuard, PermissionGuard)
 @RequireModule('CUSTOMERS')
 export class CustomersController {
   constructor(private readonly customers: CustomersService) {}
 
+  @RequirePermission('view_all_participants')
   @Get()
   list(@CurrentOrgUser() user: OrgJwtPayload) {
     return this.customers.listCustomers(user.organisationId, user.role);
   }
 
+  @RequirePermission('create_participants')
   @Post()
   create(@CurrentOrgUser() user: OrgJwtPayload, @Body() dto: CreateCustomerDto) {
     return this.customers.createCustomer(user.organisationId, user.sub, user.role, dto);
   }
 
+  @RequirePermission('view_all_participants')
   @Get(':id')
   getById(@CurrentOrgUser() user: OrgJwtPayload, @Param('id') id: string) {
     return this.customers.getCustomer(user.organisationId, user.role, id);
   }
 
+  @RequirePermission('edit_participant_records')
   @Patch(':id')
   update(
     @CurrentOrgUser() user: OrgJwtPayload,
@@ -60,11 +65,13 @@ export class CustomersController {
     return this.customers.updateCustomer(user.organisationId, user.role, id, dto);
   }
 
+  @RequirePermission('edit_participant_records')
   @Post(':id/activate')
   activate(@CurrentOrgUser() user: OrgJwtPayload, @Param('id') id: string) {
     return this.customers.activateCustomer(user.organisationId, user.role, id);
   }
 
+  @RequirePermission('edit_participant_records')
   @Post(':id/documents/mandatory/:fieldKey')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 8 * 1024 * 1024 } }))
   uploadMandatory(
@@ -83,6 +90,7 @@ export class CustomersController {
     );
   }
 
+  @RequirePermission('edit_participant_records')
   @Post(':id/documents/optional')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 8 * 1024 * 1024 } }))
   uploadOptional(
@@ -101,6 +109,7 @@ export class CustomersController {
     );
   }
 
+  @RequirePermission('view_all_participants')
   @Get(':id/documents/:documentId')
   async download(
     @CurrentOrgUser() user: OrgJwtPayload,
@@ -122,6 +131,7 @@ export class CustomersController {
     return result.file;
   }
 
+  @RequirePermission('edit_participant_records')
   @Delete(':id/documents/:documentId')
   deleteDoc(
     @CurrentOrgUser() user: OrgJwtPayload,

@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { VerifiedOnboardingGuard } from '../../common/guards/verified-onboarding.guard';
 import { ModuleAccessGuard, RequireModule } from '../../common/guards/module-access.guard';
+import { PermissionGuard, RequirePermission } from '../../common/guards/permission.guard';
 import { PlatformApprovedGuard } from '../../common/guards/platform-approved.guard';
 import { CurrentOrgUser } from '../auth/current-org-user.decorator';
 import type { OrgJwtPayload } from '../auth/current-org-user.decorator';
@@ -11,16 +12,18 @@ import { TeamService } from './team.service';
 
 // Team APIs are organisation-scoped and require the WORKFORCE module to be on.
 @Controller('organisation/team')
-@UseGuards(OrgJwtGuard, PlatformApprovedGuard, VerifiedOnboardingGuard, ModuleAccessGuard)
+@UseGuards(OrgJwtGuard, PlatformApprovedGuard, VerifiedOnboardingGuard, ModuleAccessGuard, PermissionGuard)
 @RequireModule('WORKFORCE')
 export class TeamController {
   constructor(private readonly teamService: TeamService) {}
 
+  @RequirePermission('view_team')
   @Get()
   list(@CurrentOrgUser() user: OrgJwtPayload) {
     return this.teamService.list(user.organisationId);
   }
 
+  @RequirePermission('view_team')
   @Get(':id')
   getById(@CurrentOrgUser() user: OrgJwtPayload, @Param('id') id: string) {
     return this.teamService.getById(user.organisationId, id);
