@@ -1,4 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 
 /** Roles an organisation admin can configure. ORG_ADMIN is never configurable. */
@@ -72,6 +77,179 @@ export class PermissionsService {
     for (const role of CONFIGURABLE_ROLES) {
       this.disabledCache.delete(this.cacheKey(organisationId, role));
     }
+  }
+
+  async getMatrix(organisationId: string) {
+    const [permissions, disabledRows] = await Promise.all([
+      this.prisma.permission.findMany({
+        orderBy: [{ createdAt: 'asc' }, { code: 'asc' }],
+      }),
+      this.prisma.rolePermission.findMany({
+        where: { organisationId, enabled: false },
+        select: { role: true, permission: { select: { code: true } } },
+      }),
+    ]);
+
+    const disabledSet = new Set(
+      disabledRows.map((row) => `${row.role}:${row.permission.code}`),
+    );
+    const groups = new Map<
+      string,
+      {
+        groupCode: string;
+        groupLabel: string;
+        permissions: Array<{
+          code: string;
+          type: (typeof permissions)[number]['type'];
+          name: string;
+          description: string;
+          roles: Record<ConfigurableRole, boolean>;
+        }>;
+      }
+    >();
+
+    for (const permission of permissions) {
+      let group = groups.get(permission.groupCode);
+      if (!group) {
+        group = {
+          groupCode: permission.groupCode,
+          groupLabel: permission.groupLabel,
+          permissions: [],
+        };
+        groups.set(permission.groupCode, group);
+      }
+
+      const roles = {} as Record<ConfigurableRole, boolean>;
+      for (const role of CONFIGURABLE_ROLES) {
+        roles[role] = !disabledSet.has(`${role}:${permission.code}`);
+      }
+
+      group.permissions.push({
+        code: permission.code,
+        type: permission.type,
+        name: permission.name,
+        description: permission.description,
+        roles,
+      });
+    }
+
+    return { roles: [...CONFIGURABLE_ROLES], groups: [...groups.values()] };
+  }
+
+  async updateRolePermissions(
+    organisationId: string,
+    actor: { userId: string; role: string },
+    changes: {
+      role: ConfigurableRole;
+      permissionCode: string;
+      enabled: boolean;
+    }[],
+  ) {
+    if (actor.role !== 'ORG_ADMIN') {
+      throw new ForbiddenException(
+        'Only organisation admins can change role permissions',
+      );
+    }
+
+    const seen = new Set<string>();
+    for (const change of changes) {
+      const key = `${change.role}:${change.permissionCode}`;
+      if (seen.has(key)) {
+        throw new BadRequestException(
+          `Duplicate change for ${change.role} / ${change.permissionCode}`,
+        );
+      }
+      seen.add(key);
+
+      if (!this.isConfigurableRole(change.role)) {
+        throw new BadRequestException(`Role ${change.role} cannot be configured`);
+      }
+    }
+
+    const uniqueCodes = [...new Set(changes.map((change) => change.permissionCode))];
+    const permissions = await this.prisma.permission.findMany({
+      where: { code: { in: uniqueCodes } },
+      select: { id: true, code: true },
+    });
+    const permissionIdByCode = new Map(
+      permissions.map((permission) => [permission.code, permission.id]),
+    );
+    const missing = uniqueCodes.filter((code) => !permissionIdByCode.has(code));
+    if (missing.length > 0) {
+      throw new BadRequestException(
+        `Unknown permission code(s): ${missing.join(', ')}`,
+      );
+    }
+
+    const existingRows = await this.prisma.rolePermission.findMany({
+      where: {
+        organisationId,
+        permissionId: { in: permissions.map((permission) => permission.id) },
+      },
+      select: { role: true, permissionId: true, enabled: true },
+    });
+    const currentValues = new Map(
+      existingRows.map((row) => [`${row.role}:${row.permissionId}`, row.enabled]),
+    );
+    const remaining = changes.filter((change) => {
+      const permissionId = permissionIdByCode.get(change.permissionCode)!;
+      return change.enabled !== (currentValues.get(`${change.role}:${permissionId}`) ?? true);
+    });
+
+    if (remaining.length === 0) return this.getMatrix(organisationId);
+
+    const actorUser = await this.prisma.user.findFirst({
+      where: { id: actor.userId, organisationId },
+      select: { email: true },
+    });
+    if (!actorUser) {
+      throw new ForbiddenException('Organisation context is required');
+    }
+
+    const organisation = await this.prisma.organisation.findUnique({
+      where: { id: organisationId },
+      select: { name: true },
+    });
+
+    await this.prisma.$transaction(async (tx) => {
+      for (const change of remaining) {
+        const permissionId = permissionIdByCode.get(change.permissionCode)!;
+        await tx.rolePermission.upsert({
+          where: {
+            organisationId_role_permissionId: {
+              organisationId,
+              role: change.role,
+              permissionId,
+            },
+          },
+          update: { enabled: change.enabled, updatedById: actor.userId },
+          create: {
+            organisationId,
+            role: change.role,
+            permissionId,
+            enabled: change.enabled,
+            updatedById: actor.userId,
+          },
+        });
+      }
+
+      await tx.auditLog.create({
+        data: {
+          action: 'ROLE_PERMISSIONS_UPDATED',
+          actorEmail: actorUser.email,
+          organisationName: organisation?.name ?? null,
+          details: remaining
+            .map(
+              (change) =>
+                `${change.role} ${change.permissionCode}: ${change.enabled ? 'enabled' : 'disabled'}`,
+            )
+            .join('; '),
+        },
+      });
+    });
+
+    this.invalidate(organisationId);
+    return this.getMatrix(organisationId);
   }
 
   private cacheKey(organisationId: string, role: string): string {
