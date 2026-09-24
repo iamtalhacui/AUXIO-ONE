@@ -5,6 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { isDefaultEnabled } from './role-defaults';
 
 /** Roles an organisation admin can configure. ORG_ADMIN is never configurable. */
 export const CONFIGURABLE_ROLES = ['MANAGER', 'ROSTERING_EXPERT', 'EMPLOYEE'] as const;
@@ -12,17 +13,15 @@ export type ConfigurableRole = (typeof CONFIGURABLE_ROLES)[number];
 
 const CACHE_TTL_MS = 30_000;
 
-type DisabledCacheEntry = { disabled: Set<string>; expiresAt: number };
+type OverrideCacheEntry = { overrides: Map<string, boolean>; expiresAt: number };
 
 /**
  * Resolves what a role is allowed to do inside one organisation.
  *
  * Rules:
  *  - ORG_ADMIN is always allowed. It is never configurable.
- *  - For configurable roles, a permission is allowed unless a RolePermission
- *    row exists for (organisation, role, permission) with enabled = false.
- *    No row means allowed — organisations with no configuration behave
- *    exactly as before this feature existed.
+ *  - For configurable roles, a RolePermission row overrides the fixed role
+ *    template. No row means the template default applies.
  *  - Unknown roles and unknown permission codes are denied.
  *  - Permissions only restrict. They never grant access that a service's
  *    own role checks refuse.
@@ -30,7 +29,7 @@ type DisabledCacheEntry = { disabled: Set<string>; expiresAt: number };
 @Injectable()
 export class PermissionsService {
   private readonly logger = new Logger(PermissionsService.name);
-  private readonly disabledCache = new Map<string, DisabledCacheEntry>();
+  private readonly overridesCache = new Map<string, OverrideCacheEntry>();
   private catalogueCache: { codes: Set<string>; expiresAt: number } | null = null;
 
   constructor(private readonly prisma: PrismaService) {}
@@ -55,8 +54,11 @@ export class PermissionsService {
       return false;
     }
 
-    const disabled = await this.getDisabledCodes(organisationId, role);
-    return !disabled.has(permissionCode);
+    const overrides = await this.getOverrides(organisationId, role);
+    const override = overrides.get(permissionCode);
+    return override !== undefined
+      ? override
+      : isDefaultEnabled(role as ConfigurableRole, permissionCode);
   }
 
   /** Every permission code the role currently holds in this organisation. */
@@ -68,30 +70,35 @@ export class PermissionsService {
     if (role === 'ORG_ADMIN') return [...catalogue];
     if (!this.isConfigurableRole(role)) return [];
 
-    const disabled = await this.getDisabledCodes(organisationId, role);
-    return [...catalogue].filter((code) => !disabled.has(code));
+    const overrides = await this.getOverrides(organisationId, role);
+    return [...catalogue].filter((code) => {
+      const override = overrides.get(code);
+      return override !== undefined
+        ? override
+        : isDefaultEnabled(role, code);
+    });
   }
 
   /** Call after any change to an organisation's role permissions. */
   invalidate(organisationId: string): void {
     for (const role of CONFIGURABLE_ROLES) {
-      this.disabledCache.delete(this.cacheKey(organisationId, role));
+      this.overridesCache.delete(this.cacheKey(organisationId, role));
     }
   }
 
   async getMatrix(organisationId: string) {
-    const [permissions, disabledRows] = await Promise.all([
+    const [permissions, overrideRows] = await Promise.all([
       this.prisma.permission.findMany({
         orderBy: [{ createdAt: 'asc' }, { code: 'asc' }],
       }),
       this.prisma.rolePermission.findMany({
-        where: { organisationId, enabled: false },
-        select: { role: true, permission: { select: { code: true } } },
+        where: { organisationId },
+        select: { role: true, enabled: true, permission: { select: { code: true } } },
       }),
     ]);
 
-    const disabledSet = new Set(
-      disabledRows.map((row) => `${row.role}:${row.permission.code}`),
+    const overrideMap = new Map(
+      overrideRows.map((row) => [`${row.role}:${row.permission.code}`, row.enabled]),
     );
     const groups = new Map<
       string,
@@ -121,7 +128,10 @@ export class PermissionsService {
 
       const roles = {} as Record<ConfigurableRole, boolean>;
       for (const role of CONFIGURABLE_ROLES) {
-        roles[role] = !disabledSet.has(`${role}:${permission.code}`);
+        const key = `${role}:${permission.code}`;
+        roles[role] = overrideMap.has(key)
+          ? overrideMap.get(key)!
+          : isDefaultEnabled(role, permission.code);
       }
 
       group.permissions.push({
@@ -193,7 +203,10 @@ export class PermissionsService {
     );
     const remaining = changes.filter((change) => {
       const permissionId = permissionIdByCode.get(change.permissionCode)!;
-      return change.enabled !== (currentValues.get(`${change.role}:${permissionId}`) ?? true);
+      return change.enabled !== (
+        currentValues.get(`${change.role}:${permissionId}`)
+        ?? isDefaultEnabled(change.role, change.permissionCode)
+      );
     });
 
     if (remaining.length === 0) return this.getMatrix(organisationId);
@@ -255,26 +268,26 @@ export class PermissionsService {
   private cacheKey(organisationId: string, role: string): string {
     return `${organisationId}:${role}`;
   }
-
-  private async getDisabledCodes(
+  
+  private async getOverrides(
     organisationId: string,
     role: ConfigurableRole,
-  ): Promise<Set<string>> {
+  ): Promise<Map<string, boolean>> {
     const key = this.cacheKey(organisationId, role);
-    const cached = this.disabledCache.get(key);
-    if (cached && cached.expiresAt > Date.now()) return cached.disabled;
+    const cached = this.overridesCache.get(key);
+    if (cached && cached.expiresAt > Date.now()) return cached.overrides;
 
     const rows = await this.prisma.rolePermission.findMany({
-      where: { organisationId, role, enabled: false },
-      select: { permission: { select: { code: true } } },
+      where: { organisationId, role },
+      select: { enabled: true, permission: { select: { code: true } } },
     });
 
-    const disabled = new Set(rows.map((row) => row.permission.code));
-    this.disabledCache.set(key, {
-      disabled,
+    const overrides = new Map(rows.map((row) => [row.permission.code, row.enabled]));
+    this.overridesCache.set(key, {
+      overrides,
       expiresAt: Date.now() + CACHE_TTL_MS,
     });
-    return disabled;
+    return overrides;
   }
 
   private async getCatalogueCodes(): Promise<Set<string>> {
