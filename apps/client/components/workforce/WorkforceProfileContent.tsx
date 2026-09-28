@@ -1,113 +1,166 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
-import { mockOrganisations, mockUser } from "@/lib/mocks/data";
+import { useAppSelector } from "@/lib/store/hooks";
 import { AU_STATES } from "@/lib/onboarding/constants";
-import { inputClass, labelClass } from "@/lib/onboarding/form-styles";
+import { useToast } from "@/components/toast/ToastProvider";
 
 const GENDER_OPTIONS = ["Female", "Male", "Non-binary", "Prefer not to say", "Other"];
 
+function roleLabel(role: string | undefined) {
+  switch (role) {
+    case "EMPLOYEE":
+      return "Employee";
+    case "ORG_ADMIN":
+      return "Org Admin";
+    case "MANAGER":
+      return "Manager";
+    case "ROSTERING_EXPERT":
+      return "Rostering Expert";
+    default:
+      return role ?? "—";
+  }
+}
+
 export function WorkforceProfileContent() {
+  const { toast } = useToast();
+  const user = useAppSelector((s) => s.orgAuth.user);
+  const organisation = useAppSelector((s) => s.orgAuth.organisation);
+
+  const fullName = useMemo(() => {
+    if (!user) return "";
+    return `${user.firstName} ${user.lastName}`.trim();
+  }, [user]);
+
   const [form, setForm] = useState({
-    name: mockUser.name,
     phone: "",
     addressLine1: "",
     addressLine2: "",
     suburb: "",
     state: "",
     postcode: "",
-    preferredName: mockUser.name.split(" ")[0] ?? "",
+    preferredName: "",
     dateOfBirth: "",
     gender: "",
     languages: "",
     bio: "",
   });
+  const [dirty, setDirty] = useState(false);
+  const [hydratedName, setHydratedName] = useState(false);
+
+  useEffect(() => {
+    if (!user || hydratedName) return;
+    setForm((prev) => ({ ...prev, preferredName: user.firstName }));
+    setHydratedName(true);
+  }, [user, hydratedName]);
+
+  function patch<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+    setDirty(true);
+  }
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    setDirty(false);
+    toast({
+      variant: "success",
+      title: "Profile saved locally",
+      description:
+        "Contact details are kept on this device until profile sync is connected.",
+    });
   }
 
+  const initials = `${user?.firstName?.[0] ?? ""}${user?.lastName?.[0] ?? ""}`.toUpperCase() || "?";
+
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-3xl space-y-5">
       <PageHeader
         title="Your profile"
-        description="View and update your contact details and personal information."
+        description="Your account details and the contact information your organisation uses."
       />
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <section className="dashboard-card p-6">
-          <h2 className="text-lg font-semibold">Account</h2>
-          <div className="mt-5 grid gap-5 md:grid-cols-2">
-            <label className="block">
-              <span className={labelClass}>Full name</span>
-              <input
-                className={inputClass}
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                required
-              />
-            </label>
-            <label className="block">
-              <span className={labelClass}>Email</span>
-              <input className={`${inputClass} bg-surface-muted text-muted`} value={mockUser.email} readOnly />
-            </label>
-            <div className="block">
-              <span className={labelClass}>Role</span>
-              <p className="rounded-xl border border-border bg-surface-muted px-4 py-3 text-sm">
-                {mockUser.role}
-              </p>
-            </div>
-            <div className="block">
-              <span className={labelClass}>Organisation</span>
-              <p className="rounded-xl border border-border bg-surface-muted px-4 py-3 text-sm">
-                {mockOrganisations[0].tradingName ?? mockOrganisations[0].legalName}
-              </p>
+      <section className="dashboard-card overflow-hidden">
+        <div className="flex flex-col gap-4 border-b border-border/50 bg-surface-subtle/50 px-5 py-5 sm:flex-row sm:items-center">
+          <div
+            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary/15 text-lg font-bold text-primary"
+            aria-hidden
+          >
+            {initials}
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-lg font-bold tracking-tight text-foreground">
+              {fullName || "Your name"}
+            </p>
+            <p className="mt-0.5 truncate text-sm text-muted">{user?.email}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <span className="status-pill bg-primary/10 text-primary">
+                {roleLabel(user?.role)}
+              </span>
+              {organisation?.tradingName || organisation?.name ? (
+                <span className="status-pill bg-surface-muted text-muted">
+                  {organisation.tradingName ?? organisation.name}
+                </span>
+              ) : null}
             </div>
           </div>
-        </section>
+        </div>
 
-        <section className="dashboard-card p-6">
-          <h2 className="text-lg font-semibold">Contact</h2>
-          <div className="mt-5 grid gap-5 md:grid-cols-2">
-            <label className="block md:col-span-2">
-              <span className={labelClass}>Phone</span>
+        <dl className="grid gap-px bg-border/40 sm:grid-cols-2">
+          <InfoRow label="Email" value={user?.email ?? "—"} />
+          <InfoRow label="Role" value={roleLabel(user?.role)} />
+          <InfoRow
+            label="Organisation"
+            value={organisation?.tradingName ?? organisation?.name ?? "—"}
+          />
+          <InfoRow
+            label="Onboarding"
+            value={user?.onboardingStatus?.replaceAll("_", " ") ?? "—"}
+          />
+        </dl>
+      </section>
+
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <section className="dashboard-card px-5 py-5">
+          <h2 className="text-base font-semibold text-foreground">Contact</h2>
+          <p className="mt-0.5 text-sm text-muted">
+            How your team reaches you about shifts and care.
+          </p>
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <Field label="Phone" className="md:col-span-2">
               <input
-                className={inputClass}
+                className="input-field"
                 value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                onChange={(e) => patch("phone", e.target.value)}
+                placeholder="Mobile number"
               />
-            </label>
-            <label className="block md:col-span-2">
-              <span className={labelClass}>Street address</span>
+            </Field>
+            <Field label="Street address" className="md:col-span-2">
               <input
-                className={inputClass}
+                className="input-field"
                 value={form.addressLine1}
-                onChange={(e) => setForm({ ...form, addressLine1: e.target.value })}
+                onChange={(e) => patch("addressLine1", e.target.value)}
               />
-            </label>
-            <label className="block md:col-span-2">
-              <span className={labelClass}>Address line 2</span>
+            </Field>
+            <Field label="Address line 2" className="md:col-span-2">
               <input
-                className={inputClass}
+                className="input-field"
                 value={form.addressLine2}
-                onChange={(e) => setForm({ ...form, addressLine2: e.target.value })}
+                onChange={(e) => patch("addressLine2", e.target.value)}
               />
-            </label>
-            <label className="block">
-              <span className={labelClass}>Suburb</span>
+            </Field>
+            <Field label="Suburb">
               <input
-                className={inputClass}
+                className="input-field"
                 value={form.suburb}
-                onChange={(e) => setForm({ ...form, suburb: e.target.value })}
+                onChange={(e) => patch("suburb", e.target.value)}
               />
-            </label>
-            <label className="block">
-              <span className={labelClass}>State</span>
+            </Field>
+            <Field label="State">
               <select
-                className={inputClass}
+                className="input-field"
                 value={form.state}
-                onChange={(e) => setForm({ ...form, state: e.target.value })}
+                onChange={(e) => patch("state", e.target.value)}
               >
                 <option value="">Select state</option>
                 {AU_STATES.map((state) => (
@@ -116,44 +169,43 @@ export function WorkforceProfileContent() {
                   </option>
                 ))}
               </select>
-            </label>
-            <label className="block">
-              <span className={labelClass}>Postcode</span>
+            </Field>
+            <Field label="Postcode">
               <input
-                className={inputClass}
+                className="input-field"
                 value={form.postcode}
-                onChange={(e) => setForm({ ...form, postcode: e.target.value })}
+                onChange={(e) => patch("postcode", e.target.value)}
               />
-            </label>
+            </Field>
           </div>
         </section>
 
-        <section className="dashboard-card p-6">
-          <h2 className="text-lg font-semibold">Personal</h2>
-          <div className="mt-5 grid gap-5 md:grid-cols-2">
-            <label className="block">
-              <span className={labelClass}>Preferred name</span>
+        <section className="dashboard-card px-5 py-5">
+          <h2 className="text-base font-semibold text-foreground">Personal</h2>
+          <p className="mt-0.5 text-sm text-muted">
+            Optional details that help your organisation support you.
+          </p>
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <Field label="Preferred name">
               <input
-                className={inputClass}
+                className="input-field"
                 value={form.preferredName}
-                onChange={(e) => setForm({ ...form, preferredName: e.target.value })}
+                onChange={(e) => patch("preferredName", e.target.value)}
               />
-            </label>
-            <label className="block">
-              <span className={labelClass}>Date of birth</span>
+            </Field>
+            <Field label="Date of birth">
               <input
                 type="date"
-                className={inputClass}
+                className="input-field"
                 value={form.dateOfBirth}
-                onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })}
+                onChange={(e) => patch("dateOfBirth", e.target.value)}
               />
-            </label>
-            <label className="block">
-              <span className={labelClass}>Gender</span>
+            </Field>
+            <Field label="Gender">
               <select
-                className={inputClass}
+                className="input-field"
                 value={form.gender}
-                onChange={(e) => setForm({ ...form, gender: e.target.value })}
+                onChange={(e) => patch("gender", e.target.value)}
               >
                 <option value="">Select gender</option>
                 {GENDER_OPTIONS.map((option) => (
@@ -162,36 +214,62 @@ export function WorkforceProfileContent() {
                   </option>
                 ))}
               </select>
-            </label>
-            <label className="block">
-              <span className={labelClass}>Languages</span>
+            </Field>
+            <Field label="Languages">
               <input
-                className={inputClass}
+                className="input-field"
                 value={form.languages}
-                onChange={(e) => setForm({ ...form, languages: e.target.value })}
+                onChange={(e) => patch("languages", e.target.value)}
+                placeholder="e.g. English, Arabic"
               />
-            </label>
-            <label className="block md:col-span-2">
-              <span className={labelClass}>Bio</span>
+            </Field>
+            <Field label="Bio" className="md:col-span-2">
               <textarea
-                className={`${inputClass} resize-none`}
-                rows={4}
+                className="input-field min-h-[100px] resize-none"
                 value={form.bio}
-                onChange={(e) => setForm({ ...form, bio: e.target.value })}
+                onChange={(e) => patch("bio", e.target.value)}
+                placeholder="A short note about yourself"
               />
-            </label>
+            </Field>
           </div>
         </section>
 
-        <div className="flex justify-end">
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <button
             type="submit"
-            className="rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white hover:bg-primary-light"
+            className="btn-primary disabled:opacity-50"
+            disabled={!dirty}
           >
-            Save profile
+            {dirty ? "Save profile" : "Saved"}
           </button>
         </div>
       </form>
+    </div>
+  );
+}
+
+function Field({
+  label,
+  children,
+  className = "",
+}: {
+  label: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <label className={`block ${className}`}>
+      <span className="input-label">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="bg-surface px-5 py-4">
+      <dt className="text-xs font-semibold uppercase tracking-wide text-muted">{label}</dt>
+      <dd className="mt-1 text-sm font-medium text-foreground">{value}</dd>
     </div>
   );
 }

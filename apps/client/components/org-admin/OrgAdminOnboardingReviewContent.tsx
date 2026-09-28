@@ -215,7 +215,7 @@ export function OrgAdminOnboardingReviewContent({
         <div className="flex items-center gap-3">
           <button
             type="button"
-            className="relative flex h-9 w-9 items-center justify-center rounded-full border border-border/70 bg-surface text-muted"
+            className="relative flex h-9 w-9 items-center justify-center rounded-md border border-border/70 bg-surface text-muted"
             aria-label="Notifications"
             disabled
           >
@@ -340,7 +340,7 @@ export function OrgAdminOnboardingReviewContent({
                       )}
                       <span
                         className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                          file ? "bg-primary/10 text-primary" : "bg-[#eef1f3] text-muted"
+                          file ? "bg-primary/10 text-primary" : "bg-surface-muted text-muted"
                         }`}
                       >
                         {file ? "Ready to review" : need.required ? "Required" : "Optional"}
@@ -372,12 +372,12 @@ export function OrgAdminOnboardingReviewContent({
         </div>
 
         <aside className="space-y-4">
-          <div className="rounded-2xl border border-primary/15 bg-[#e7f6f3] p-5">
+          <div className="rounded-2xl border border-primary/15 bg-primary/5 p-5">
             <h3 className="text-sm font-semibold">Review checklist</h3>
             <ul className="mt-4 space-y-3">
               {checklist.map((item) => (
                 <li key={item} className="flex items-start gap-2 text-sm text-foreground/80">
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-white">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
                     <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>
@@ -414,7 +414,7 @@ export function OrgAdminOnboardingReviewContent({
             </ol>
           </div>
 
-          <div className="rounded-2xl border border-border/70 bg-[#f8fafb] p-4">
+          <div className="rounded-2xl border border-border/70 bg-surface-subtle p-4">
             <div className="flex items-center gap-2 text-sm font-semibold">
               <IconLock className="h-4 w-4 text-primary" />
               Secure review
@@ -440,7 +440,7 @@ export function OrgAdminOnboardingReviewContent({
                 setRejectOpen(true);
               }}
               disabled={status === "VERIFIED" || isReviewing}
-              className="rounded-xl border border-red-300 bg-white px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-40"
+              className="rounded-md border border-red-300 bg-surface px-4 py-2.5 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-40"
             >
               Reject
             </button>
@@ -448,7 +448,7 @@ export function OrgAdminOnboardingReviewContent({
               type="button"
               onClick={() => void handleApprove()}
               disabled={status === "VERIFIED" || !submission || isReviewing}
-              className="inline-flex items-center gap-2 rounded-xl bg-[#0f4f4a] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-primary disabled:opacity-40"
+              className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary disabled:opacity-40"
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -479,7 +479,7 @@ export function OrgAdminOnboardingReviewContent({
               <button
                 type="button"
                 onClick={() => setRejectOpen(false)}
-                className="rounded-xl border border-border px-4 py-2 text-sm font-semibold"
+                className="rounded-md border border-border px-4 py-2 text-sm font-semibold"
               >
                 Cancel
               </button>
@@ -487,7 +487,7 @@ export function OrgAdminOnboardingReviewContent({
                 type="button"
                 onClick={() => void handleReject()}
                 disabled={isReviewing}
-                className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+                className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
               >
                 Confirm reject
               </button>

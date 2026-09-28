@@ -3,9 +3,9 @@
 import type { PlatformOverview } from "@/lib/api/types";
 
 const PLAN_COLORS = {
-  BASIC: "#94a3b8",
-  ADVANCED: "#0f766e",
-  CUSTOM: "#c2410c",
+  BASIC: "var(--chart-slate)",
+  ADVANCED: "var(--chart-teal)",
+  CUSTOM: "var(--chart-orange)",
 } as const;
 
 type OverviewChartsProps = {
@@ -53,7 +53,7 @@ function PlanMixDonut({
         role="img"
         aria-label={`Plan mix: Basic ${planMix.BASIC}, Advanced ${planMix.ADVANCED}, Custom ${planMix.CUSTOM}`}
       >
-        <div className="absolute inset-4 flex flex-col items-center justify-center rounded-full bg-white">
+        <div className="absolute inset-4 flex flex-col items-center justify-center rounded-full bg-surface">
           <span className="text-2xl font-semibold">{total}</span>
           <span className="text-xs text-muted">tenants</span>
         </div>
@@ -92,7 +92,7 @@ function DemoFunnel({ pipeline }: { pipeline: OverviewChartsProps["demoPipeline"
 
   return (
     <div className="space-y-4">
-      <div className="flex h-4 w-full overflow-hidden rounded-full bg-[#f0eeeb]">
+      <div className="flex h-4 w-full overflow-hidden rounded-full bg-surface-subtle">
         {steps.map((step) => {
           const value = pipeline[step.key];
           if (value === 0) return null;
@@ -151,7 +151,7 @@ function OrganisationHealthBars({
             <span className="text-muted">{row.label}</span>
             <span className="font-semibold">{row.value}</span>
           </div>
-          <div className="h-2.5 overflow-hidden rounded-full bg-[#f0eeeb]">
+          <div className="h-2.5 overflow-hidden rounded-full bg-surface-subtle">
             <div
               className={`h-full rounded-full ${row.color}`}
               style={{ width: `${(row.value / total) * 100}%` }}

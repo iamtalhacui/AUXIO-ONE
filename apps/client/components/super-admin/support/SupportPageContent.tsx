@@ -11,7 +11,7 @@ export function SupportPageContent() {
         </p>
         <button
           type="button"
-          className="mt-4 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-light"
+          className="mt-4 rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary-light"
         >
           Request support access
         </button>
@@ -24,7 +24,7 @@ export function SupportPageContent() {
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
-            <thead className="bg-[#faf9f7] text-xs uppercase tracking-wide text-muted">
+            <thead className="bg-surface-subtle text-xs uppercase tracking-wide text-muted">
               <tr>
                 <th className="px-6 py-3 font-semibold">Organisation</th>
                 <th className="px-6 py-3 font-semibold">Requested by</th>

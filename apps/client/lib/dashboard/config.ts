@@ -49,19 +49,12 @@ const superAdminNav: NavGroup[] = [
       { label: "Audit log", href: "/super-admin/audit" },
     ],
   },
-  {
-    title: "Monitoring",
-    items: [
-      { label: "Notifications", href: "/super-admin/notifications" },
-      { label: "Reports", href: "/super-admin/reports" },
-    ],
-  },
 ];
 
 const orgAdminNav: NavGroup[] = [
   {
     title: "Overview",
-    items: [{ label: "Dashboard", href: "/org-admin", module: "DASHBOARD" }],
+    items: [{ label: "Dashboard", href: "/org-admin" }],
   },
   {
     title: "Organisation",
@@ -107,6 +100,7 @@ const managerNav: NavGroup[] = [
     items: [
       { label: "Customers", href: "/manager/customers", module: "CUSTOMERS" },
       { label: "CRM", href: "/manager/crm", module: "CRM" },
+      { label: "Incidents", href: "/manager/incidents", module: "INCIDENTS" },
     ],
   },
   {
@@ -141,14 +135,9 @@ const employeeNav: NavGroup[] = [
   {
     title: "My work",
     items: [
-      {
-        label: "Shifts & timesheets",
-        children: [
-          { label: "Shifts", href: "/employee/shifts", module: "SCHEDULE" },
-          { label: "Availability", href: "/employee/availability", module: "SCHEDULE" },
-          { label: "Timesheets", href: "/employee/timesheets", module: "FINANCE" },
-        ],
-      },
+      { label: "Shifts", href: "/employee/shifts", module: "SCHEDULE" },
+      { label: "Availability", href: "/employee/availability", module: "SCHEDULE" },
+      { label: "Timesheets", href: "/employee/timesheets", module: "FINANCE" },
     ],
   },
   {
@@ -223,6 +212,8 @@ export function isNavItemActive(pathname: string, item: NavItem, basePath: strin
 
   const remainder = pathname.slice(item.href.length + 1);
   const firstSegment = remainder.split("/")[0];
-  const excludedSegments = new Set(["register"]);
+  // Sibling routes under the same parent (e.g. /organisations/new vs /organisations)
+  // must not light up the list item as active.
+  const excludedSegments = new Set(["register", "new"]);
   return !excludedSegments.has(firstSegment);
 }

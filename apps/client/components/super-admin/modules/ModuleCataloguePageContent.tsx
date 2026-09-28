@@ -53,9 +53,9 @@ export function ModuleCataloguePageContent() {
             key={item}
             type="button"
             onClick={() => setFilter(item)}
-            className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+            className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
               filter === item
-                ? "bg-primary text-white"
+                ? "bg-primary text-primary-foreground"
                 : "border border-border bg-background text-muted hover:border-primary/30"
             }`}
           >
@@ -67,7 +67,7 @@ export function ModuleCataloguePageContent() {
       <div className="dashboard-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
-            <thead className="bg-[#faf9f7] text-xs uppercase tracking-wide text-muted">
+            <thead className="bg-surface-subtle text-xs uppercase tracking-wide text-muted">
               <tr>
                 <th className="px-6 py-3 font-semibold">Code</th>
                 <th className="px-6 py-3 font-semibold">Name</th>

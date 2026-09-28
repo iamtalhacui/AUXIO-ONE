@@ -131,7 +131,7 @@ export function EmployeeHomeContent() {
               <li key={shift.id}>
                 <Link
                   href={`/employee/shifts/${shift.id}`}
-                  className="flex items-center justify-between gap-3 px-5 py-4 transition hover:bg-[#fafbfc]"
+                  className="flex items-center justify-between gap-3 px-5 py-4 transition hover:bg-surface-subtle"
                 >
                   <div>
                     <p className="text-sm font-semibold">{shift.participantName}</p>

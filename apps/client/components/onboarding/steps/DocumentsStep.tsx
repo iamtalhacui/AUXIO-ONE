@@ -133,7 +133,7 @@ export function DocumentsStep({ value, onChange }: DocumentsStepProps) {
                   </div>
                 ) : (
                   <label className="cursor-pointer">
-                    <span className="inline-flex items-center gap-2 rounded-xl border border-dashed border-primary/30 bg-surface px-4 py-2.5 text-sm font-semibold text-primary transition hover:border-primary hover:bg-primary/5">
+                    <span className="inline-flex items-center gap-2 rounded-md border border-dashed border-primary/30 bg-surface px-4 py-2.5 text-sm font-semibold text-primary transition hover:border-primary hover:bg-primary/5">
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                       </svg>

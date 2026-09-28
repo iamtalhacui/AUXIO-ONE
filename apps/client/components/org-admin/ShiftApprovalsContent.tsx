@@ -19,7 +19,7 @@ import {
 } from "@/lib/rostering/format";
 
 /**
- * Org Admin queue for shifts finished outside the ±15 minute margin.
+ * Org Admin queue for shifts finished outside allowed start/end time windows.
  */
 export function ShiftApprovalsContent() {
   const { toast } = useToast();

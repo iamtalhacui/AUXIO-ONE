@@ -61,7 +61,7 @@ export function ChangePasswordForm() {
 
           <button
             type="submit"
-            className="w-full rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white hover:bg-primary-light disabled:opacity-70"
+            className="w-full rounded-md bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary-light disabled:opacity-70"
           >
             Update password
           </button>

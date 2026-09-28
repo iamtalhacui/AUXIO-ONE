@@ -101,7 +101,7 @@ export function WorkerOnboardingFlow() {
           </div>
 
           <div className="mt-5 flex items-center gap-3 rounded-xl border border-border/60 bg-background/60 p-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-sm font-bold text-white">
+            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
               AC
             </div>
             <div className="min-w-0">
@@ -130,7 +130,7 @@ export function WorkerOnboardingFlow() {
                     <span
                       className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
                         complete
-                          ? "bg-primary text-white"
+                          ? "bg-primary text-primary-foreground"
                           : active
                             ? "border border-primary text-primary"
                             : "border border-border"
@@ -225,7 +225,7 @@ export function WorkerOnboardingFlow() {
               type="button"
               onClick={handleBack}
               disabled={currentStep === 0}
-              className="rounded-xl border border-border px-5 py-2.5 text-sm font-semibold text-muted transition hover:border-primary/30 hover:text-foreground disabled:opacity-50"
+              className="rounded-md border border-border px-5 py-2.5 text-sm font-semibold text-muted transition hover:border-primary/30 hover:text-foreground disabled:opacity-50"
             >
               Back
             </button>
@@ -234,7 +234,7 @@ export function WorkerOnboardingFlow() {
               <button
                 type="button"
                 onClick={persist}
-                className="rounded-xl border border-border px-5 py-2.5 text-sm font-semibold transition hover:border-primary/30 disabled:opacity-50"
+                className="rounded-md border border-border px-5 py-2.5 text-sm font-semibold transition hover:border-primary/30 disabled:opacity-50"
               >
                 Save draft
               </button>
@@ -243,7 +243,7 @@ export function WorkerOnboardingFlow() {
                 <button
                   type="button"
                   onClick={handleNext}
-                  className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-light disabled:opacity-50"
+                  className="rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary-light disabled:opacity-50"
                 >
                   Continue
                 </button>
@@ -251,7 +251,7 @@ export function WorkerOnboardingFlow() {
                 <button
                   type="button"
                   onClick={handleSubmit}
-                  className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-light disabled:opacity-50"
+                  className="rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary-light disabled:opacity-50"
                 >
                   Submit for approval
                 </button>

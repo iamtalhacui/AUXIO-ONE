@@ -5,7 +5,7 @@ import { BrandLogo } from "@/components/ui/BrandLogo";
 
 export function LoginBranding() {
   return (
-    <div className="relative hidden overflow-hidden bg-primary px-10 py-12 text-white lg:flex lg:flex-col lg:justify-between">
+    <div className="relative hidden overflow-hidden bg-brand-panel px-10 py-12 text-brand-panel-foreground lg:flex lg:flex-col lg:justify-between">
       <div className="absolute inset-0 grid-bg opacity-20" />
       <div className="absolute -left-16 top-20 h-64 w-64 rounded-full bg-white/10 blur-3xl animate-pulse-soft" />
       <div className="absolute bottom-10 right-0 h-72 w-72 rounded-full bg-accent/20 blur-3xl animate-float" />

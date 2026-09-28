@@ -6,7 +6,7 @@ export function CtaSection() {
     <section className="pb-24 pt-4">
       <div className="section-shell">
         <FadeIn>
-          <div className="relative overflow-hidden rounded-[2rem] bg-primary px-8 py-14 text-white sm:px-12 sm:py-16">
+          <div className="relative overflow-hidden rounded-[2rem] bg-brand-panel px-8 py-14 text-brand-panel-foreground sm:px-12 sm:py-16">
             <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 animate-float" />
             <div className="absolute bottom-0 left-1/3 h-52 w-52 rounded-full bg-accent/20 blur-3xl animate-float-delayed" />
 

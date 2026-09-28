@@ -13,7 +13,7 @@ const STATUS_UI: Record<
   },
   IN_PROGRESS: {
     label: "In progress",
-    className: "bg-[#f3e8d8] text-[#9a6b3f]",
+    className: "bg-amber-100 text-amber-800",
   },
   VERIFIED: {
     label: "Verified",
@@ -25,7 +25,7 @@ const STATUS_UI: Record<
   },
   NOT_STARTED: {
     label: "Not started",
-    className: "bg-[#eef1f3] text-muted",
+    className: "bg-surface-muted text-muted",
   },
 };
 

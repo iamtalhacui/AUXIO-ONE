@@ -242,7 +242,7 @@ export function ContactForm() {
                         onClick={() => update("preferredTime", slot)}
                         className={`rounded-xl border px-3 py-2.5 text-sm font-medium transition ${
                           selected
-                            ? "border-primary bg-primary text-white shadow-sm shadow-primary/20"
+                            ? "border-primary bg-primary text-primary-foreground shadow-sm shadow-primary/20"
                             : "border-border bg-background text-foreground hover:border-primary/40"
                         }`}
                       >
@@ -270,7 +270,7 @@ export function ContactForm() {
             <button
               type="submit"
               disabled={submitting}
-              className="mt-8 inline-flex w-full items-center justify-center rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:bg-primary-light disabled:opacity-60 sm:w-auto"
+              className="mt-8 inline-flex w-full items-center justify-center rounded-md bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition hover:bg-primary-light disabled:opacity-60 sm:w-auto"
             >
               {submitting ? "Submitting…" : "Book a Demo"}
             </button>

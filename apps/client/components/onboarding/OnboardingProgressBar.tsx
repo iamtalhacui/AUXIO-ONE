@@ -22,10 +22,10 @@ export function OnboardingProgressBar({ currentStep }: OnboardingProgressBarProp
                   <span
                     className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${
                       active
-                        ? "bg-primary text-white"
+                        ? "bg-primary text-primary-foreground"
                         : complete
                           ? "bg-primary/15 text-primary"
-                          : "bg-[#e8ecef] text-muted"
+                          : "bg-surface-muted text-muted"
                     }`}
                   >
                     {complete ? (

@@ -68,7 +68,7 @@ export function OnboardingPendingReviewView({
         <div className="flex items-center gap-3">
           <button
             type="button"
-            className="relative flex h-9 w-9 items-center justify-center rounded-full border border-border/70 bg-surface text-muted"
+            className="relative flex h-9 w-9 items-center justify-center rounded-md border border-border/70 bg-surface text-muted"
             aria-label="Notifications"
             disabled
           >
@@ -91,9 +91,9 @@ export function OnboardingPendingReviewView({
         <p className="mt-2 text-sm text-muted">There’s nothing else you need to do right now.</p>
       </div>
 
-      <section className="rounded-2xl border border-primary/15 bg-[#e7f6f3] p-6 sm:p-7">
+      <section className="rounded-2xl border border-primary/15 bg-primary/5 p-6 sm:p-7">
         <div className="flex flex-wrap items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/80 text-primary">
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-surface/80 text-primary">
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
               <path
                 strokeLinecap="round"
@@ -103,7 +103,7 @@ export function OnboardingPendingReviewView({
             </svg>
           </span>
           <h3 className="text-lg font-semibold">Pending review</h3>
-          <span className="rounded-full bg-[#f3e8d8] px-2.5 py-1 text-[11px] font-semibold text-[#9a6b3f]">
+          <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-800">
             Usually within 2 business days
           </span>
         </div>
@@ -112,8 +112,8 @@ export function OnboardingPendingReviewView({
           anything needs your attention.
         </p>
         <div className="mt-6">
-          <div className="h-2 overflow-hidden rounded-full bg-white/70">
-            <div className="h-full w-3/4 rounded-full bg-[#0f4f4a]" />
+          <div className="h-2 overflow-hidden rounded-full bg-surface/70">
+            <div className="h-full w-3/4 rounded-full bg-brand-deep" />
           </div>
           <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted">
             <span>Submitted {formatLongDate(submittedAt)}</span>

@@ -1,15 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { UserPlus } from "lucide-react";
 import { useAppSelector } from "@/lib/store/hooks";
 import type { OrgAdminOverview } from "@/lib/api/types";
-
-const QUICK_ACTIONS = [
-  { label: "Register team member", href: "/org-admin/team/register", primary: true },
-  { label: "Review onboarding", href: "/org-admin/team", primary: false },
-  { label: "Shift approvals", href: "/org-admin/shift-approvals", primary: false },
-  { label: "Module settings", href: "/org-admin/settings/modules", primary: false },
-] as const;
 
 function greetingForHour(hour: number) {
   if (hour < 12) return "Good morning";
@@ -24,31 +18,30 @@ type OrgAdminWelcomeBannerProps = {
 export function OrgAdminWelcomeBanner({ organisation }: OrgAdminWelcomeBannerProps) {
   const user = useAppSelector((state) => state.orgAuth.user);
   const greeting = greetingForHour(new Date().getHours());
-  const name = user ? `${user.firstName} ${user.lastName}` : "Org Admin";
+  const name = user ? user.firstName : "there";
 
   return (
-    <div className="dashboard-card p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-sm text-muted">{greeting}</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">{name}</h1>
-          <p className="mt-2 max-w-lg text-sm text-muted">
-            {organisation.name} · {organisation.plan} plan · {organisation.status}
-          </p>
+    <div className="oad-hero">
+      <div className="min-w-0">
+        <p className="oad-hero-greeting">
+          {greeting}, <span className="text-foreground">{name}</span>
+        </p>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <span className="oad-org-chip">{organisation.name}</span>
+          <span className="oad-meta-chip">{organisation.plan}</span>
+          <span
+            className={`oad-meta-chip ${
+              organisation.status === "ACTIVE" ? "oad-meta-chip-ok" : "oad-meta-chip-warn"
+            }`}
+          >
+            {organisation.status === "ACTIVE" ? "Active" : organisation.status}
+          </span>
         </div>
       </div>
-
-      <div className="mt-5 flex flex-wrap gap-2">
-        {QUICK_ACTIONS.map((action) => (
-          <Link
-            key={action.href}
-            href={action.href}
-            className={action.primary ? "btn-primary" : "btn-secondary"}
-          >
-            {action.label}
-          </Link>
-        ))}
-      </div>
+      <Link href="/org-admin/team/register" className="btn-primary gap-2 shrink-0">
+        <UserPlus className="h-4 w-4" aria-hidden />
+        Register member
+      </Link>
     </div>
   );
 }

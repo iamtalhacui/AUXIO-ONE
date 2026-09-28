@@ -93,11 +93,6 @@ export class ScheduleController {
     return this.schedule.cancelShift(user.organisationId, user.role, id);
   }
 
-  @Post('shifts/:id/publish')
-  publishUnfilled(@CurrentOrgUser() user: OrgJwtPayload, @Param('id') id: string) {
-    return this.schedule.publishUnfilled(user.organisationId, user.role, id);
-  }
-
   @Post('shifts/:id/publish-offer')
   publishAndOffer(
     @CurrentOrgUser() user: OrgJwtPayload,

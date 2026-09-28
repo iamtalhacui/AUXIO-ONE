@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
-import { NotificationCenter } from "@/components/notifications/NotificationCenter";
 import { useConfirmOrgSession } from "@/components/auth/useConfirmOrgSession";
 import { useListOrgModulesQuery } from "@/lib/api/authApi";
 import { getDashboardConfigForPath } from "@/lib/dashboard/config";
@@ -73,9 +73,11 @@ export function DashboardShell({ children }: DashboardShellProps) {
     <div className="dashboard-shell">
       <DashboardSidebar config={filteredConfig} lockedOnboarding={lockedOnboarding} />
       <main className="dashboard-main">
-        <div className="dashboard-topbar">
-          <NotificationCenter isPlatform={isPlatform} enabled={notificationsEnabled} />
-        </div>
+        <DashboardHeader
+          config={filteredConfig}
+          isPlatform={isPlatform}
+          notificationsEnabled={notificationsEnabled}
+        />
         <div className="dashboard-content">
           {dashboardDisabled ? <DashboardUnavailable /> : children}
         </div>

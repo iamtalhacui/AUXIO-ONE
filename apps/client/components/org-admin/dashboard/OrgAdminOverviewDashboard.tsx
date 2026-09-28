@@ -6,35 +6,38 @@ import { TeamStatCards } from "@/components/org-admin/dashboard/TeamStatCards";
 import { TeamNeedsAttentionCard } from "@/components/org-admin/dashboard/TeamNeedsAttentionCard";
 import { WorkforceCharts } from "@/components/org-admin/dashboard/WorkforceCharts";
 
-// Org Admin home: ops-first overview from GET /organisation/overview,
-// mirroring the Super Admin dashboard's shape (welcome / KPIs+attention /
-// charts). No Customers/CRM data — Org Admin has no API access to those
-// today — and no duplicated table previews; Team, Onboarding, and Shift
-// approvals all already have dedicated pages one click away.
 export function OrgAdminOverviewDashboard() {
   const { data, isLoading, error } = useGetOrgAdminOverviewQuery();
 
   if (isLoading) {
-    return <p className="text-sm text-muted">Loading dashboard…</p>;
+    return (
+      <div className="oad-shell">
+        <div className="oad-skeleton oad-hero" />
+        <div className="oad-kpi-grid">
+          <div className="oad-skeleton oad-kpi" />
+          <div className="oad-skeleton oad-kpi" />
+          <div className="oad-skeleton oad-kpi" />
+          <div className="oad-skeleton oad-kpi" />
+        </div>
+        <div className="oad-skeleton h-64 rounded-xl" />
+      </div>
+    );
   }
 
   if (error || !data) {
     return (
-      <p className="text-sm text-red-600">
-        Could not load your organisation overview. Try refreshing the page.
-      </p>
+      <div className="oad-card p-8 text-center">
+        <p className="text-sm font-medium text-foreground">Couldn&apos;t load your dashboard</p>
+        <p className="mt-1 text-sm text-muted">Refresh the page, or try again in a moment.</p>
+      </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="oad-shell">
       <OrgAdminWelcomeBanner organisation={data.organisation} />
-
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[280px_1fr]">
-        <TeamStatCards kpis={data.kpis} teamJoinsLast14Days={data.teamJoinsLast14Days} />
-        <TeamNeedsAttentionCard attention={data.attention} />
-      </div>
-
+      <TeamStatCards kpis={data.kpis} teamJoinsLast14Days={data.teamJoinsLast14Days} />
+      <TeamNeedsAttentionCard attention={data.attention} />
       <WorkforceCharts
         onboardingFunnel={data.onboardingFunnel}
         roleMix={data.roleMix}

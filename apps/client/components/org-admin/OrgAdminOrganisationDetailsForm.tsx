@@ -1,6 +1,7 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { Camera, Pencil, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import {
   useDeleteOrganisationLogoMutation,
@@ -27,6 +28,7 @@ export function OrgAdminOrganisationDetailsForm() {
   const { toast } = useToast();
   const dispatch = useAppDispatch();
   const accessToken = useAppSelector((state) => state.orgAuth.accessToken);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { data: org, isLoading, error } = useGetOrganisationQuery();
   const [updateOrganisation, { isLoading: isSaving }] = useUpdateOrganisationMutation();
   const [uploadLogo, { isLoading: isUploading }] = useUploadOrganisationLogoMutation();
@@ -41,6 +43,7 @@ export function OrgAdminOrganisationDetailsForm() {
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [pendingLogo, setPendingLogo] = useState<File | null>(null);
   const [removeLogo, setRemoveLogo] = useState(false);
+  const [logoMenuOpen, setLogoMenuOpen] = useState(false);
   const [formError, setFormError] = useState("");
 
   useEffect(() => {
@@ -85,8 +88,14 @@ export function OrgAdminOrganisationDetailsForm() {
     };
   }, [org?.hasLogo, accessToken, pendingLogo, removeLogo]);
 
+  function openFilePicker() {
+    setLogoMenuOpen(false);
+    fileInputRef.current?.click();
+  }
+
   function handleLogoChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
+    event.target.value = "";
     if (!file) return;
 
     if (file.size > MAX_LOGO_BYTES) {
@@ -100,6 +109,13 @@ export function OrgAdminOrganisationDetailsForm() {
     const reader = new FileReader();
     reader.onload = () => setLogoPreview(reader.result as string);
     reader.readAsDataURL(file);
+  }
+
+  function handleRemoveLogo() {
+    setLogoMenuOpen(false);
+    setPendingLogo(null);
+    setRemoveLogo(true);
+    setLogoPreview(null);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -129,12 +145,21 @@ export function OrgAdminOrganisationDetailsForm() {
     } catch (err) {
       const message = getErrorMessage(err, "Could not save organisation details.");
       setFormError(message);
-      toast({ variant: "error", title: "Could not save organisation details", description: message });
+      toast({
+        variant: "error",
+        title: "Could not save organisation details",
+        description: message,
+      });
     }
   }
 
   if (isLoading) {
-    return <p className="text-sm text-muted">Loading organisation…</p>;
+    return (
+      <div className="orgd-shell">
+        <div className="orgd-skeleton h-10 w-64 rounded-md" />
+        <div className="orgd-skeleton orgd-panel h-80" />
+      </div>
+    );
   }
 
   if (error || !org) {
@@ -147,143 +172,181 @@ export function OrgAdminOrganisationDetailsForm() {
 
   const busy = isSaving || isUploading || isDeleting;
   const displayName = tradingName || legalName;
+  const initials =
+    displayName
+      .split(/\s+/)
+      .map((part) => part[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "OR";
+  const hasVisibleLogo = Boolean(logoPreview) && !removeLogo;
 
   return (
-    <>
-      <PageHeader title="Organisation details" description="Name, contact info, and logo." />
-      <form className="space-y-6" onSubmit={handleSubmit}>
-        <section className="dashboard-card p-6">
-          <h2 className="text-lg font-semibold">Identity</h2>
-          <p className="mt-1 text-sm text-muted">How your organisation appears across the workspace.</p>
+    <div className="orgd-shell">
+      <PageHeader
+        title="Organisation details"
+        description="Identity and contact info shown across your workspace."
+      />
 
-          <div className="mt-6 grid gap-5 sm:grid-cols-2">
-            <label className="block sm:col-span-2">
-              <span className="mb-2 block text-sm font-medium">Legal name</span>
-              <input
-                value={legalName}
-                onChange={(event) => setLegalName(event.target.value)}
-                required
-                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
-              />
-            </label>
-
-            <label className="block">
-              <span className="mb-2 block text-sm font-medium">Trading name</span>
-              <input
-                value={tradingName}
-                onChange={(event) => setTradingName(event.target.value)}
-                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
-              />
-            </label>
-
-            <label className="block">
-              <span className="mb-2 block text-sm font-medium">Tagline</span>
-              <input
-                value={tagline}
-                onChange={(event) => setTagline(event.target.value)}
-                placeholder="Short description shown in your workspace"
-                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
-              />
-            </label>
-          </div>
-        </section>
-
-        <section className="dashboard-card p-6">
-          <h2 className="text-lg font-semibold">Contact</h2>
-          <div className="mt-6 grid gap-5 sm:grid-cols-2">
-            <label className="block">
-              <span className="mb-2 block text-sm font-medium">Contact email</span>
-              <input
-                type="email"
-                value={contactEmail}
-                onChange={(event) => setContactEmail(event.target.value)}
-                required
-                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
-              />
-            </label>
-
-            <label className="block">
-              <span className="mb-2 block text-sm font-medium">Contact phone</span>
-              <input
-                value={contactPhone}
-                onChange={(event) => setContactPhone(event.target.value)}
-                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
-              />
-            </label>
-
-            <label className="block sm:col-span-2">
-              <span className="mb-2 block text-sm font-medium">Time zone</span>
-              <select
-                value={timeZone}
-                onChange={(event) => setTimeZone(event.target.value)}
-                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:border-primary"
+      <form className="orgd-panel" onSubmit={handleSubmit}>
+        <div className="orgd-layout">
+          {/* Brand mark — square (org logos read better as marks than circular avatars) */}
+          <aside className="orgd-brand">
+            <div className="orgd-logo-wrap">
+              <button
+                type="button"
+                className="orgd-logo"
+                onClick={openFilePicker}
+                aria-label={hasVisibleLogo ? "Change organisation logo" : "Upload organisation logo"}
               >
-                {Array.from(new Set([timeZone, ...timeZones])).map((zone) => (
-                  <option key={zone} value={zone}>
-                    {zone}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-        </section>
-
-        <section className="dashboard-card p-6">
-          <h2 className="text-lg font-semibold">Logo</h2>
-          <p className="mt-1 text-sm text-muted">
-            Shown in the sidebar for everyone in your organisation.
-          </p>
-
-          <div className="mt-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
-            <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-2xl border border-dashed border-border bg-primary/5">
-              {logoPreview ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={logoPreview} alt="Organisation logo preview" className="h-full w-full object-cover" />
-              ) : (
-                <span className="text-2xl font-bold text-primary">
-                  {displayName.slice(0, 2).toUpperCase() || "OR"}
+                {hasVisibleLogo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={logoPreview!} alt="" className="orgd-logo-img" />
+                ) : (
+                  <span className="orgd-logo-fallback">{initials}</span>
+                )}
+                <span className="orgd-logo-overlay" aria-hidden>
+                  <Camera className="h-5 w-5" />
+                  <span>{hasVisibleLogo ? "Change" : "Upload"}</span>
                 </span>
-              )}
-            </div>
-            <div className="space-y-2">
-              <label className="cursor-pointer text-sm font-medium text-primary hover:text-primary-light">
-                Upload logo
-                <input type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" className="hidden" onChange={handleLogoChange} />
-              </label>
-              {(logoPreview || org.hasLogo) && !removeLogo ? (
-                <button
-                  type="button"
-                  className="block text-xs font-medium text-red-600 hover:underline"
-                  onClick={() => {
-                    setPendingLogo(null);
-                    setRemoveLogo(true);
-                    setLogoPreview(null);
-                  }}
-                >
-                  Remove logo
-                </button>
+              </button>
+
+              <button
+                type="button"
+                className="orgd-logo-edit"
+                onClick={() => setLogoMenuOpen((value) => !value)}
+                aria-label="Logo options"
+                aria-expanded={logoMenuOpen}
+              >
+                <Pencil className="h-3.5 w-3.5" aria-hidden />
+              </button>
+
+              {logoMenuOpen ? (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setLogoMenuOpen(false)} />
+                  <div className="orgd-logo-menu" role="menu">
+                    <button type="button" role="menuitem" onClick={openFilePicker} className="orgd-logo-menu-item">
+                      <Camera className="h-4 w-4" aria-hidden />
+                      {hasVisibleLogo ? "Replace logo" : "Upload logo"}
+                    </button>
+                    {hasVisibleLogo || (org.hasLogo && !removeLogo) ? (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={handleRemoveLogo}
+                        className="orgd-logo-menu-item orgd-logo-menu-danger"
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden />
+                        Remove logo
+                      </button>
+                    ) : null}
+                  </div>
+                </>
               ) : null}
-              <p className="text-xs text-muted">PNG, JPEG, WebP, GIF or SVG, up to 2 MB</p>
             </div>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
+              className="hidden"
+              onChange={handleLogoChange}
+            />
+
+            <div className="orgd-brand-meta">
+              <p className="orgd-brand-name">{displayName || "Your organisation"}</p>
+              <div className="orgd-chips">
+                <span className="orgd-chip">{org.plan}</span>
+                <span className={`orgd-chip ${org.status === "ACTIVE" ? "orgd-chip-ok" : ""}`}>
+                  {org.status === "ACTIVE" ? "Active" : org.status}
+                </span>
+              </div>
+              <p className="orgd-logo-hint">PNG, JPEG, WebP, GIF or SVG · max 2 MB</p>
+            </div>
+          </aside>
+
+          <div className="orgd-fields">
+            <div className="orgd-grid">
+              <label className="orgd-field orgd-field-full">
+                <span className="input-label">Legal name</span>
+                <input
+                  value={legalName}
+                  onChange={(event) => setLegalName(event.target.value)}
+                  required
+                  className="input-field"
+                />
+              </label>
+
+              <label className="orgd-field">
+                <span className="input-label">Trading name</span>
+                <input
+                  value={tradingName}
+                  onChange={(event) => setTradingName(event.target.value)}
+                  placeholder="Optional"
+                  className="input-field"
+                />
+              </label>
+
+              <label className="orgd-field">
+                <span className="input-label">Timezone</span>
+                <select
+                  value={timeZone}
+                  onChange={(event) => setTimeZone(event.target.value)}
+                  className="input-field"
+                >
+                  {Array.from(new Set([timeZone, ...timeZones])).map((zone) => (
+                    <option key={zone} value={zone}>
+                      {zone.replace("Australia/", "")}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="orgd-field orgd-field-full">
+                <span className="input-label">Tagline</span>
+                <input
+                  value={tagline}
+                  onChange={(event) => setTagline(event.target.value)}
+                  placeholder="Short line shown in your workspace"
+                  className="input-field"
+                />
+              </label>
+
+              <label className="orgd-field">
+                <span className="input-label">Contact email</span>
+                <input
+                  type="email"
+                  value={contactEmail}
+                  onChange={(event) => setContactEmail(event.target.value)}
+                  required
+                  className="input-field"
+                />
+              </label>
+
+              <label className="orgd-field">
+                <span className="input-label">
+                  Phone <span className="font-normal text-muted">(optional)</span>
+                </span>
+                <input
+                  value={contactPhone}
+                  onChange={(event) => setContactPhone(event.target.value)}
+                  placeholder="+61 …"
+                  className="input-field"
+                />
+              </label>
+            </div>
+
+            {formError ? <p className="orgd-error">{formError}</p> : null}
           </div>
-        </section>
-
-        {formError ? (
-          <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {formError}
-          </p>
-        ) : null}
-
-        <div className="flex justify-end">
-          <button
-            type="submit"
-            disabled={busy}
-            className="rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white hover:bg-primary-light disabled:opacity-60"
-          >
-            {busy ? "Saving…" : "Save organisation details"}
-          </button>
         </div>
+
+        <footer className="orgd-footer">
+          <p className="text-xs text-muted">Changes apply for everyone in this organisation.</p>
+          <button type="submit" disabled={busy} className="btn-primary disabled:opacity-60">
+            {busy ? "Saving…" : "Save changes"}
+          </button>
+        </footer>
       </form>
-    </>
+    </div>
   );
 }

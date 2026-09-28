@@ -55,7 +55,7 @@ export function OrgLogoMark({ className, fallback }: OrgLogoMarkProps) {
     <span
       className={
         className ??
-        "flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-xs font-bold text-white"
+        "flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-xs font-bold text-primary-foreground"
       }
     >
       {fallback}

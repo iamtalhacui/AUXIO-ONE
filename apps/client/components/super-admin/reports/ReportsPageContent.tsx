@@ -16,13 +16,13 @@ export function ReportsPageContent() {
             <div className="mt-5 flex gap-3">
               <button
                 type="button"
-                className="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary-light"
+                className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary-light"
               >
                 Generate
               </button>
               <button
                 type="button"
-                className="rounded-xl border border-border bg-background px-4 py-2 text-sm font-semibold hover:bg-surface-muted"
+                className="rounded-md border border-border bg-background px-4 py-2 text-sm font-semibold hover:bg-surface-muted"
               >
                 Schedule
               </button>

@@ -249,7 +249,7 @@ function Segmented<T extends string>({
   onChange: (v: T) => void;
 }) {
   return (
-    <div className="flex rounded-lg border border-border/60 bg-[#f8fafc] p-1">
+    <div className="flex rounded-lg border border-border/60 bg-surface-subtle p-1">
       {options.map((opt) => (
         <button
           key={opt.value}
@@ -257,7 +257,7 @@ function Segmented<T extends string>({
           onClick={() => onChange(opt.value)}
           className={`rounded-md px-3 py-1.5 text-sm font-semibold transition ${
             value === opt.value
-              ? "bg-white text-primary shadow-sm"
+              ? "bg-surface text-primary shadow-sm"
               : "text-muted hover:text-foreground"
           }`}
         >
@@ -368,7 +368,7 @@ function TableView({
 function DayCalendar({ shifts }: { shifts: ScheduleShift[] }) {
   return (
     <div className="dashboard-card overflow-hidden">
-      <div className="relative border-b border-border/50 bg-[#f8fafc]">
+      <div className="relative border-b border-border/50 bg-surface-subtle">
         <div className="flex pl-0">
           {HOURS.map((h) => (
             <div
@@ -436,7 +436,7 @@ function WeekCalendar({
               <button
                 type="button"
                 onClick={() => onSelectDay(d)}
-                className="w-full border-b border-border/50 bg-[#f8fafc] px-2 py-3 text-left hover:bg-white"
+                className="w-full border-b border-border/50 bg-surface-subtle px-2 py-3 text-left hover:bg-surface"
               >
                 <p className="text-xs font-semibold text-muted">{formatShortDate(d)}</p>
                 <p className="mt-0.5 text-[11px] text-muted">{dayShifts.length} shifts</p>

@@ -57,7 +57,7 @@ export function OnboardingChangesRequiredView({
         <div className="flex items-center gap-3">
           <button
             type="button"
-            className="relative flex h-9 w-9 items-center justify-center rounded-full border border-border/70 bg-surface text-muted"
+            className="relative flex h-9 w-9 items-center justify-center rounded-md border border-border/70 bg-surface text-muted"
             aria-label="Notifications"
             disabled
           >
@@ -82,7 +82,7 @@ export function OnboardingChangesRequiredView({
         </p>
       </div>
 
-      <section className="rounded-2xl border border-red-200 bg-[#fdf2f2] p-5 sm:p-6">
+      <section className="rounded-2xl border border-red-200 bg-red-50 p-5 sm:p-6">
         <div className="flex flex-wrap items-start gap-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-100 text-red-600">
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -119,7 +119,7 @@ export function OnboardingChangesRequiredView({
               <li
                 key={item.id}
                 className={`flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between ${
-                  needsUpdate ? "bg-[#fdf2f2]" : "bg-surface"
+                  needsUpdate ? "bg-red-50" : "bg-surface"
                 }`}
               >
                 <div className="min-w-0">
@@ -132,7 +132,7 @@ export function OnboardingChangesRequiredView({
                   <button
                     type="button"
                     onClick={() => onEditItem(item.stepIndex ?? 0)}
-                    className="shrink-0 rounded-lg border border-red-300 bg-white px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-50"
+                    className="shrink-0 rounded-lg border border-red-300 bg-surface px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-50"
                   >
                     {item.actionLabel ?? "Edit"}
                   </button>
@@ -159,7 +159,7 @@ export function OnboardingChangesRequiredView({
           type="button"
           disabled={!confirmed}
           onClick={onResubmit}
-          className="rounded-xl bg-[#0f4f4a] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-primary disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary disabled:cursor-not-allowed disabled:opacity-40"
         >
           Edit and resubmit →
         </button>

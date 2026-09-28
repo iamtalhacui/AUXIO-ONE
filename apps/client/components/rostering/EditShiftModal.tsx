@@ -234,7 +234,7 @@ export function EditShiftModal({ shift, onClose, onSaved }: Props) {
             </div>
             <div>
               <p className="input-label">End time</p>
-              <p className="rounded-lg border border-border/60 bg-[#f8fafc] px-3.5 py-2.5 text-sm font-medium">
+              <p className="rounded-lg border border-border/60 bg-surface-subtle px-3.5 py-2.5 text-sm font-medium">
                 {endTime}
               </p>
             </div>

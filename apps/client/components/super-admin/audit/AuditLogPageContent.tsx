@@ -30,7 +30,7 @@ export function AuditLogPageContent() {
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
-            <thead className="bg-[#faf9f7] text-xs uppercase tracking-wide text-muted">
+            <thead className="bg-surface-subtle text-xs uppercase tracking-wide text-muted">
               <tr>
                 <th className="px-6 py-3 font-semibold">Action</th>
                 <th className="px-6 py-3 font-semibold">Entity</th>

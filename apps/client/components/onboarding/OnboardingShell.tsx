@@ -11,7 +11,7 @@ type OnboardingShellProps = {
 
 export function OnboardingShell({ children, organisationName }: OnboardingShellProps) {
   return (
-    <div className="min-h-screen bg-[#eef1f0]">
+    <div className="min-h-screen bg-background">
       <header className="border-b border-border/60 bg-surface/90 backdrop-blur-md">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-10">
           <div className="flex items-center gap-3">
@@ -38,7 +38,7 @@ export function OnboardingShell({ children, organisationName }: OnboardingShellP
             </div>
             <Link
               href="/login"
-              className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-muted transition hover:border-primary/30 hover:text-foreground"
+              className="rounded-md border border-border px-4 py-2 text-sm font-medium text-muted transition hover:border-primary/30 hover:text-foreground"
             >
               Sign out
             </Link>

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import type { ReactNode } from "react";
 import { StoreProvider } from "@/lib/store/StoreProvider";
 import { ToastProvider } from "@/components/toast/ToastProvider";
+import { ThemeProvider, THEME_INIT_SCRIPT } from "@/lib/theme/ThemeProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -30,11 +31,17 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="min-h-full flex flex-col">
-        <StoreProvider>
-          <ToastProvider>{children}</ToastProvider>
-        </StoreProvider>
+        <ThemeProvider>
+          <StoreProvider>
+            <ToastProvider>{children}</ToastProvider>
+          </StoreProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

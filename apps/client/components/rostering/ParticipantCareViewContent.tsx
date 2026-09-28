@@ -83,7 +83,7 @@ export function ParticipantCareViewContent({ customerId }: { customerId: string 
             <li key={rel.shiftId}>
               <Link
                 href={`/employee/shifts/${rel.shiftId}`}
-                className="flex items-center justify-between gap-3 px-5 py-4 hover:bg-[#fafbfc]"
+                className="flex items-center justify-between gap-3 px-5 py-4 hover:bg-surface-subtle"
               >
                 <div>
                   <p className="text-sm font-semibold">{rel.serviceTitle}</p>

@@ -407,7 +407,7 @@ export function DashboardOnboardingFlow({ roleHint }: DashboardOnboardingFlowPro
         <div className="flex items-center gap-3">
           <button
             type="button"
-            className="relative flex h-9 w-9 items-center justify-center rounded-full border border-border/70 bg-surface text-muted"
+            className="relative flex h-9 w-9 items-center justify-center rounded-md border border-border/70 bg-surface text-muted"
             aria-label="Notifications"
             disabled
           >
@@ -468,7 +468,7 @@ export function DashboardOnboardingFlow({ roleHint }: DashboardOnboardingFlowPro
               type="button"
               onClick={handleBack}
               disabled={currentStep === 0 || busy}
-              className="rounded-xl border border-border bg-surface px-5 py-2.5 text-sm font-semibold text-muted transition hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
+              className="rounded-md border border-border bg-surface px-5 py-2.5 text-sm font-semibold text-muted transition hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
             >
               Back
             </button>
@@ -476,7 +476,7 @@ export function DashboardOnboardingFlow({ roleHint }: DashboardOnboardingFlowPro
               type="button"
               onClick={() => void handleContinue()}
               disabled={busy}
-              className="rounded-xl bg-[#0f4f4a] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-primary disabled:opacity-60"
+              className="rounded-md bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary disabled:opacity-60"
             >
               {stepId === "submit"
                 ? isSubmitting
@@ -490,9 +490,9 @@ export function DashboardOnboardingFlow({ roleHint }: DashboardOnboardingFlowPro
         </section>
 
         <aside className="space-y-4">
-          <div className="rounded-2xl border border-primary/15 bg-[#e7f6f3] p-5">
+          <div className="rounded-2xl border border-primary/15 bg-primary/5 p-5">
             <div className="flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/80 text-primary">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-surface/80 text-primary">
                 <IconLock className="h-4 w-4" />
               </span>
               <h2 className="text-sm font-semibold text-foreground">Your privacy matters</h2>
@@ -514,7 +514,7 @@ export function DashboardOnboardingFlow({ roleHint }: DashboardOnboardingFlowPro
                 return (
                   <li
                     key={need.key}
-                    className="rounded-xl border border-border/60 bg-[#f8fafb] px-3 py-3"
+                    className="rounded-xl border border-border/60 bg-surface-subtle px-3 py-3"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
@@ -632,7 +632,7 @@ function StepBody({
         title="Submit"
         hint="When you submit, your organisation admin will review your onboarding profile."
       />
-      <div className="rounded-2xl border border-border/70 bg-[#f8fafb] p-5">
+      <div className="rounded-2xl border border-border/70 bg-surface-subtle p-5">
         <h3 className="text-base font-semibold">Ready to send for review?</h3>
         <p className="mt-2 text-sm text-muted">
           You’ll stay locked out of the rest of the workspace until an admin verifies your

@@ -194,7 +194,7 @@ export class SaveProgressNoteDto {
   progressNote: string;
 }
 
-/** Finish a shift — reason required when outside ±15 minute margin. */
+/** Finish a shift — reason required when outside allowed start/end windows. */
 export class FinishShiftDto {
   @IsOptional()
   @IsString()

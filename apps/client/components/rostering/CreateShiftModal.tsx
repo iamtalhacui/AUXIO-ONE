@@ -362,7 +362,7 @@ export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Prop
             </div>
             <div>
               <p className="input-label">End time</p>
-              <p className="rounded-lg border border-border/60 bg-[#f8fafc] px-3.5 py-2.5 text-sm font-medium">
+              <p className="rounded-lg border border-border/60 bg-surface-subtle px-3.5 py-2.5 text-sm font-medium">
                 {durationMinutes >= 5 ? endTime : "—"}
               </p>
             </div>
@@ -399,7 +399,7 @@ export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Prop
           </label>
 
           {recurring ? (
-            <div className="space-y-3 rounded-xl border border-border/60 bg-[#f8fafc] p-4">
+            <div className="space-y-3 rounded-xl border border-border/60 bg-surface-subtle p-4">
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
                   <label className="input-label" htmlFor="freq">

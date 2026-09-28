@@ -121,7 +121,7 @@ export function NotificationCenter({ isPlatform, enabled }: { isPlatform: boolea
       <button
         type="button"
         onClick={handleOpen}
-        className="relative flex h-9 w-9 items-center justify-center rounded-full border border-border/70 bg-surface text-muted transition hover:border-primary/30 hover:text-primary"
+        className="relative flex h-9 w-9 items-center justify-center rounded-md border border-border/70 bg-surface text-muted transition hover:border-primary/30 hover:text-primary"
         aria-label={unreadCount > 0 ? `${unreadCount} unread notifications` : "Notifications"}
       >
         <Bell className="h-[18px] w-[18px]" />
@@ -172,7 +172,7 @@ export function NotificationCenter({ isPlatform, enabled }: { isPlatform: boolea
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="rounded-full p-1.5 text-muted transition hover:bg-surface-muted hover:text-foreground"
+                  className="rounded-md p-1.5 text-muted transition hover:bg-surface-muted hover:text-foreground"
                   aria-label="Close notifications"
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="h-4 w-4">
@@ -200,7 +200,7 @@ export function NotificationCenter({ isPlatform, enabled }: { isPlatform: boolea
                         <button
                           type="button"
                           onClick={() => handleNotificationClick(n)}
-                          className={`flex w-full items-start gap-3 px-5 py-3.5 text-left transition hover:bg-[#fafbfc] ${
+                          className={`flex w-full items-start gap-3 px-5 py-3.5 text-left transition hover:bg-surface-subtle ${
                             n.isRead ? "" : "bg-primary/[0.03]"
                           }`}
                         >

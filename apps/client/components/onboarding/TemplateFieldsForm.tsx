@@ -57,7 +57,7 @@ export function TemplateFieldsForm({ fields, values, onChange }: TemplateFieldsF
                       key={option.value}
                       type="button"
                       onClick={() => toggleChip(field.key, option.value)}
-                      className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${
+                      className={`rounded-md border px-3 py-1.5 text-sm font-medium transition ${
                         active
                           ? "border-primary bg-primary/10 text-primary"
                           : "border-border text-muted hover:border-primary/30 hover:text-foreground"
@@ -85,7 +85,7 @@ export function TemplateFieldsForm({ fields, values, onChange }: TemplateFieldsF
                 rows={4}
                 placeholder={field.placeholder}
                 readOnly={field.readOnly}
-                className={`${inputClass} mt-1.5 resize-none ${field.readOnly ? "bg-[#f4f6f8]" : ""}`}
+                className={`${inputClass} mt-1.5 resize-none ${field.readOnly ? "bg-surface-muted" : ""}`}
               />
             </label>
           );
@@ -102,7 +102,7 @@ export function TemplateFieldsForm({ fields, values, onChange }: TemplateFieldsF
                 value={typeof value === "string" ? value : ""}
                 onChange={onInput(field.key)}
                 disabled={field.readOnly}
-                className={`${inputClass} mt-1.5 ${field.readOnly ? "bg-[#f4f6f8]" : ""}`}
+                className={`${inputClass} mt-1.5 ${field.readOnly ? "bg-surface-muted" : ""}`}
               >
                 <option value="">Select…</option>
                 {field.options.map((option) => (
@@ -127,7 +127,7 @@ export function TemplateFieldsForm({ fields, values, onChange }: TemplateFieldsF
               onChange={onInput(field.key)}
               placeholder={field.placeholder}
               readOnly={field.readOnly}
-              className={`${inputClass} mt-1.5 ${field.readOnly ? "bg-[#f4f6f8]" : ""}`}
+              className={`${inputClass} mt-1.5 ${field.readOnly ? "bg-surface-muted" : ""}`}
             />
           </label>
         );

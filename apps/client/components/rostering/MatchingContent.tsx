@@ -8,7 +8,6 @@ import {
   useListMatchCandidatesQuery,
   useListScheduleShiftsQuery,
   usePublishOfferShiftMutation,
-  usePublishUnfilledShiftMutation,
   useWithdrawShiftOfferMutation,
 } from "@/lib/api/authApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
@@ -24,7 +23,7 @@ import {
 
 /**
  * Matching board: pick a draft/unfilled/offered shift, review hard-rule
- * candidates, then publish+offer (or publish empty / withdraw offer).
+ * candidates, then publish+offer (or withdraw offer).
  */
 export function MatchingContent() {
   const { toast } = useToast();
@@ -80,10 +79,9 @@ export function MatchingContent() {
   });
 
   const [publishOffer, offerState] = usePublishOfferShiftMutation();
-  const [publishEmpty, emptyState] = usePublishUnfilledShiftMutation();
   const [withdraw, withdrawState] = useWithdrawShiftOfferMutation();
 
-  const busy = offerState.isLoading || emptyState.isLoading || withdrawState.isLoading;
+  const busy = offerState.isLoading || withdrawState.isLoading;
 
   async function handleOffer(workerId: string) {
     if (!selected) return;
@@ -100,20 +98,6 @@ export function MatchingContent() {
       const message = getErrorMessage(err, "Could not publish offer");
       setActionError(message);
       toast({ variant: "error", title: "Could not publish offer", description: message });
-    }
-  }
-
-  async function handlePublishEmpty() {
-    if (!selected) return;
-    setActionError("");
-    try {
-      await publishEmpty(selected.id).unwrap();
-      toast({ variant: "success", title: "Shift published as unfilled" });
-      void refetch();
-    } catch (err) {
-      const message = getErrorMessage(err, "Could not publish");
-      setActionError(message);
-      toast({ variant: "error", title: "Could not publish", description: message });
     }
   }
 
@@ -194,16 +178,6 @@ export function MatchingContent() {
                   </p>
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <ShiftStatusPill status={selected.status} />
-                    {selected.status === "DRAFT" ? (
-                      <button
-                        type="button"
-                        className="btn-secondary !rounded-lg !px-3 !py-1.5 text-xs"
-                        disabled={busy}
-                        onClick={() => void handlePublishEmpty()}
-                      >
-                        Publish unfilled
-                      </button>
-                    ) : null}
                     {selected.status === "OFFERED" ? (
                       <button
                         type="button"

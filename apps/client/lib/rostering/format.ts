@@ -58,6 +58,77 @@ export function formatDuration(minutes: number) {
   return `${h}h ${m}m`;
 }
 
+/**
+ * Scheduled shift instants. The server builds these with setUTCHours, so the
+ * client must parse as UTC too — otherwise variance and overdue maths disagree
+ * with what the API will calculate on finish.
+ */
+export function shiftDateTime(dateIso: string, time: string) {
+  return new Date(`${dateIso}T${time}:00.000Z`);
+}
+
+/** Wall clock for a recorded instant, in the same UTC frame as scheduled times. */
+export function formatClock(iso: string) {
+  return new Date(iso).toLocaleTimeString("en-AU", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "UTC",
+  });
+}
+
+export function formatDateTime(iso: string) {
+  return new Date(iso).toLocaleString("en-AU", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "UTC",
+  });
+}
+
+/** Compact running clock: "2h 04m", "12m 30s", "45s". */
+export function formatElapsed(ms: number) {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  if (h > 0) return `${h}h ${String(m).padStart(2, "0")}m`;
+  if (m > 0) return `${m}m ${String(s).padStart(2, "0")}s`;
+  return `${s}s`;
+}
+
+/** Countdown that collapses to days once the shift is far away. */
+export function formatCountdown(ms: number) {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const days = Math.floor(total / 86400);
+  if (days >= 1) {
+    const hours = Math.floor((total % 86400) / 3600);
+    return hours > 0 ? `${days}d ${hours}h` : `${days}d`;
+  }
+  return formatElapsed(ms);
+}
+
+export function formatVariance(minutes: number) {
+  const abs = Math.abs(minutes);
+  if (abs === 0) return "on time";
+  const unit = abs === 1 ? "min" : "mins";
+  return `${abs} ${unit} ${minutes > 0 ? "late" : "early"}`;
+}
+
+/** "Today", "Tomorrow", or a weekday heading for list grouping. */
+export function formatDayHeading(iso: string) {
+  const today = todayIso();
+  if (iso === today) return "Today";
+  if (iso === addDays(today, 1)) return "Tomorrow";
+  return new Date(`${iso}T12:00:00`).toLocaleDateString("en-AU", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+}
+
 export const BOARD_START_HOUR = 6;
 export const BOARD_END_HOUR = 22;
 

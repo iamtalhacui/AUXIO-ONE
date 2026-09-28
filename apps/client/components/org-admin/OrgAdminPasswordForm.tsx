@@ -1,10 +1,60 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { Eye, EyeOff, Lock, ShieldCheck } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
+import { PasswordStrengthMeter } from "@/components/auth/PasswordStrengthMeter";
 import { useChangePasswordMutation } from "@/lib/api/authApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
 import { useToast } from "@/components/toast/ToastProvider";
+import {
+  evaluatePassword,
+  PASSWORD_REQUIREMENTS_MESSAGE,
+} from "@/lib/auth/passwordStrength";
+
+function PasswordField({
+  label,
+  value,
+  onChange,
+  autoComplete,
+  show,
+  onToggleShow,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  autoComplete: string;
+  show: boolean;
+  onToggleShow: () => void;
+  placeholder?: string;
+}) {
+  return (
+    <label className="block">
+      <span className="input-label">{label}</span>
+      <span className="sec-input-wrap">
+        <Lock className="sec-input-icon" aria-hidden />
+        <input
+          type={show ? "text" : "password"}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          required
+          autoComplete={autoComplete}
+          placeholder={placeholder}
+          className="input-field sec-input"
+        />
+        <button
+          type="button"
+          onClick={onToggleShow}
+          className="sec-toggle"
+          aria-label={show ? "Hide password" : "Show password"}
+        >
+          {show ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        </button>
+      </span>
+    </label>
+  );
+}
 
 // Org Admin security page — updates the signed-in user's password only.
 export function OrgAdminPasswordForm() {
@@ -12,16 +62,26 @@ export function OrgAdminPasswordForm() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [localError, setLocalError] = useState("");
   const [changePassword, { isLoading, error, reset }] = useChangePasswordMutation();
+
+  const strength = evaluatePassword(newPassword);
+  const passwordsMatch =
+    confirmPassword.length > 0 && newPassword === confirmPassword;
+  const passwordsMismatch =
+    confirmPassword.length > 0 && newPassword !== confirmPassword;
+  const canSubmit = strength.isValid && passwordsMatch && currentPassword.length > 0;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLocalError("");
     reset();
 
-    if (newPassword.length < 8) {
-      setLocalError("New password must be at least 8 characters.");
+    if (!strength.isValid) {
+      setLocalError(PASSWORD_REQUIREMENTS_MESSAGE);
       return;
     }
 
@@ -49,57 +109,79 @@ export function OrgAdminPasswordForm() {
     localError || (error ? getErrorMessage(error, "Could not update password") : null);
 
   return (
-    <>
-      <PageHeader title="Security" description="Update your account password." />
-      <form className="dashboard-card max-w-xl space-y-5 p-6" onSubmit={handleSubmit}>
-        <label className="block">
-          <span className="input-label">Current password</span>
-          <input
-            type="password"
+    <div className="sec-shell">
+      <PageHeader
+        title="Security"
+        description="Keep your Org Admin account secure with a strong password."
+      />
+
+      <form className="sec-panel" onSubmit={handleSubmit}>
+        <div className="sec-hero">
+          <span className="sec-hero-icon" aria-hidden>
+            <ShieldCheck className="h-5 w-5" />
+          </span>
+          <div>
+            <h2 className="sec-hero-title">Change password</h2>
+            <p className="sec-hero-desc">
+              You’ll use this password the next time you sign in.
+            </p>
+          </div>
+        </div>
+
+        <div className="sec-body">
+          <PasswordField
+            label="Current password"
             value={currentPassword}
-            onChange={(event) => setCurrentPassword(event.target.value)}
-            required
+            onChange={setCurrentPassword}
             autoComplete="current-password"
-            className="input-field"
+            show={showCurrent}
+            onToggleShow={() => setShowCurrent((value) => !value)}
           />
-        </label>
 
-        <label className="block">
-          <span className="input-label">New password</span>
-          <input
-            type="password"
-            value={newPassword}
-            onChange={(event) => setNewPassword(event.target.value)}
-            required
-            minLength={8}
-            autoComplete="new-password"
-            className="input-field"
-          />
-        </label>
+          <div className="space-y-3">
+            <PasswordField
+              label="New password"
+              value={newPassword}
+              onChange={setNewPassword}
+              autoComplete="new-password"
+              show={showNew}
+              onToggleShow={() => setShowNew((value) => !value)}
+              placeholder="Create a strong password"
+            />
+            <PasswordStrengthMeter password={newPassword} />
+          </div>
 
-        <label className="block">
-          <span className="input-label">Confirm new password</span>
-          <input
-            type="password"
-            value={confirmPassword}
-            onChange={(event) => setConfirmPassword(event.target.value)}
-            required
-            minLength={8}
-            autoComplete="new-password"
-            className="input-field"
-          />
-        </label>
+          <div className="space-y-2">
+            <PasswordField
+              label="Confirm new password"
+              value={confirmPassword}
+              onChange={setConfirmPassword}
+              autoComplete="new-password"
+              show={showConfirm}
+              onToggleShow={() => setShowConfirm((value) => !value)}
+              placeholder="Re-enter new password"
+            />
+            {passwordsMatch ? (
+              <p className="sec-hint sec-hint-ok">Passwords match</p>
+            ) : null}
+            {passwordsMismatch ? (
+              <p className="sec-hint sec-hint-bad">Passwords do not match</p>
+            ) : null}
+          </div>
 
-        {errorMessage ? (
-          <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {errorMessage}
-          </p>
-        ) : null}
+          {errorMessage ? <p className="sec-error">{errorMessage}</p> : null}
+        </div>
 
-        <button type="submit" disabled={isLoading} className="btn-primary disabled:opacity-70">
-          {isLoading ? "Updating…" : "Update password"}
-        </button>
+        <footer className="sec-footer">
+          <button
+            type="submit"
+            disabled={isLoading || !canSubmit}
+            className="btn-primary w-full disabled:opacity-70 sm:w-auto"
+          >
+            {isLoading ? "Updating…" : "Update password"}
+          </button>
+        </footer>
       </form>
-    </>
+    </div>
   );
 }

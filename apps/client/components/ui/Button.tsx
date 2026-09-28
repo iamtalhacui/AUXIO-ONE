@@ -9,7 +9,7 @@ type ButtonProps = ComponentProps<"a"> & {
 
 const variants = {
   primary:
-    "bg-primary text-white shadow-lg shadow-primary/20 hover:bg-primary-light",
+    "bg-primary text-primary-foreground shadow-lg shadow-primary/20 hover:bg-primary-light",
   secondary:
     "border border-border bg-surface text-foreground hover:border-primary/30 hover:bg-surface-muted",
   ghost: "text-foreground hover:text-primary",
@@ -25,7 +25,7 @@ export function Button({
   return (
     <Link
       href={href}
-      className={`inline-flex items-center justify-center rounded-full px-6 py-3 text-sm font-semibold transition duration-300 ${variants[variant]} ${className}`}
+      className={`inline-flex items-center justify-center rounded-md px-6 py-3 text-sm font-semibold transition duration-300 ${variants[variant]} ${className}`}
       {...props}
     >
       {children}

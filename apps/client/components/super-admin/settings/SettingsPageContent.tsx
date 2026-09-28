@@ -90,7 +90,7 @@ export function SettingsPageContent() {
         <button
           type="submit"
           disabled={isSaving}
-          className="rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white hover:bg-primary-light disabled:opacity-70"
+          className="rounded-md bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary-light disabled:opacity-70"
         >
           {isSaving ? "Saving…" : "Save changes"}
         </button>

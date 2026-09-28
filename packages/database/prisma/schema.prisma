@@ -60,6 +60,7 @@ model Organisation {
   workerAvailabilities  WorkerAvailability[]
   availabilityExceptions AvailabilityException[]
   serviceLineTaskTemplates ServiceLineTaskTemplate[]
+  incidents             Incident[]
 }
 
 // ─── User (organisation-scoped) ──────────────────────────
@@ -124,6 +125,11 @@ model User {
   weeklyAvailability     WorkerAvailability[]
   availabilityExceptions AvailabilityException[]
   notifications          Notification[]
+  reportedIncidents      Incident[]              @relation("IncidentReporter")
+  uploadedIncidentDocs   IncidentAttachment[]    @relation("IncidentAttachmentUploadedBy")
+  incidentHistoryActions IncidentHistory[]       @relation("IncidentHistoryActor")
+  assignedIncidentActions IncidentAction[]       @relation("IncidentActionAssignee")
+  reportabilityAssessments Incident[]            @relation("IncidentReportabilityAssessor")
 
   @@index([organisationId])
 }
@@ -217,6 +223,7 @@ model Customer {
   sourceOpportunity CrmOpportunity?   @relation("OpportunityConvertedCustomer", fields: [sourceOpportunityId], references: [id], onDelete: SetNull)
   documents         CustomerDocument[]
   shifts            Shift[]
+  incidents         Incident[]
 
   @@index([organisationId])
   @@index([organisationId, status])
@@ -420,6 +427,7 @@ model Shift {
   createdBy      User         @relation("ShiftCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
   reviewedBy     User?        @relation("ShiftReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
   tasks          ShiftTask[]
+  incidents      Incident[]
 
   @@index([organisationId, date])
   @@index([organisationId, status])
@@ -562,4 +570,155 @@ model Notification {
 
   @@index([userId, isRead, createdAt])
   @@index([superAdminId, isRead, createdAt])
+}
+
+// ─── Incident management ─────────────────────────────────
+
+enum IncidentStatus {
+  PENDING_REVIEW
+  UNDER_REVIEW
+  ACTION_REQUIRED
+  RESOLVED
+  CLOSED
+}
+
+enum IncidentSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum IncidentType {
+  FALL
+  MEDICATION
+  BEHAVIOUR
+  INJURY
+  PROPERTY
+  NEAR_MISS
+  OTHER
+}
+
+enum IncidentReportabilityDecision {
+  NOT_ASSESSED
+  REPORTABLE
+  NOT_REPORTABLE
+}
+
+enum IncidentActionKind {
+  WELLBEING_FOLLOW_UP
+  REPORTABILITY_REVIEW
+  CUSTOM
+}
+
+enum IncidentActionStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+model Incident {
+  id              String           @id @default(uuid())
+  organisationId  String
+  // Org-scoped human reference, e.g. INC-2026-0042
+  reference       String
+  shiftId         String?
+  customerId      String?
+  reporterId      String
+  type            IncidentType
+  initialSeverity IncidentSeverity
+  currentSeverity IncidentSeverity
+  status          IncidentStatus   @default(PENDING_REVIEW)
+  // Calendar date the incident occurred (UTC midnight).
+  occurredOn      DateTime
+  approximateTime String
+  location        String
+  peopleInvolved  String           @default("")
+  // Denormalised display name (from shift/customer or free text).
+  participantName String?
+  description     String
+  immediateAction String
+  nextSteps       String           @default("")
+  resolvedAt      DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  organisation Organisation         @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  shift        Shift?               @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+  customer     Customer?            @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  reporter     User                 @relation("IncidentReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  attachments  IncidentAttachment[]
+  history      IncidentHistory[]
+  actions      IncidentAction[]
+  // Manager triage / notes
+  managementNotes String @default("")
+  // Authorised person's reportability decision (not auto-computed).
+  reportabilityDecision      IncidentReportabilityDecision @default(NOT_ASSESSED)
+  reportabilityRationale     String                        @default("")
+  reportabilityExternalRef   String                        @default("")
+  reportabilityNotifyNotes   String                        @default("")
+  reportabilityNotifiedAt    DateTime?
+  reportabilityAssessedAt    DateTime?
+  reportabilityAssessedById  String?
+  reportabilityAssessedBy    User? @relation("IncidentReportabilityAssessor", fields: [reportabilityAssessedById], references: [id], onDelete: SetNull)
+
+  @@unique([organisationId, reference])
+  @@index([organisationId, status])
+  @@index([organisationId, createdAt])
+  @@index([reporterId])
+  @@index([shiftId])
+  @@index([customerId])
+}
+
+model IncidentAttachment {
+  id           String   @id @default(uuid())
+  incidentId   String
+  fileName     String
+  mimeType     String
+  sizeBytes    Int
+  storageKey   String
+  uploadedById String
+  uploadedAt   DateTime @default(now())
+
+  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  uploadedBy User     @relation("IncidentAttachmentUploadedBy", fields: [uploadedById], references: [id], onDelete: Cascade)
+
+  @@index([incidentId])
+}
+
+model IncidentHistory {
+  id         String   @id @default(uuid())
+  incidentId String
+  actorId    String?
+  actorName  String
+  action     String
+  detail     String?
+  createdAt  DateTime @default(now())
+
+  incident Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  actor    User?    @relation("IncidentHistoryActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([incidentId, createdAt])
+}
+
+model IncidentAction {
+  id             String               @id @default(uuid())
+  incidentId     String
+  kind           IncidentActionKind   @default(CUSTOM)
+  description    String
+  assignedUserId String?
+  dueDate        DateTime?
+  status         IncidentActionStatus @default(OPEN)
+  notes          String               @default("")
+  completedAt    DateTime?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  incident     Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  assignedUser User?    @relation("IncidentActionAssignee", fields: [assignedUserId], references: [id], onDelete: SetNull)
+
+  @@index([incidentId])
+  @@index([assignedUserId])
+  @@index([status])
 }

@@ -1,20 +1,22 @@
 "use client";
 
+import Link from "next/link";
+import { Settings2, Shield, Users } from "lucide-react";
 import type { OrgAdminOverview } from "@/lib/api/types";
 
 const FUNNEL_STEPS = [
   { key: "NOT_STARTED" as const, label: "Not started", color: "bg-slate-300" },
   { key: "IN_PROGRESS" as const, label: "In progress", color: "bg-sky-400" },
   { key: "PENDING_REVIEW" as const, label: "Pending review", color: "bg-amber-400" },
-  { key: "CHANGES_REQUIRED" as const, label: "Changes required", color: "bg-rose-400" },
+  { key: "CHANGES_REQUIRED" as const, label: "Changes needed", color: "bg-rose-400" },
   { key: "VERIFIED" as const, label: "Verified", color: "bg-primary" },
 ];
 
-const ROLE_COLORS = {
-  MANAGER: "#0f766e",
-  ROSTERING_EXPERT: "#0891b2",
-  EMPLOYEE: "#94a3b8",
-} as const;
+const ROLE_META = [
+  { key: "MANAGER" as const, label: "Managers", color: "var(--chart-teal)" },
+  { key: "ROSTERING_EXPERT" as const, label: "Rostering", color: "var(--chart-sky)" },
+  { key: "EMPLOYEE" as const, label: "Employees", color: "var(--chart-slate)" },
+];
 
 type WorkforceChartsProps = {
   onboardingFunnel: OrgAdminOverview["onboardingFunnel"];
@@ -26,16 +28,12 @@ function OnboardingFunnel({ funnel }: { funnel: OrgAdminOverview["onboardingFunn
   const total = FUNNEL_STEPS.reduce((sum, step) => sum + funnel[step.key], 0);
 
   if (total === 0) {
-    return (
-      <div className="flex h-36 items-center justify-center text-sm text-muted">
-        No team members yet
-      </div>
-    );
+    return <p className="oad-chart-empty">No team members yet</p>;
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex h-4 w-full overflow-hidden rounded-full bg-[#f0eeeb]">
+      <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-surface-muted">
         {FUNNEL_STEPS.map((step) => {
           const value = funnel[step.key];
           if (value === 0) return null;
@@ -49,14 +47,14 @@ function OnboardingFunnel({ funnel }: { funnel: OrgAdminOverview["onboardingFunn
           );
         })}
       </div>
-      <ul className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-        {FUNNEL_STEPS.map((step) => (
-          <li key={step.key} className="flex items-center justify-between gap-3">
+      <ul className="space-y-2">
+        {FUNNEL_STEPS.filter((step) => funnel[step.key] > 0).map((step) => (
+          <li key={step.key} className="flex items-center justify-between gap-3 text-sm">
             <span className="flex items-center gap-2 text-muted">
-              <span className={`h-2.5 w-2.5 rounded-full ${step.color}`} />
+              <span className={`h-2 w-2 rounded-full ${step.color}`} />
               {step.label}
             </span>
-            <span className="font-semibold">{funnel[step.key]}</span>
+            <span className="font-semibold tabular-nums text-foreground">{funnel[step.key]}</span>
           </li>
         ))}
       </ul>
@@ -64,53 +62,46 @@ function OnboardingFunnel({ funnel }: { funnel: OrgAdminOverview["onboardingFunn
   );
 }
 
-function RoleMixDonut({ roleMix }: { roleMix: OrgAdminOverview["roleMix"] }) {
-  const total = roleMix.MANAGER + roleMix.ROSTERING_EXPERT + roleMix.EMPLOYEE;
+function RoleMix({ roleMix }: { roleMix: OrgAdminOverview["roleMix"] }) {
+  const total = ROLE_META.reduce((sum, role) => sum + roleMix[role.key], 0);
 
   if (total === 0) {
-    return (
-      <div className="flex h-36 items-center justify-center text-sm text-muted">
-        No workforce members yet
-      </div>
-    );
+    return <p className="oad-chart-empty">No workforce members yet</p>;
   }
 
-  const segments = (["MANAGER", "ROSTERING_EXPERT", "EMPLOYEE"] as const)
-    .map((key) => ({ key, value: roleMix[key] }))
-    .filter((s) => s.value > 0);
+  const segments = ROLE_META.map((role) => ({ ...role, value: roleMix[role.key] })).filter(
+    (s) => s.value > 0,
+  );
 
   let cursor = 0;
   const stops = segments.map((s) => {
     const start = cursor;
     const pct = (s.value / total) * 100;
     cursor += pct;
-    return `${ROLE_COLORS[s.key]} ${start}% ${cursor}%`;
+    return `${s.color} ${start}% ${cursor}%`;
   });
 
   return (
-    <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex items-center gap-5">
       <div
-        className="relative h-32 w-32 shrink-0 rounded-full"
+        className="relative h-28 w-28 shrink-0 rounded-full"
         style={{ background: `conic-gradient(${stops.join(", ")})` }}
         role="img"
-        aria-label={`Role mix: Manager ${roleMix.MANAGER}, Rostering Expert ${roleMix.ROSTERING_EXPERT}, Employee ${roleMix.EMPLOYEE}`}
+        aria-label={`Team of ${total}`}
       >
-        <div className="absolute inset-4 flex flex-col items-center justify-center rounded-full bg-white">
-          <span className="text-2xl font-semibold">{total}</span>
-          <span className="text-xs text-muted">people</span>
+        <div className="absolute inset-3 flex flex-col items-center justify-center rounded-full bg-surface">
+          <span className="text-xl font-semibold tabular-nums">{total}</span>
+          <span className="text-[10px] uppercase tracking-wide text-muted">people</span>
         </div>
       </div>
-      <ul className="space-y-2 text-sm">
-        {(["MANAGER", "ROSTERING_EXPERT", "EMPLOYEE"] as const).map((role) => (
-          <li key={role} className="flex items-center gap-2">
-            <span
-              className="h-2.5 w-2.5 rounded-full"
-              style={{ backgroundColor: ROLE_COLORS[role] }}
-            />
-            <span className="text-muted">
-              {role === "ROSTERING_EXPERT" ? "Rostering Expert" : role.charAt(0) + role.slice(1).toLowerCase()}
+      <ul className="min-w-0 flex-1 space-y-2.5">
+        {ROLE_META.map((role) => (
+          <li key={role.key} className="flex items-center justify-between gap-2 text-sm">
+            <span className="flex min-w-0 items-center gap-2 text-muted">
+              <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: role.color }} />
+              <span className="truncate">{role.label}</span>
             </span>
-            <span className="font-semibold">{roleMix[role]}</span>
+            <span className="font-semibold tabular-nums text-foreground">{roleMix[role.key]}</span>
           </li>
         ))}
       </ul>
@@ -118,63 +109,75 @@ function RoleMixDonut({ roleMix }: { roleMix: OrgAdminOverview["roleMix"] }) {
   );
 }
 
-function ApprovalLoadBars({ approvalLoad }: { approvalLoad: OrgAdminOverview["approvalLoadLast30Days"] }) {
+function ApprovalStrip({ approvalLoad }: { approvalLoad: OrgAdminOverview["approvalLoadLast30Days"] }) {
   const total = approvalLoad.autoApproved + approvalLoad.needsReview + approvalLoad.rejected;
-
-  if (total === 0) {
-    return (
-      <div className="flex h-36 items-center justify-center text-sm text-muted">
-        No finished shifts in the last 30 days
-      </div>
-    );
-  }
-
   const rows = [
-    { label: "Auto-approved", value: approvalLoad.autoApproved, color: "bg-primary" },
-    { label: "Needs review", value: approvalLoad.needsReview, color: "bg-amber-400" },
-    { label: "Rejected", value: approvalLoad.rejected, color: "bg-rose-400" },
+    { label: "Auto-approved", value: approvalLoad.autoApproved, tone: "ok" as const },
+    { label: "Needs review", value: approvalLoad.needsReview, tone: "warn" as const },
+    { label: "Rejected", value: approvalLoad.rejected, tone: "bad" as const },
   ];
 
   return (
-    <div className="flex h-36 flex-col justify-center gap-4">
-      {rows.map((row) => (
-        <div key={row.label}>
-          <div className="mb-1.5 flex items-center justify-between text-sm">
-            <span className="text-muted">{row.label}</span>
-            <span className="font-semibold">{row.value}</span>
-          </div>
-          <div className="h-2.5 overflow-hidden rounded-full bg-[#f0eeeb]">
-            <div
-              className={`h-full rounded-full ${row.color}`}
-              style={{ width: `${(row.value / total) * 100}%` }}
-            />
-          </div>
+    <div className="oad-approval">
+      <div className="oad-approval-head">
+        <div>
+          <h2 className="oad-section-title">Shift outcomes</h2>
+          <p className="oad-section-desc">Finished shifts · last 30 days</p>
         </div>
-      ))}
+        <p className="text-sm font-semibold tabular-nums text-foreground">{total} total</p>
+      </div>
+      {total === 0 ? (
+        <p className="oad-chart-empty py-6">No finished shifts in the last 30 days</p>
+      ) : (
+        <div className="oad-approval-grid">
+          {rows.map((row) => (
+            <div key={row.label} className={`oad-approval-cell oad-approval-${row.tone}`}>
+              <p className="text-xs font-medium text-muted">{row.label}</p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums">{row.value}</p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
+const SHORTCUTS = [
+  { label: "Team directory", href: "/org-admin/team", icon: Users },
+  { label: "Roles & permissions", href: "/org-admin/roles", icon: Shield },
+  { label: "Organisation settings", href: "/org-admin/settings/organisation", icon: Settings2 },
+] as const;
+
 export function WorkforceCharts({ onboardingFunnel, roleMix, approvalLoad }: WorkforceChartsProps) {
   return (
-    <div className="grid gap-5 md:grid-cols-3">
-      <article className="dashboard-card p-5">
-        <h2 className="text-lg font-semibold">Onboarding funnel</h2>
-        <p className="mb-4 text-sm text-muted">Where the team stands today</p>
-        <OnboardingFunnel funnel={onboardingFunnel} />
-      </article>
+    <div className="space-y-5">
+      <div className="grid gap-5 lg:grid-cols-2">
+        <article className="oad-card">
+          <h2 className="oad-section-title">Onboarding</h2>
+          <p className="oad-section-desc mb-4">Where the team stands today</p>
+          <OnboardingFunnel funnel={onboardingFunnel} />
+        </article>
 
-      <article className="dashboard-card p-5">
-        <h2 className="text-lg font-semibold">Team role mix</h2>
-        <p className="mb-4 text-sm text-muted">Manager / Rostering Expert / Employee</p>
-        <RoleMixDonut roleMix={roleMix} />
-      </article>
+        <article className="oad-card">
+          <h2 className="oad-section-title">Role mix</h2>
+          <p className="oad-section-desc mb-4">Workforce composition</p>
+          <RoleMix roleMix={roleMix} />
+        </article>
+      </div>
 
-      <article className="dashboard-card p-5">
-        <h2 className="text-lg font-semibold">Approval load</h2>
-        <p className="mb-4 text-sm text-muted">Finished shifts, last 30 days</p>
-        <ApprovalLoadBars approvalLoad={approvalLoad} />
-      </article>
+      <ApprovalStrip approvalLoad={approvalLoad} />
+
+      <nav className="oad-shortcuts" aria-label="Quick links">
+        {SHORTCUTS.map((item) => {
+          const Icon = item.icon;
+          return (
+            <Link key={item.href} href={item.href} className="oad-shortcut">
+              <Icon className="h-4 w-4 text-primary" aria-hidden />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
     </div>
   );
 }

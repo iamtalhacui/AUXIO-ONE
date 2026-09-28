@@ -65,7 +65,7 @@ export function AcceptInviteForm() {
           <button
             type="submit"
             disabled={!evaluatePassword(password).isValid}
-            className="flex w-full items-center justify-center rounded-full bg-primary px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/20 transition hover:bg-primary-light disabled:cursor-not-allowed disabled:opacity-70"
+            className="flex w-full items-center justify-center rounded-md bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition hover:bg-primary-light disabled:cursor-not-allowed disabled:opacity-70"
           >
             Activate account
           </button>

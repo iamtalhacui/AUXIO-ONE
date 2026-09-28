@@ -8,61 +8,63 @@ type TeamStatCardsProps = {
   teamJoinsLast14Days: OrgAdminOverview["teamJoinsLast14Days"];
 };
 
-// Tiny inline trend line — last 14 days of new joiners. Same technique as
-// the Super Admin Organisations card: no axis/labels, purely decorative.
 function Sparkline({ points }: { points: number[] }) {
   const max = Math.max(...points, 1);
-
   if (points.every((p) => p === 0)) return null;
 
   return (
-    <div className="flex h-8 items-end gap-0.5" aria-hidden="true">
+    <div className="flex h-7 items-end gap-0.5" aria-hidden>
       {points.map((value, index) => (
         <div
           key={index}
-          className="w-1 rounded-full bg-primary/70"
-          style={{ height: `${Math.max((value / max) * 100, value > 0 ? 15 : 4)}%` }}
+          className="w-1 rounded-full bg-primary/55"
+          style={{ height: `${Math.max((value / max) * 100, value > 0 ? 14 : 3)}%` }}
         />
       ))}
     </div>
   );
 }
 
-// Vertical stack — sits beside TeamNeedsAttentionCard on the dashboard.
 export function TeamStatCards({ kpis, teamJoinsLast14Days }: TeamStatCardsProps) {
   const sparkline = teamJoinsLast14Days.map((d) => d.count);
+  const awaitingTone = kpis.awaitingAction > 0 ? "oad-kpi-warn" : "";
 
   return (
-    <div className="flex flex-col gap-5">
-      <article className="dashboard-card p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-sm text-muted">Team members</p>
-            <p className="mt-2 text-3xl font-semibold tracking-tight">{kpis.teamTotal}</p>
-          </div>
+    <div className="oad-kpi-grid">
+      <Link href="/org-admin/team" className="oad-kpi">
+        <div className="oad-kpi-top">
+          <p className="oad-kpi-label">Team</p>
           <Sparkline points={sparkline} />
         </div>
-        <p className="mt-2 text-xs text-muted">{kpis.teamActive} active</p>
-      </article>
+        <p className="oad-kpi-value">{kpis.teamTotal}</p>
+        <p className="oad-kpi-hint">{kpis.teamActive} active · last 14 days</p>
+      </Link>
 
-      <article className="dashboard-card p-5">
-        <p className="text-sm text-muted">Awaiting action</p>
-        <p className="mt-2 text-3xl font-semibold tracking-tight">{kpis.awaitingAction}</p>
-        <p
-          className={`mt-2 text-xs ${
-            kpis.awaitingAction > 0 ? "font-semibold text-amber-700" : "font-semibold text-primary"
-          }`}
-        >
-          Onboarding + approvals + invites
+      <div className="oad-kpi">
+        <p className="oad-kpi-label">Active</p>
+        <p className="oad-kpi-value">{kpis.teamActive}</p>
+        <p className="oad-kpi-hint">
+          {kpis.teamTotal > 0
+            ? `${Math.round((kpis.teamActive / kpis.teamTotal) * 100)}% of team`
+            : "No members yet"}
         </p>
-      </article>
+      </div>
 
-      <Link href="/org-admin/settings/modules" className="dashboard-card block p-5 transition hover:border-primary/40">
-        <p className="text-sm text-muted">Modules enabled</p>
-        <p className="mt-2 text-3xl font-semibold tracking-tight">
-          {kpis.modulesEnabled}/{kpis.modulesGranted}
+      <Link href="/org-admin/team" className={`oad-kpi ${awaitingTone}`}>
+        <p className="oad-kpi-label">Awaiting you</p>
+        <p className="oad-kpi-value">{kpis.awaitingAction}</p>
+        <p className="oad-kpi-hint">
+          {kpis.awaitingAction > 0 ? "Reviews, approvals & invites" : "All clear"}
         </p>
-        <p className="mt-2 text-xs font-semibold text-primary">Manage modules →</p>
+      </Link>
+
+      <Link href="/org-admin/settings/modules" className="oad-kpi">
+        <p className="oad-kpi-label">Modules</p>
+        <p className="oad-kpi-value">
+          {kpis.modulesEnabled}
+          <span className="oad-kpi-suffix">/{kpis.modulesGranted}</span>
+        </p>
+        <p className="oad-kpi-hint">Enabled of entitled</p>
       </Link>
     </div>
   );

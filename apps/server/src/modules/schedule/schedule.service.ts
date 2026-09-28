@@ -20,8 +20,17 @@ import {
   DEFAULT_SERVICE_LINE_TASKS,
 } from './default-service-line-tasks';
 
-/** ±15 minutes — inside this band finish is auto-approved. */
-export const VARIANCE_MARGIN_MINUTES = 15;
+/** Finish auto-approves when start/end stay inside these windows. */
+export const LATE_START_APPROVAL_MINUTES = 15;
+/** Employees may start from this many minutes before scheduled start. */
+export const EARLY_START_ALLOW_MINUTES = 30;
+/** Finish more than this many minutes before scheduled end → approval. */
+export const EARLY_END_ALLOW_MINUTES = 3 * 60;
+/** Finish more than this many minutes after scheduled end → approval. */
+export const LATE_END_ALLOW_MINUTES = 15;
+
+/** @deprecated Prefer the named start/end window constants above. */
+export const VARIANCE_MARGIN_MINUTES = LATE_START_APPROVAL_MINUTES;
 
 const COVERED_STATUSES = new Set([
   'ACCEPTED',
@@ -49,6 +58,59 @@ function dateKeyInTimeZone(d: Date, timeZone: string): string {
   } catch {
     return d.toISOString().slice(0, 10);
   }
+}
+
+/**
+ * Interpret YYYY-MM-DD + HH:mm as wall clock in `timeZone`, return the UTC Date.
+ * Used so start/finish rules follow the organisation timezone, not date-only checks.
+ */
+function zonedWallTimeToUtc(dateKey: string, hhmm: string, timeZone: string): Date {
+  const [y, mo, d] = dateKey.split('-').map(Number);
+  const [h, mi] = hhmm.split(':').map(Number);
+  if (![y, mo, d, h, mi].every((n) => Number.isFinite(n))) {
+    throw new BadRequestException('Invalid shift date/time');
+  }
+
+  const utcGuess = Date.UTC(y, mo - 1, d, h, mi, 0, 0);
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(new Date(utcGuess));
+    const get = (type: string) =>
+      Number(parts.find((p) => p.type === type)?.value ?? NaN);
+    const asSeen = Date.UTC(
+      get('year'),
+      get('month') - 1,
+      get('day'),
+      get('hour'),
+      get('minute'),
+      get('second'),
+    );
+    if (!Number.isFinite(asSeen)) {
+      return new Date(utcGuess);
+    }
+    return new Date(utcGuess - (asSeen - utcGuess));
+  } catch {
+    return new Date(utcGuess);
+  }
+}
+
+function needsFinishApproval(
+  startVarianceMinutes: number,
+  endVarianceMinutes: number,
+): boolean {
+  const startedTooLate = startVarianceMinutes > LATE_START_APPROVAL_MINUTES;
+  const startedTooEarly = startVarianceMinutes < -EARLY_START_ALLOW_MINUTES;
+  const endedTooEarly = endVarianceMinutes < -EARLY_END_ALLOW_MINUTES;
+  const endedTooLate = endVarianceMinutes > LATE_END_ALLOW_MINUTES;
+  return startedTooLate || startedTooEarly || endedTooEarly || endedTooLate;
 }
 
 function addDaysIso(isoDate: string, days: number): string {
@@ -738,26 +800,6 @@ export class ScheduleService {
 
   // ─── Publish / offer / matching ─────────────────────────
 
-  /** Publish without a worker — appears as unfilled on the operational roster. */
-  async publishUnfilled(organisationId: string, role: string, shiftId: string) {
-    this.assertRosteringExpert(role);
-    const shift = await this.findOrgShift(organisationId, shiftId);
-    if (shift.status !== 'DRAFT' && shift.status !== 'UNFILLED') {
-      throw new BadRequestException('Only draft or unfilled shifts can be published empty');
-    }
-    const updated = await this.prisma.shift.update({
-      where: { id: shift.id },
-      data: {
-        status: 'UNFILLED',
-        publishedAt: shift.publishedAt ?? new Date(),
-        offeredWorkerId: null,
-        assignedWorkerId: null,
-      },
-      include: this.shiftInclude,
-    });
-    return this.toShiftDto(updated);
-  }
-
   /**
    * Publish (if needed) and offer the shift to one eligible worker.
    * No tentative draft assignment — offer happens only at this step.
@@ -1401,12 +1443,23 @@ export class ScheduleService {
 
   // ─── Phase B: start / tasks / note / finish ─────────────
 
-  /** Combine shift date + HH:mm into a Date (UTC wall-clock, same as Phase A). */
-  private scheduledDateTime(date: Date, time: string): Date {
-    const [h, m] = time.split(':').map(Number);
-    const d = new Date(date);
-    d.setUTCHours(h, m, 0, 0);
-    return d;
+  private async orgTimeZone(organisationId: string) {
+    const org = await this.prisma.organisation.findUnique({
+      where: { id: organisationId },
+      select: { timezone: true },
+    });
+    return org?.timezone || 'UTC';
+  }
+
+  /** Combine shift calendar date + HH:mm in the organisation timezone. */
+  private async scheduledDateTime(
+    organisationId: string,
+    date: Date,
+    time: string,
+  ): Promise<Date> {
+    const timeZone = await this.orgTimeZone(organisationId);
+    const dateKey = date.toISOString().slice(0, 10);
+    return zonedWallTimeToUtc(dateKey, time, timeZone);
   }
 
   private minutesBetween(a: Date, b: Date): number {
@@ -1426,11 +1479,26 @@ export class ScheduleService {
       throw new BadRequestException('Only an accepted assigned worker can start this shift');
     }
 
+    const now = new Date();
+    const scheduledStart = await this.scheduledDateTime(
+      organisationId,
+      shift.date,
+      shift.startTime,
+    );
+    const minutesUntilStart = this.minutesBetween(now, scheduledStart);
+
+    // More than 30 minutes before scheduled start → hard block (datetime, not date-only).
+    if (minutesUntilStart > EARLY_START_ALLOW_MINUTES) {
+      throw new BadRequestException(
+        `You can start this shift from ${EARLY_START_ALLOW_MINUTES} minutes before the scheduled start (${shift.startTime}). Come back closer to the start time.`,
+      );
+    }
+
     const updated = await this.prisma.shift.update({
       where: { id: shift.id },
       data: {
         status: 'IN_PROGRESS',
-        actualStartedAt: new Date(),
+        actualStartedAt: now,
       },
       include: this.shiftInclude,
     });
@@ -1497,8 +1565,10 @@ export class ScheduleService {
 
   /**
    * Finish the shift.
-   * Within ±15 min on start AND end → APPROVED automatically.
-   * Outside margin → finishReason required → PENDING_APPROVAL for Org Admin.
+   * Auto-approve when:
+   *  - start within 30 min early … 15 min late of scheduled start, and
+   *  - end within 3 hours early … 15 min late of scheduled end.
+   * Otherwise finishReason required → PENDING_APPROVAL for Org Admin.
    */
   async finishMyShift(
     organisationId: string,
@@ -1525,20 +1595,26 @@ export class ScheduleService {
     }
 
     const now = new Date();
-    const scheduledStart = this.scheduledDateTime(shift.date, shift.startTime);
-    const scheduledEnd = this.scheduledDateTime(shift.date, shift.endTime);
+    const scheduledStart = await this.scheduledDateTime(
+      organisationId,
+      shift.date,
+      shift.startTime,
+    );
+    const scheduledEnd = await this.scheduledDateTime(
+      organisationId,
+      shift.date,
+      shift.endTime,
+    );
 
     // Positive = late/after scheduled; negative = early/before scheduled.
     const startVarianceMinutes = this.minutesBetween(scheduledStart, shift.actualStartedAt);
     const endVarianceMinutes = this.minutesBetween(scheduledEnd, now);
 
-    const outsideMargin =
-      Math.abs(startVarianceMinutes) > VARIANCE_MARGIN_MINUTES ||
-      Math.abs(endVarianceMinutes) > VARIANCE_MARGIN_MINUTES;
+    const outsideMargin = needsFinishApproval(startVarianceMinutes, endVarianceMinutes);
 
     if (outsideMargin && !finishReason?.trim()) {
       throw new BadRequestException(
-        `A reason is required when start or end time is more than ${VARIANCE_MARGIN_MINUTES} minutes early or late`,
+        `A reason is required when you start more than ${LATE_START_APPROVAL_MINUTES} minutes late, finish more than ${EARLY_END_ALLOW_MINUTES / 60} hours early, or finish more than ${LATE_END_ALLOW_MINUTES} minutes after the scheduled end`,
       );
     }
 
@@ -1550,12 +1626,11 @@ export class ScheduleService {
         endVarianceMinutes,
         finishReason: outsideMargin ? finishReason!.trim() : null,
         status: outsideMargin ? 'PENDING_APPROVAL' : 'APPROVED',
-        // Auto-approve records approval timestamp without an Org Admin actor.
         reviewedAt: outsideMargin ? null : now,
         reviewedById: null,
         reviewNote: outsideMargin
           ? null
-          : 'Auto-approved: within ±15 minute margin',
+          : 'Auto-approved: within allowed start/end time windows',
       },
       include: this.shiftInclude,
     });
@@ -1564,7 +1639,7 @@ export class ScheduleService {
       void this.notifications.notifyRole(organisationId, 'ORG_ADMIN', {
         type: 'WARNING',
         title: 'Shift needs approval',
-        message: `${updated.assignedWorker?.firstName ?? 'A worker'}'s ${updated.serviceTitle} shift finished outside the ±15 minute margin and needs approval.`,
+        message: `${updated.assignedWorker?.firstName ?? 'A worker'}'s ${updated.serviceTitle} shift finished outside the allowed time windows and needs approval.`,
         link: '/org-admin/shift-approvals',
       });
     }

@@ -51,7 +51,7 @@ export function LockedOnboardingHome({
         <div className="flex items-center gap-3">
           <button
             type="button"
-            className="relative flex h-9 w-9 items-center justify-center rounded-full border border-border/70 bg-surface text-muted"
+            className="relative flex h-9 w-9 items-center justify-center rounded-md border border-border/70 bg-surface text-muted"
             aria-label="Notifications"
             disabled
           >
@@ -76,7 +76,7 @@ export function LockedOnboardingHome({
         </p>
       </div>
 
-      <section className="overflow-hidden rounded-2xl bg-[#0f4f4a] px-6 py-7 text-white shadow-sm sm:px-8 sm:py-8">
+      <section className="overflow-hidden rounded-2xl bg-brand-panel px-6 py-7 text-brand-panel-foreground shadow-sm sm:px-8 sm:py-8">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-xl">
             <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-teal-100/80">
@@ -97,7 +97,7 @@ export function LockedOnboardingHome({
           <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-4">
             <Link
               href={onboardingHref}
-              className="inline-flex items-center justify-center rounded-xl bg-[#5eead4] px-5 py-3 text-sm font-semibold text-[#0f4f4a] transition hover:bg-[#99f6e4]"
+              className="inline-flex items-center justify-center rounded-md bg-accent-light px-5 py-3 text-sm font-semibold text-brand-deep transition hover:opacity-90"
             >
               Continue onboarding →
             </Link>
@@ -117,7 +117,7 @@ export function LockedOnboardingHome({
                 Tell us a little about you
               </h3>
             </div>
-            <span className="shrink-0 rounded-full bg-[#f3e8d8] px-2.5 py-1 text-[11px] font-semibold text-[#9a6b3f]">
+            <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-800">
               Not started
             </span>
           </div>

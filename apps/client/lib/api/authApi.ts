@@ -47,6 +47,14 @@ import type {
   ParticipantCareView,
   ServiceLineTaskCatalogue,
   NotificationFeed,
+  IncidentRecord,
+  ListIncidentsParams,
+  CreateIncidentRequest,
+  UpdateIncidentRequest,
+  CreateIncidentActionRequest,
+  UpdateIncidentActionRequest,
+  IncidentActionItem,
+  IncidentAttachmentMeta,
 } from "@/lib/api/types";
 import { isMaintenanceError, rememberMaintenanceLogout } from "@/lib/api/getErrorMessage";
 import { logoutOrg } from "@/lib/store/orgAuthSlice";
@@ -105,6 +113,7 @@ export const authApi = createApi({
     "RosterOverview",
     "EmployeeOverview",
     "Notifications",
+    "Incidents",
   ],
   endpoints: (builder) => ({
     setupAccount: builder.mutation<SetupAccountResponse, SetupAccountRequest>({
@@ -499,13 +508,6 @@ export const authApi = createApi({
         "RosterOverview",
       ],
     }),
-    publishUnfilledShift: builder.mutation<ScheduleShift, string>({
-      query: (id) => ({
-        url: `/organisation/schedule/shifts/${id}/publish`,
-        method: "POST",
-      }),
-      invalidatesTags: ["ScheduleShifts", "MatchCandidates", "RosterOverview"],
-    }),
     publishOfferShift: builder.mutation<
       ScheduleShift,
       { id: string; workerId: string }
@@ -724,6 +726,100 @@ export const authApi = createApi({
       }),
       invalidatesTags: ["Notifications"],
     }),
+
+    // ── Incidents ──
+    listIncidents: builder.query<IncidentRecord[], ListIncidentsParams | void>({
+      query: (params) => {
+        const search = new URLSearchParams();
+        if (params?.status) search.set("status", params.status);
+        if (params?.severity) search.set("severity", params.severity);
+        if (params?.type) search.set("type", params.type);
+        if (params?.q) search.set("q", params.q);
+        if (params?.dateFrom) search.set("dateFrom", params.dateFrom);
+        if (params?.dateTo) search.set("dateTo", params.dateTo);
+        const qs = search.toString();
+        return `/organisation/incidents${qs ? `?${qs}` : ""}`;
+      },
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.map(({ id }) => ({ type: "Incidents" as const, id })),
+              { type: "Incidents", id: "LIST" },
+            ]
+          : [{ type: "Incidents", id: "LIST" }],
+    }),
+    getIncident: builder.query<IncidentRecord, string>({
+      query: (id) => `/organisation/incidents/${id}`,
+      providesTags: (_r, _e, id) => [{ type: "Incidents", id }],
+    }),
+    createIncident: builder.mutation<IncidentRecord, CreateIncidentRequest>({
+      query: (body) => ({
+        url: "/organisation/incidents",
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: [{ type: "Incidents", id: "LIST" }],
+    }),
+    updateIncident: builder.mutation<
+      IncidentRecord,
+      { id: string } & UpdateIncidentRequest
+    >({
+      query: ({ id, ...body }) => ({
+        url: `/organisation/incidents/${id}`,
+        method: "PATCH",
+        body,
+      }),
+      invalidatesTags: (_r, _e, { id }) => [
+        { type: "Incidents", id },
+        { type: "Incidents", id: "LIST" },
+      ],
+    }),
+    createIncidentAction: builder.mutation<
+      IncidentActionItem,
+      { incidentId: string } & CreateIncidentActionRequest
+    >({
+      query: ({ incidentId, ...body }) => ({
+        url: `/organisation/incidents/${incidentId}/actions`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: (_r, _e, { incidentId }) => [
+        { type: "Incidents", id: incidentId },
+        { type: "Incidents", id: "LIST" },
+      ],
+    }),
+    updateIncidentAction: builder.mutation<
+      IncidentActionItem,
+      { incidentId: string; actionId: string } & UpdateIncidentActionRequest
+    >({
+      query: ({ incidentId, actionId, ...body }) => ({
+        url: `/organisation/incidents/${incidentId}/actions/${actionId}`,
+        method: "PATCH",
+        body,
+      }),
+      invalidatesTags: (_r, _e, { incidentId }) => [
+        { type: "Incidents", id: incidentId },
+        { type: "Incidents", id: "LIST" },
+      ],
+    }),
+    uploadIncidentAttachment: builder.mutation<
+      IncidentAttachmentMeta,
+      { incidentId: string; file: File }
+    >({
+      query: ({ incidentId, file }) => {
+        const form = new FormData();
+        form.append("file", file);
+        return {
+          url: `/organisation/incidents/${incidentId}/attachments`,
+          method: "POST",
+          body: form,
+        };
+      },
+      invalidatesTags: (_r, _e, { incidentId }) => [
+        { type: "Incidents", id: incidentId },
+        { type: "Incidents", id: "LIST" },
+      ],
+    }),
   }),
 });
 
@@ -776,7 +872,6 @@ export const {
   useCreateScheduleShiftsMutation,
   useUpdateScheduleShiftMutation,
   useCancelScheduleShiftMutation,
-  usePublishUnfilledShiftMutation,
   usePublishOfferShiftMutation,
   useWithdrawShiftOfferMutation,
   useListMatchCandidatesQuery,
@@ -799,4 +894,11 @@ export const {
   useListNotificationsQuery,
   useMarkNotificationReadMutation,
   useMarkAllNotificationsReadMutation,
+  useListIncidentsQuery,
+  useGetIncidentQuery,
+  useCreateIncidentMutation,
+  useUpdateIncidentMutation,
+  useCreateIncidentActionMutation,
+  useUpdateIncidentActionMutation,
+  useUploadIncidentAttachmentMutation,
 } = authApi;

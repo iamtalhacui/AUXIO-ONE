@@ -961,3 +961,169 @@ export type NotificationFeed = {
   unreadCount: number;
 };
 
+// ─── Incidents ───────────────────────────────────────────
+
+export type IncidentStatus =
+  | "PENDING_REVIEW"
+  | "UNDER_REVIEW"
+  | "ACTION_REQUIRED"
+  | "RESOLVED"
+  | "CLOSED";
+
+export type IncidentSeverity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+
+export type IncidentType =
+  | "FALL"
+  | "MEDICATION"
+  | "BEHAVIOUR"
+  | "INJURY"
+  | "PROPERTY"
+  | "NEAR_MISS"
+  | "OTHER";
+
+export type IncidentReportabilityDecision =
+  | "NOT_ASSESSED"
+  | "REPORTABLE"
+  | "NOT_REPORTABLE";
+
+export type IncidentActionKind =
+  | "WELLBEING_FOLLOW_UP"
+  | "REPORTABILITY_REVIEW"
+  | "CUSTOM";
+
+export type IncidentActionStatus = "OPEN" | "IN_PROGRESS" | "DONE" | "CANCELLED";
+
+export type IncidentAttachmentMeta = {
+  id: string;
+  name: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  sizeLabel: string;
+  uploadedAt: string;
+};
+
+export type IncidentActionItem = {
+  id: string;
+  kind: IncidentActionKind;
+  description: string;
+  text: string;
+  assignedUserId: string | null;
+  assignee?: string;
+  assignedUserName: string | null;
+  dueDate: string | null;
+  status: IncidentActionStatus;
+  done: boolean;
+  notes: string;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type IncidentHistoryEntry = {
+  id: string;
+  at: string;
+  actor: string;
+  actorId: string | null;
+  action: string;
+  detail: string | null;
+};
+
+export type IncidentReportability = {
+  decision: IncidentReportabilityDecision;
+  assessed: boolean;
+  reportable: boolean | null;
+  notes: string;
+  rationale: string;
+  externalRef: string;
+  notifyNotes: string;
+  notifiedAt: string | null;
+  assessedAt: string | null;
+  assessedBy: string | null;
+};
+
+export type IncidentRecord = {
+  id: string;
+  reference: string;
+  status: IncidentStatus;
+  severity: IncidentSeverity;
+  initialSeverity: IncidentSeverity;
+  currentSeverity: IncidentSeverity;
+  type: IncidentType;
+  date: string;
+  approximateTime: string;
+  reportedAt: string;
+  location: string;
+  peopleInvolved: string;
+  participantId: string | null;
+  participantName: string | null;
+  reporterId: string;
+  reporterName: string;
+  shiftId: string | null;
+  shiftLabel: string | null;
+  description: string;
+  immediateAction: string;
+  nextSteps: string;
+  managementNotes: string;
+  resolvedAt: string | null;
+  attachments: IncidentAttachmentMeta[];
+  followUpActions: IncidentActionItem[];
+  actions: IncidentActionItem[];
+  reportability: IncidentReportability;
+  history: IncidentHistoryEntry[];
+  allowedStatusTransitions: IncidentStatus[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ListIncidentsParams = {
+  status?: IncidentStatus;
+  severity?: IncidentSeverity;
+  type?: IncidentType;
+  q?: string;
+  dateFrom?: string;
+  dateTo?: string;
+};
+
+export type CreateIncidentRequest = {
+  shiftId: string;
+  date: string;
+  approximateTime: string;
+  location: string;
+  peopleInvolved?: string;
+  participantId?: string;
+  participantName?: string;
+  type: IncidentType;
+  severity: IncidentSeverity;
+  description: string;
+  immediateAction: string;
+  nextSteps?: string;
+};
+
+export type UpdateIncidentRequest = {
+  status?: IncidentStatus;
+  severity?: IncidentSeverity;
+  managementNotes?: string;
+  reportabilityDecision?: IncidentReportabilityDecision;
+  reportabilityRationale?: string;
+  reportabilityExternalRef?: string;
+  reportabilityNotifyNotes?: string;
+  reportabilityNotified?: boolean;
+};
+
+export type CreateIncidentActionRequest = {
+  description: string;
+  kind?: IncidentActionKind;
+  assignedUserId?: string;
+  dueDate?: string;
+  notes?: string;
+};
+
+export type UpdateIncidentActionRequest = {
+  description?: string;
+  assignedUserId?: string | null;
+  dueDate?: string | null;
+  status?: IncidentActionStatus;
+  notes?: string;
+};
+

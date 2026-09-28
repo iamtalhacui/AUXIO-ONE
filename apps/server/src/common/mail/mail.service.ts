@@ -275,4 +275,51 @@ export class MailService {
 
     this.logger.log(`Password reset OTP sent to ${to}`);
   }
+
+  async sendIncidentSubmittedEmail(args: {
+    to: string[];
+    reporterName: string;
+    reference: string;
+    severity: string;
+    participantName: string;
+    organisationName: string;
+    incidentId: string;
+  }) {
+    if (args.to.length === 0) return;
+
+    const clientUrl = process.env.CLIENT_URL ?? 'http://localhost:3000';
+    const link = `${clientUrl}/manager/incidents/${args.incidentId}`;
+    const participant = args.participantName || '—';
+
+    const html = `
+      <div style="font-family: sans-serif; max-width: 520px; margin: 0 auto;">
+        <h2 style="color: #0f766e;">New incident reported</h2>
+        <p>A new incident requires review in <strong>${args.organisationName}</strong>.</p>
+        <ul style="color: #333; line-height: 1.6;">
+          <li><strong>Reference:</strong> ${args.reference}</li>
+          <li><strong>Reporter:</strong> ${args.reporterName}</li>
+          <li><strong>Participant:</strong> ${participant}</li>
+          <li><strong>Severity:</strong> ${args.severity}</li>
+        </ul>
+        <p style="text-align: center; margin: 32px 0;">
+          <a href="${link}"
+             style="background: #0f766e; color: #fff; padding: 12px 28px;
+                    border-radius: 8px; text-decoration: none; font-weight: 600;">
+            Open incident
+          </a>
+        </p>
+        <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 24px 0;" />
+        <p style="color: #999; font-size: 12px;">AUXIO One — Care operations platform</p>
+      </div>
+    `;
+
+    await this.transporter.sendMail({
+      from: this.from,
+      to: args.to.join(', '),
+      subject: `Incident ${args.reference} — review required`,
+      html,
+    });
+
+    this.logger.log(`Incident submitted email sent for ${args.reference}`);
+  }
 }

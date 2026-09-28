@@ -30,7 +30,7 @@ export function OnboardingStepper({ currentStep, data }: OnboardingStepperProps)
               <div
                 className={`relative z-10 flex h-10 w-10 items-center justify-center rounded-full border-2 text-sm font-semibold transition ${
                   active
-                    ? "border-primary bg-primary text-white shadow-[0_0_0_4px_rgba(17,94,89,0.12)]"
+                    ? "border-primary bg-primary text-primary-foreground shadow-[0_0_0_4px_rgba(17,94,89,0.12)]"
                     : complete
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border bg-surface text-muted"
