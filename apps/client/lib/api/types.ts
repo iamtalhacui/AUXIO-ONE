@@ -11,6 +11,96 @@ export type PlatformLoginResponse = {
 
 export type OrgPlan = "BASIC" | "ADVANCED" | "CUSTOM";
 export type OrgStatus = "ACTIVE" | "SUSPENDED";
+export type BillingCycle = "MONTHLY" | "YEARLY";
+export type SubscriptionStatus =
+  | "ACTIVE"
+  | "EXPIRING_SOON"
+  | "GRACE_PERIOD"
+  | "SUSPENDED";
+
+export type OrganisationSubscription = {
+  id: string;
+  organisationId: string;
+  plan: OrgPlan;
+  billingCycle: BillingCycle;
+  amountCents: number;
+  currency: string;
+  startDate: string;
+  currentPeriodStart: string;
+  currentPeriodEnd: string;
+  nextRenewalDate: string;
+  autoRenewal: boolean;
+  status: SubscriptionStatus;
+  gracePeriodDays: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type PaymentStatus = "PENDING_APPROVAL" | "PAID" | "REJECTED";
+
+export type OrganisationPayment = {
+  id: string;
+  organisationId: string;
+  subscriptionId: string;
+  amountCents: number;
+  currency: string;
+  status: PaymentStatus;
+  paymentDate: string;
+  reference: string;
+  notes: string;
+  rejectionReason: string | null;
+  submittedById: string;
+  submittedBy: { name: string; email: string } | null;
+  reviewedAt: string | null;
+  reviewedByEmail: string | null;
+  proofFileName: string;
+  proofMimeType: string;
+  proofSizeBytes: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type OrgBillingSummary = {
+  subscription: OrganisationSubscription;
+  latestPayment: OrganisationPayment | null;
+  hasPendingPayment: boolean;
+  canSubmitPayment: boolean;
+  reminder: BillingReminder;
+};
+
+export type BillingReminder = {
+  active: boolean;
+  kind: "EXPIRING_SOON" | "GRACE_PERIOD" | "SUSPENDED" | null;
+  message: string | null;
+  daysUntilRenewal: number | null;
+  graceEndsOn: string | null;
+};
+
+export type PlatformPayment = OrganisationPayment & {
+  organisation: {
+    id: string;
+    name: string;
+    plan: OrgPlan;
+  } | null;
+};
+
+export type PlatformPaymentDetail = PlatformPayment & {
+  organisationStatus: OrgStatus;
+  subscription: OrganisationSubscription | null;
+};
+
+export type PlatformPaymentsOverview = {
+  organisations: Array<{
+    id: string;
+    name: string;
+    plan: OrgPlan;
+    status: OrgStatus;
+    subscription: OrganisationSubscription | null;
+    pendingPaymentCount: number;
+  }>;
+  pendingPayments: PlatformPayment[];
+};
+
 export type UserStatus = "INVITED" | "ACTIVE" | "SUSPENDED";
 export type OnboardingStatus =
   | "NOT_STARTED"
@@ -27,6 +117,10 @@ export type RegisterOrganisationRequest = {
   plan: OrgPlan;
   /** Add-on modules for the Custom plan. Core modules are granted regardless. */
   moduleCodes?: string[];
+  billingCycle: BillingCycle;
+  startDate: string;
+  autoRenewal: boolean;
+  gracePeriodDays?: number;
   adminFirstName: string;
   adminLastName: string;
   adminEmail: string;
@@ -47,6 +141,7 @@ export type RegisterOrganisationResponse = {
     role: string;
     status: UserStatus;
   };
+  subscription: OrganisationSubscription;
   modulesEntitled: number;
 };
 
@@ -61,6 +156,7 @@ export type PlatformOrganisation = {
   createdAt: string;
   modulesEnabled: number;
   modulesGranted: number;
+  subscription: OrganisationSubscription | null;
   admin: {
     id: string;
     firstName: string;

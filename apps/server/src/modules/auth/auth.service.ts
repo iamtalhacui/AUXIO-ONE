@@ -10,6 +10,7 @@ import * as bcrypt from 'bcryptjs';
 import { MailService } from '../../common/mail/mail.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { PlatformService } from '../platform/platform.service';
+import { SubscriptionLifecycleService } from '../subscriptions/subscription-lifecycle.service';
 import type { OrgJwtPayload } from './current-org-user.decorator';
 import {
   isPasswordPolicyValid,
@@ -26,6 +27,7 @@ export class AuthService {
     private readonly jwt: JwtService,
     private readonly platform: PlatformService,
     private readonly mail: MailService,
+    private readonly lifecycle: SubscriptionLifecycleService,
   ) {}
 
   async setupAccount(rawToken: string, plainPassword: string) {
@@ -93,11 +95,26 @@ export class AuthService {
       );
     }
 
-    // Approved users cannot use a suspended organisation.
+    // Sync billing lifecycle before deciding access (may suspend overdue orgs).
+    if (user.platformApproved || user.role !== 'ORG_ADMIN') {
+      await this.lifecycle.syncOrganisation(user.organisationId);
+    }
+
+    const organisation = await this.prisma.organisation.findUniqueOrThrow({
+      where: { id: user.organisationId },
+    });
+
+    // Approved users cannot use a suspended organisation — except Org Admins,
+    // who may sign in to submit payment proof and reactivate billing.
     // Unapproved Org Admins may still sign in to see the waiting screen.
     const awaitingApproval =
       user.role === 'ORG_ADMIN' && !user.platformApproved;
-    if (user.organisation.status === 'SUSPENDED' && !awaitingApproval) {
+    const isOrgAdmin = user.role === 'ORG_ADMIN';
+    if (
+      organisation.status === 'SUSPENDED' &&
+      !awaitingApproval &&
+      !isOrgAdmin
+    ) {
       throw new ForbiddenException(
         'This organisation is suspended. Contact the platform administrator.',
       );
@@ -107,6 +124,14 @@ export class AuthService {
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
     });
+
+    // Daily renewal reminder for Org Admins during the reminder / grace window.
+    if (isOrgAdmin && user.platformApproved) {
+      await this.lifecycle.maybeSendDailyReminder(
+        user.organisationId,
+        user.id,
+      );
+    }
 
     const payload: OrgJwtPayload = {
       sub: user.id,
@@ -118,7 +143,7 @@ export class AuthService {
     return {
       accessToken: await this.jwt.signAsync(payload),
       user: this.toUserDto(user),
-      organisation: this.toOrgDto(user.organisation),
+      organisation: this.toOrgDto(organisation),
     };
   }
 
@@ -249,9 +274,17 @@ export class AuthService {
       throw new UnauthorizedException();
     }
 
+    if (user.role === 'ORG_ADMIN' && user.platformApproved) {
+      await this.lifecycle.syncOrganisation(user.organisationId);
+    }
+
+    const organisation = await this.prisma.organisation.findUniqueOrThrow({
+      where: { id: user.organisationId },
+    });
+
     return {
       user: this.toUserDto(user),
-      organisation: this.toOrgDto(user.organisation),
+      organisation: this.toOrgDto(organisation),
     };
   }
 

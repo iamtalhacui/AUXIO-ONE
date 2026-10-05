@@ -13,12 +13,15 @@ import { ScheduleModule } from './modules/schedule/schedule.module';
 import { MailModule } from './common/mail/mail.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { IncidentsModule } from './modules/incidents/incidents.module';
+import { PaymentsModule } from './modules/payments/payments.module';
+import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 
 @Module({
   imports: [
     PrismaModule,
     MailModule,
     NotificationsModule,
+    SubscriptionsModule,
     PlatformAuthModule,
     PlatformModule,
     OrganisationsModule,
@@ -29,6 +32,7 @@ import { IncidentsModule } from './modules/incidents/incidents.module';
     DemosModule,
     ScheduleModule,
     IncidentsModule,
+    PaymentsModule,
   ],
 })
 export class AppModule {}

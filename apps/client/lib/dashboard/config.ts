@@ -46,6 +46,7 @@ const superAdminNav: NavGroup[] = [
       },
       { label: "Platform settings", href: "/super-admin/settings" },
       { label: "Demo Requests", href: "/super-admin/demos" },
+      { label: "Payments", href: "/super-admin/payments" },
       { label: "Audit log", href: "/super-admin/audit" },
     ],
   },
@@ -86,6 +87,7 @@ const orgAdminNav: NavGroup[] = [
         href: "/org-admin/shift-approvals",
         module: "SERVICE_DELIVERY",
       },
+      { label: "Payments", href: "/org-admin/payments" },
     ],
   },
 ];

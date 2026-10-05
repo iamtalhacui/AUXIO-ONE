@@ -8,7 +8,10 @@ import { PrismaService } from '../prisma/prisma.service';
 
 /**
  * Blocks Org Admins who have not been approved by Super Admin yet.
- * Other roles pass through. Must run after OrgJwtGuard.
+ * Also restricts billing-suspended organisations to payment (and related)
+ * routes so Org Admins can still submit proof and reactivate.
+ * Other roles pass platform-approval checks; suspension is enforced at login.
+ * Must run after OrgJwtGuard.
  */
 @Injectable()
 export class PlatformApprovedGuard implements CanActivate {
@@ -17,19 +20,24 @@ export class PlatformApprovedGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const user = request.user as
-      | { sub?: string; role?: string }
+      | { sub?: string; role?: string; organisationId?: string }
       | undefined;
 
     if (!user?.sub) {
       throw new ForbiddenException('Organisation context is required');
     }
 
-    // Only Org Admins need platform approval.
+    // Only Org Admins need platform approval / billing-suspension routing.
     if (user.role !== 'ORG_ADMIN') return true;
 
     const row = await this.prisma.user.findUnique({
       where: { id: user.sub },
-      select: { platformApproved: true, status: true },
+      select: {
+        platformApproved: true,
+        status: true,
+        organisationId: true,
+        organisation: { select: { status: true } },
+      },
     });
 
     if (!row || row.status !== 'ACTIVE') {
@@ -42,6 +50,24 @@ export class PlatformApprovedGuard implements CanActivate {
       );
     }
 
+    if (row.organisation.status === 'SUSPENDED') {
+      const path = String(request.originalUrl || request.url || '');
+      if (!this.isAllowedWhileBillingSuspended(path)) {
+        throw new ForbiddenException(
+          'Organisation access is suspended due to unpaid subscription. Submit payment proof to reactivate.',
+        );
+      }
+    }
+
     return true;
+  }
+
+  private isAllowedWhileBillingSuspended(path: string) {
+    const base = path.split('?')[0];
+    return (
+      base.startsWith('/organisation/payments') ||
+      base.startsWith('/organisation/notifications') ||
+      base.startsWith('/auth/')
+    );
   }
 }

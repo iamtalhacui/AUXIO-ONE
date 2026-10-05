@@ -13,6 +13,15 @@ function formatDate(value: string) {
   });
 }
 
+function formatDay(value: string) {
+  const iso = value.includes("T") ? value : `${value}T00:00:00`;
+  return new Date(iso).toLocaleDateString("en-AU", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 const APPROVAL_LABEL: Record<string, string> = {
   INVITED: "Invited",
   AWAITING_APPROVAL: "Awaiting approval",
@@ -72,6 +81,7 @@ export function OrganisationsPageContent() {
                 <th>Organisation</th>
                 <th>Plan</th>
                 <th>Status</th>
+                <th>Next renewal</th>
                 <th>Admin</th>
                 <th>Admin approval</th>
                 <th>Registered</th>
@@ -95,9 +105,28 @@ export function OrganisationsPageContent() {
                       </Link>
                       <p className="text-xs text-muted">{org.email}</p>
                     </td>
-                    <td className="text-muted">{org.plan}</td>
+                    <td className="text-muted">
+                      {org.plan}
+                      {org.subscription ? (
+                        <p className="text-xs">
+                          {org.subscription.billingCycle === "YEARLY"
+                            ? "Yearly"
+                            : "Monthly"}
+                        </p>
+                      ) : null}
+                    </td>
                     <td>
                       <OrgStatusBadge status={org.status} />
+                    </td>
+                    <td className="text-muted">
+                      {org.subscription
+                        ? formatDay(org.subscription.nextRenewalDate)
+                        : "—"}
+                      {org.subscription ? (
+                        <p className="text-xs">
+                          {org.subscription.status.replaceAll("_", " ")}
+                        </p>
+                      ) : null}
                     </td>
                     <td className="text-muted">
                       {org.admin

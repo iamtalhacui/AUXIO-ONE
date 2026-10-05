@@ -21,6 +21,12 @@ import {
 } from './plan-modules';
 import type { RegisterOrganisationDto } from './dto/register-organisation.dto';
 import type { UpdateOrganisationDto } from './dto/update-organisation.dto';
+import {
+  calculateNextRenewalDate,
+  defaultSubscriptionAmountCents,
+  toSubscriptionDto,
+  toUtcDateOnly,
+} from './subscription.util';
 
 const ALLOWED_LOGO_MIME = new Set([
   'image/png',
@@ -106,44 +112,75 @@ export class OrganisationsService {
       where: { code: { in: [...entitledCodes] } },
     });
 
+    let startDate: Date;
+    try {
+      startDate = toUtcDateOnly(dto.startDate);
+    } catch {
+      throw new BadRequestException('startDate must be a valid date (YYYY-MM-DD)');
+    }
+    const nextRenewalDate = calculateNextRenewalDate(startDate, dto.billingCycle);
+    const gracePeriodDays = dto.gracePeriodDays ?? 3;
+
     // Create everything in a transaction
-    const { organisation, user } = await this.prisma.$transaction(async (tx) => {
-      const organisation = await tx.organisation.create({
-        data: {
-          name: dto.name,
-          timezone: dto.timezone,
-          email: dto.contactEmail.trim().toLowerCase(),
-          phone: dto.contactPhone || null,
-          plan: dto.plan,
-        },
-      });
+    const { organisation, user, subscription } = await this.prisma.$transaction(
+      async (tx) => {
+        const organisation = await tx.organisation.create({
+          data: {
+            name: dto.name,
+            timezone: dto.timezone,
+            email: dto.contactEmail.trim().toLowerCase(),
+            phone: dto.contactPhone || null,
+            plan: dto.plan,
+          },
+        });
 
-      const user = await tx.user.create({
-        data: {
-          organisationId: organisation.id,
-          firstName: dto.adminFirstName.trim(),
-          lastName: dto.adminLastName.trim(),
-          email: dto.adminEmail.trim().toLowerCase(),
-          role: 'ORG_ADMIN',
-          status: 'INVITED',
-          platformApproved: false,
-          onboardingStatus: 'VERIFIED',
-          setupTokenHash,
-          setupTokenExpiresAt,
-        },
-      });
+        const subscription = await tx.subscription.create({
+          data: {
+            organisationId: organisation.id,
+            plan: dto.plan,
+            billingCycle: dto.billingCycle,
+            amountCents: defaultSubscriptionAmountCents(
+              dto.plan,
+              dto.billingCycle,
+            ),
+            currency: 'AUD',
+            startDate,
+            currentPeriodStart: startDate,
+            currentPeriodEnd: nextRenewalDate,
+            nextRenewalDate,
+            autoRenewal: dto.autoRenewal,
+            status: 'ACTIVE',
+            gracePeriodDays,
+          },
+        });
 
-      // Create module entitlements (all enabled by default)
-      await tx.organisationModule.createMany({
-        data: modules.map((mod: { id: string }) => ({
-          organisationId: organisation.id,
-          moduleId: mod.id,
-          enabled: true,
-        })),
-      });
+        const user = await tx.user.create({
+          data: {
+            organisationId: organisation.id,
+            firstName: dto.adminFirstName.trim(),
+            lastName: dto.adminLastName.trim(),
+            email: dto.adminEmail.trim().toLowerCase(),
+            role: 'ORG_ADMIN',
+            status: 'INVITED',
+            platformApproved: false,
+            onboardingStatus: 'VERIFIED',
+            setupTokenHash,
+            setupTokenExpiresAt,
+          },
+        });
 
-      return { organisation, user };
-    });
+        // Create module entitlements (all enabled by default)
+        await tx.organisationModule.createMany({
+          data: modules.map((mod: { id: string }) => ({
+            organisationId: organisation.id,
+            moduleId: mod.id,
+            enabled: true,
+          })),
+        });
+
+        return { organisation, user, subscription };
+      },
+    );
 
     // Send setup email (don't block registration if email fails)
     const adminName = `${user.firstName} ${user.lastName}`;
@@ -158,7 +195,7 @@ export class OrganisationsService {
       action: 'ORGANISATION_CREATED',
       actorEmail,
       organisationName: organisation.name,
-      details: `Plan ${organisation.plan}, ${entitledCodes.length} modules granted`,
+      details: `Plan ${organisation.plan}, ${dto.billingCycle}, renews ${nextRenewalDate.toISOString().slice(0, 10)}, ${entitledCodes.length} modules granted`,
     });
 
     return {
@@ -176,6 +213,7 @@ export class OrganisationsService {
         role: user.role,
         status: user.status,
       },
+      subscription: toSubscriptionDto(subscription),
       modulesEntitled: entitledCodes.length,
     };
   }
@@ -199,6 +237,7 @@ export class OrganisationsService {
           },
         },
         organisationModules: { select: { enabled: true } },
+        subscription: true,
       },
     });
 
@@ -215,6 +254,9 @@ export class OrganisationsService {
         createdAt: org.createdAt,
         modulesEnabled: org.organisationModules.filter((m) => m.enabled).length,
         modulesGranted: org.organisationModules.length,
+        subscription: org.subscription
+          ? toSubscriptionDto(org.subscription)
+          : null,
         admin: admin
           ? {
               id: admin.id,
@@ -260,6 +302,7 @@ export class OrganisationsService {
             },
           },
         },
+        subscription: true,
       },
     });
 
@@ -291,6 +334,9 @@ export class OrganisationsService {
       updatedAt: org.updatedAt,
       modulesEnabled: modules.filter((row) => row.enabled).length,
       modulesGranted: modules.length,
+      subscription: org.subscription
+        ? toSubscriptionDto(org.subscription)
+        : null,
       admin: admin
         ? {
             id: admin.id,
@@ -304,6 +350,18 @@ export class OrganisationsService {
         : null,
       modules,
     };
+  }
+
+  async getSubscription(organisationId: string) {
+    const subscription = await this.prisma.subscription.findUnique({
+      where: { organisationId },
+    });
+
+    if (!subscription) {
+      throw new NotFoundException('Subscription not found for this organisation');
+    }
+
+    return toSubscriptionDto(subscription);
   }
 
   // Super Admin confirms the Org Admin after they set a password.

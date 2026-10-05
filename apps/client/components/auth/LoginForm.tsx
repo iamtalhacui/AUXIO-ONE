@@ -16,6 +16,7 @@ export function LoginForm() {
   const dispatch = useAppDispatch();
   const accessToken = useAppSelector((state) => state.orgAuth.accessToken);
   const user = useAppSelector((state) => state.orgAuth.user);
+  const organisation = useAppSelector((state) => state.orgAuth.organisation);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [maintenanceNotice, setMaintenanceNotice] = useState("");
@@ -27,8 +28,8 @@ export function LoginForm() {
   }, []);
 
   useEffect(() => {
-    if (accessToken) router.replace(getPostLoginPath(user));
-  }, [accessToken, router, user]);
+    if (accessToken) router.replace(getPostLoginPath(user, organisation));
+  }, [accessToken, organisation, router, user]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -38,7 +39,7 @@ export function LoginForm() {
     try {
       const result = await login({ email, password }).unwrap();
       dispatch(setOrgCredentials(result));
-      router.replace(getPostLoginPath(result.user));
+      router.replace(getPostLoginPath(result.user, result.organisation));
     } catch {
       // RTK error
     }

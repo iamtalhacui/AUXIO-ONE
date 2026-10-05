@@ -55,6 +55,8 @@ import type {
   UpdateIncidentActionRequest,
   IncidentActionItem,
   IncidentAttachmentMeta,
+  OrgBillingSummary,
+  OrganisationPayment,
 } from "@/lib/api/types";
 import { isMaintenanceError, rememberMaintenanceLogout } from "@/lib/api/getErrorMessage";
 import { logoutOrg } from "@/lib/store/orgAuthSlice";
@@ -114,6 +116,7 @@ export const authApi = createApi({
     "EmployeeOverview",
     "Notifications",
     "Incidents",
+    "Payments",
   ],
   endpoints: (builder) => ({
     setupAccount: builder.mutation<SetupAccountResponse, SetupAccountRequest>({
@@ -820,6 +823,34 @@ export const authApi = createApi({
         { type: "Incidents", id: "LIST" },
       ],
     }),
+
+    // ── Organisation billing / manual payments ──
+    getOrgBillingSummary: builder.query<OrgBillingSummary, void>({
+      query: () => "/organisation/payments/summary",
+      providesTags: ["Payments"],
+    }),
+    listOrgPayments: builder.query<OrganisationPayment[], void>({
+      query: () => "/organisation/payments",
+      providesTags: ["Payments"],
+    }),
+    submitOrgPayment: builder.mutation<
+      OrganisationPayment,
+      { paymentDate: string; reference: string; notes?: string; file: File }
+    >({
+      query: ({ paymentDate, reference, notes, file }) => {
+        const body = new FormData();
+        body.append("file", file);
+        body.append("paymentDate", paymentDate);
+        body.append("reference", reference);
+        if (notes) body.append("notes", notes);
+        return {
+          url: "/organisation/payments",
+          method: "POST",
+          body,
+        };
+      },
+      invalidatesTags: ["Payments"],
+    }),
   }),
 });
 
@@ -901,4 +932,7 @@ export const {
   useCreateIncidentActionMutation,
   useUpdateIncidentActionMutation,
   useUploadIncidentAttachmentMutation,
+  useGetOrgBillingSummaryQuery,
+  useListOrgPaymentsQuery,
+  useSubmitOrgPaymentMutation,
 } = authApi;

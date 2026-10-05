@@ -16,6 +16,11 @@ export class OrganisationsController {
     return this.organisationsService.list();
   }
 
+  @Get(':id/subscription')
+  getSubscription(@Param('id') id: string) {
+    return this.organisationsService.getSubscription(id);
+  }
+
   @Get(':id')
   getById(@Param('id') id: string) {
     return this.organisationsService.getById(id);

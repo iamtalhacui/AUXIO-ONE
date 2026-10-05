@@ -91,6 +91,21 @@ export class LocalFileStorageService {
     );
   }
 
+  buildPaymentProofKey(args: {
+    organisationId: string;
+    paymentId: string;
+    originalName: string;
+  }) {
+    const ext = extname(args.originalName).toLowerCase().slice(0, 12);
+    const safeExt = /^\.[a-z0-9]+$/.test(ext) ? ext : '';
+    return join(
+      'payments',
+      args.organisationId,
+      args.paymentId,
+      `proof-${randomUUID()}${safeExt}`,
+    );
+  }
+
   private absolutePath(relativeKey: string) {
     const absolute = resolve(this.root, relativeKey);
     if (!absolute.startsWith(this.root)) {

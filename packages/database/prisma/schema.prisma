@@ -61,6 +61,86 @@ model Organisation {
   availabilityExceptions AvailabilityException[]
   serviceLineTaskTemplates ServiceLineTaskTemplate[]
   incidents             Incident[]
+  subscription          Subscription?
+  payments              Payment[]
+}
+
+// ─── Subscription (SaaS billing lifecycle; payments are separate) ──
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRING_SOON
+  GRACE_PERIOD
+  SUSPENDED
+}
+
+model Subscription {
+  id                 String             @id @default(uuid())
+  organisationId     String             @unique
+  plan               OrgPlan
+  billingCycle       BillingCycle
+  /// List price for the current billing period, in the smallest currency unit (e.g. cents).
+  amountCents        Int                @default(0)
+  currency           String             @default("AUD")
+  startDate          DateTime           @db.Date
+  currentPeriodStart DateTime           @db.Date
+  currentPeriodEnd   DateTime           @db.Date
+  nextRenewalDate    DateTime           @db.Date
+  autoRenewal        Boolean            @default(true)
+  status             SubscriptionStatus @default(ACTIVE)
+  gracePeriodDays    Int                @default(3)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  payments     Payment[]
+
+  @@index([status])
+  @@index([nextRenewalDate])
+}
+
+// ─── Manual offline payments (no gateway yet) ────────────
+
+enum PaymentStatus {
+  PENDING_APPROVAL
+  PAID
+  REJECTED
+}
+
+model Payment {
+  id              String        @id @default(uuid())
+  organisationId  String
+  subscriptionId  String
+  amountCents     Int
+  currency        String        @default("AUD")
+  status          PaymentStatus @default(PENDING_APPROVAL)
+  paymentDate     DateTime      @db.Date
+  reference       String
+  notes           String        @default("")
+  rejectionReason String?
+  submittedById   String
+  reviewedAt      DateTime?
+  reviewedByEmail String?
+  proofFileName   String
+  proofMimeType   String
+  proofSizeBytes  Int
+  proofStorageKey String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  submittedBy  User         @relation("PaymentSubmittedBy", fields: [submittedById], references: [id], onDelete: Restrict)
+
+  @@index([organisationId, status])
+  @@index([subscriptionId])
+  @@index([submittedById])
+  @@index([createdAt])
 }
 
 // ─── User (organisation-scoped) ──────────────────────────
@@ -130,6 +210,7 @@ model User {
   incidentHistoryActions IncidentHistory[]       @relation("IncidentHistoryActor")
   assignedIncidentActions IncidentAction[]       @relation("IncidentActionAssignee")
   reportabilityAssessments Incident[]            @relation("IncidentReportabilityAssessor")
+  submittedPayments        Payment[]             @relation("PaymentSubmittedBy")
 
   @@index([organisationId])
 }

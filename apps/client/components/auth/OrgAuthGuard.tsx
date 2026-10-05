@@ -3,7 +3,10 @@
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useConfirmOrgSession } from "@/components/auth/useConfirmOrgSession";
-import { needsPlatformApproval } from "@/lib/dashboard/roles";
+import {
+  isBillingSuspended,
+  needsPlatformApproval,
+} from "@/lib/dashboard/roles";
 import { useAppSelector } from "@/lib/store/hooks";
 
 export function OrgAuthGuard({ children }: { children: React.ReactNode }) {
@@ -12,6 +15,7 @@ export function OrgAuthGuard({ children }: { children: React.ReactNode }) {
   const accessToken = useAppSelector((state) => state.orgAuth.accessToken);
   const hydrated = useAppSelector((state) => state.orgAuth.hydrated);
   const user = useAppSelector((state) => state.orgAuth.user);
+  const organisation = useAppSelector((state) => state.orgAuth.organisation);
   const sessionOk = useConfirmOrgSession(hydrated && Boolean(accessToken));
 
   useEffect(() => {
@@ -22,8 +26,16 @@ export function OrgAuthGuard({ children }: { children: React.ReactNode }) {
     if (!sessionOk || !user) return;
     if (needsPlatformApproval(user) && pathname !== "/platform-approval") {
       router.replace("/platform-approval");
+      return;
     }
-  }, [pathname, router, sessionOk, user]);
+    if (
+      user.role === "ORG_ADMIN" &&
+      isBillingSuspended(organisation) &&
+      !pathname.startsWith("/org-admin/payments")
+    ) {
+      router.replace("/org-admin/payments");
+    }
+  }, [organisation, pathname, router, sessionOk, user]);
 
   if (!hydrated || !accessToken || !sessionOk) {
     return (
@@ -37,6 +49,18 @@ export function OrgAuthGuard({ children }: { children: React.ReactNode }) {
     return (
       <div className="flex min-h-screen items-center justify-center text-sm text-muted">
         Redirecting…
+      </div>
+    );
+  }
+
+  if (
+    user?.role === "ORG_ADMIN" &&
+    isBillingSuspended(organisation) &&
+    !pathname.startsWith("/org-admin/payments")
+  ) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-sm text-muted">
+        Redirecting to payments…
       </div>
     );
   }

@@ -31,11 +31,22 @@ export function needsPlatformApproval(user?: {
   return user?.role === "ORG_ADMIN" && user.platformApproved === false;
 }
 
-export function getPostLoginPath(user?: {
-  role?: string;
-  platformApproved?: boolean;
-} | null) {
+/** Billing-suspended org: Org Admin may only use Payments until reactivated. */
+export function isBillingSuspended(organisation?: { status?: string } | null) {
+  return organisation?.status === "SUSPENDED";
+}
+
+export function getPostLoginPath(
+  user?: {
+    role?: string;
+    platformApproved?: boolean;
+  } | null,
+  organisation?: { status?: string } | null,
+) {
   if (needsPlatformApproval(user)) return "/platform-approval";
+  if (user?.role === "ORG_ADMIN" && isBillingSuspended(organisation)) {
+    return "/org-admin/payments";
+  }
   return getDashboardHomeForRole(user?.role);
 }
 

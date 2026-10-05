@@ -1,6 +1,10 @@
 "use client";
 
-import { useGetOrgAdminOverviewQuery } from "@/lib/api/authApi";
+import Link from "next/link";
+import {
+  useGetOrgAdminOverviewQuery,
+  useGetOrgBillingSummaryQuery,
+} from "@/lib/api/authApi";
 import { OrgAdminWelcomeBanner } from "@/components/org-admin/dashboard/OrgAdminWelcomeBanner";
 import { TeamStatCards } from "@/components/org-admin/dashboard/TeamStatCards";
 import { TeamNeedsAttentionCard } from "@/components/org-admin/dashboard/TeamNeedsAttentionCard";
@@ -8,6 +12,7 @@ import { WorkforceCharts } from "@/components/org-admin/dashboard/WorkforceChart
 
 export function OrgAdminOverviewDashboard() {
   const { data, isLoading, error } = useGetOrgAdminOverviewQuery();
+  const { data: billing } = useGetOrgBillingSummaryQuery();
 
   if (isLoading) {
     return (
@@ -33,9 +38,30 @@ export function OrgAdminOverviewDashboard() {
     );
   }
 
+  const reminder = billing?.reminder;
+
   return (
     <div className="oad-shell">
       <OrgAdminWelcomeBanner organisation={data.organisation} />
+      {reminder?.active && reminder.message ? (
+        <div
+          className={`rounded-xl border px-4 py-3 text-sm ${
+            reminder.kind === "SUSPENDED"
+              ? "border-red-200 bg-red-50 text-red-800"
+              : reminder.kind === "GRACE_PERIOD"
+                ? "border-orange-200 bg-orange-50 text-orange-900"
+                : "border-amber-200 bg-amber-50 text-amber-900"
+          }`}
+        >
+          <p>{reminder.message}</p>
+          <Link
+            href="/org-admin/payments"
+            className="mt-2 inline-flex font-semibold underline-offset-2 hover:underline"
+          >
+            Go to Payments
+          </Link>
+        </div>
+      ) : null}
       <TeamStatCards kpis={data.kpis} teamJoinsLast14Days={data.teamJoinsLast14Days} />
       <TeamNeedsAttentionCard attention={data.attention} />
       <WorkforceCharts

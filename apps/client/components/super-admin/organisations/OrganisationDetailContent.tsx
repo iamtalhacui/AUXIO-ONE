@@ -22,6 +22,15 @@ function formatDate(value: string) {
   });
 }
 
+function formatDay(value: string) {
+  const iso = value.includes("T") ? value : `${value}T00:00:00`;
+  return new Date(iso).toLocaleDateString("en-AU", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 const APPROVAL_LABEL: Record<string, string> = {
   INVITED: "Invited — waiting for password",
   AWAITING_APPROVAL: "Awaiting Super Admin approval",
@@ -154,6 +163,78 @@ export function OrganisationDetailContent({ organisationId }: { organisationId: 
         <p className="mt-4 text-sm text-muted">
           Registered {formatDate(org.createdAt)} · Plan {org.plan} · Time zone {org.timezone}
         </p>
+      </div>
+
+      <div className="dashboard-card p-6">
+        <h2 className="text-lg font-semibold">Subscription</h2>
+        <p className="mt-1 text-sm text-muted">
+          Billing lifecycle for this organisation. Payments are managed separately.
+        </p>
+        {org.subscription ? (
+          <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <dt className="text-xs uppercase tracking-wide text-muted">Plan</dt>
+              <dd className="mt-1 text-sm font-medium">{org.subscription.plan}</dd>
+            </div>
+            <div>
+              <dt className="text-xs uppercase tracking-wide text-muted">Amount</dt>
+              <dd className="mt-1 text-sm font-medium">
+                {new Intl.NumberFormat("en-AU", {
+                  style: "currency",
+                  currency: org.subscription.currency || "AUD",
+                }).format(org.subscription.amountCents / 100)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs uppercase tracking-wide text-muted">Billing cycle</dt>
+              <dd className="mt-1 text-sm font-medium">
+                {org.subscription.billingCycle === "YEARLY" ? "Yearly" : "Monthly"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs uppercase tracking-wide text-muted">Status</dt>
+              <dd className="mt-1 text-sm font-medium">
+                {org.subscription.status.replaceAll("_", " ")}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs uppercase tracking-wide text-muted">Start date</dt>
+              <dd className="mt-1 text-sm font-medium">
+                {formatDay(org.subscription.startDate)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs uppercase tracking-wide text-muted">Current period</dt>
+              <dd className="mt-1 text-sm font-medium">
+                {formatDay(org.subscription.currentPeriodStart)} –{" "}
+                {formatDay(org.subscription.currentPeriodEnd)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs uppercase tracking-wide text-muted">Next renewal</dt>
+              <dd className="mt-1 text-sm font-medium">
+                {formatDay(org.subscription.nextRenewalDate)}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs uppercase tracking-wide text-muted">Auto renewal</dt>
+              <dd className="mt-1 text-sm font-medium">
+                {org.subscription.autoRenewal ? "Yes" : "No"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs uppercase tracking-wide text-muted">Grace period</dt>
+              <dd className="mt-1 text-sm font-medium">
+                {org.subscription.gracePeriodDays} day
+                {org.subscription.gracePeriodDays === 1 ? "" : "s"}
+              </dd>
+            </div>
+          </dl>
+        ) : (
+          <p className="mt-3 text-sm text-muted">
+            No subscription on record for this organisation (created before billing was enabled).
+          </p>
+        )}
       </div>
 
       <div className="dashboard-card p-6">

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PlatformApprovedGuard } from '../../common/guards/platform-approved.guard';
 import { PlatformModule } from '../platform/platform.module';
+import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { OrgJwtGuard } from './org-jwt.guard';
@@ -9,6 +10,7 @@ import { OrgJwtGuard } from './org-jwt.guard';
 @Module({
   imports: [
     PlatformModule,
+    SubscriptionsModule,
     JwtModule.registerAsync({
       useFactory: () => {
         const secret = process.env.JWT_SECRET;

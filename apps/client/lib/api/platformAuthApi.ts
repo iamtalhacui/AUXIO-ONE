@@ -18,9 +18,13 @@ import type {
   PlatformOverview,
   PlatformSettings,
   PlatformUser,
+  OrganisationSubscription,
   RegisterOrganisationRequest,
   RegisterOrganisationResponse,
   NotificationFeed,
+  PlatformPaymentsOverview,
+  PlatformPayment,
+  PlatformPaymentDetail,
 } from "@/lib/api/types";
 import { logoutPlatform } from "@/lib/store/platformAuthSlice";
 
@@ -63,6 +67,7 @@ export const platformAuthApi = createApi({
     "Demos",
     "Overview",
     "Notifications",
+    "Payments",
   ],
   endpoints: (builder) => ({
     platformLogin: builder.mutation<
@@ -88,6 +93,10 @@ export const platformAuthApi = createApi({
     }),
     getOrganisation: builder.query<PlatformOrganisationDetail, string>({
       query: (id) => `/platform/organisations/${id}`,
+      providesTags: (_result, _error, id) => [{ type: "Organisations", id }],
+    }),
+    getOrganisationSubscription: builder.query<OrganisationSubscription, string>({
+      query: (id) => `/platform/organisations/${id}/subscription`,
       providesTags: (_result, _error, id) => [{ type: "Organisations", id }],
     }),
     approveOrgAdmin: builder.mutation<PlatformOrganisationDetail, string>({
@@ -205,6 +214,56 @@ export const platformAuthApi = createApi({
       ],
     }),
 
+    // ── Super Admin payments / subscriptions ──
+    getPlatformPaymentsOverview: builder.query<PlatformPaymentsOverview, void>({
+      query: () => "/platform/payments/overview",
+      providesTags: ["Payments"],
+    }),
+    listPlatformPayments: builder.query<
+      PlatformPayment[],
+      { status?: "PENDING_APPROVAL" | "PAID" | "REJECTED" } | void
+    >({
+      query: (args) => ({
+        url: "/platform/payments",
+        params: args?.status ? { status: args.status } : undefined,
+      }),
+      providesTags: ["Payments"],
+    }),
+    getPlatformPayment: builder.query<PlatformPaymentDetail, string>({
+      query: (id) => `/platform/payments/${id}`,
+      providesTags: (_result, _error, id) => [{ type: "Payments", id }],
+    }),
+    approvePlatformPayment: builder.mutation<PlatformPaymentDetail, string>({
+      query: (id) => ({
+        url: `/platform/payments/${id}/approve`,
+        method: "POST",
+      }),
+      invalidatesTags: (_result, _error, id) => [
+        "Payments",
+        { type: "Payments", id },
+        "Organisations",
+        "Audit",
+        "Overview",
+      ],
+    }),
+    rejectPlatformPayment: builder.mutation<
+      PlatformPaymentDetail,
+      { id: string; reason: string }
+    >({
+      query: ({ id, reason }) => ({
+        url: `/platform/payments/${id}/reject`,
+        method: "POST",
+        body: { reason },
+      }),
+      invalidatesTags: (_result, _error, { id }) => [
+        "Payments",
+        { type: "Payments", id },
+        "Organisations",
+        "Audit",
+        "Overview",
+      ],
+    }),
+
     // ── Notifications (global bell / drawer) ──
     listPlatformNotifications: builder.query<NotificationFeed, void>({
       query: () => "/platform/notifications",
@@ -233,6 +292,7 @@ export const {
   useGetPlatformOverviewQuery,
   useListOrganisationsQuery,
   useGetOrganisationQuery,
+  useGetOrganisationSubscriptionQuery,
   useApproveOrgAdminMutation,
   useRejectOrgAdminMutation,
   useChangeOrgAdminEmailMutation,
@@ -246,6 +306,11 @@ export const {
   useListDemoRequestsQuery,
   useGetDemoRequestQuery,
   useUpdateDemoRequestStatusMutation,
+  useGetPlatformPaymentsOverviewQuery,
+  useListPlatformPaymentsQuery,
+  useGetPlatformPaymentQuery,
+  useApprovePlatformPaymentMutation,
+  useRejectPlatformPaymentMutation,
   useListPlatformNotificationsQuery,
   useMarkPlatformNotificationReadMutation,
   useMarkAllPlatformNotificationsReadMutation,
