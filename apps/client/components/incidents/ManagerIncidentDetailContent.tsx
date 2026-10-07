@@ -610,7 +610,7 @@ function Field({ label, value }: { label: string; value: string }) {
 function BackLink() {
   return (
     <Link
-      href="/manager/incidents"
+      href="/incidents"
       className="inline-flex text-sm font-semibold text-primary hover:underline"
     >
       ← Back to incidents

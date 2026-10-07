@@ -1,10 +1,10 @@
-import { ManagerIncidentDetailContent } from "@/components/incidents/ManagerIncidentDetailContent";
+import { redirect } from "next/navigation";
 
 type PageProps = {
   params: Promise<{ id: string }>;
 };
 
-export default async function ManagerIncidentDetailPage({ params }: PageProps) {
+export default async function LegacyIncidentDetailPage({ params }: PageProps) {
   const { id } = await params;
-  return <ManagerIncidentDetailContent incidentId={id} />;
+  redirect(`/incidents/${id}`);
 }

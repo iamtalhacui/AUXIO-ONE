@@ -15,6 +15,11 @@
       "types": "./dist/plan-modules.d.ts",
       "import": "./dist/plan-modules.js",
       "default": "./dist/plan-modules.js"
+    },
+    "./role-permissions": {
+      "types": "./dist/role-permissions.d.ts",
+      "import": "./dist/role-permissions.js",
+      "default": "./dist/role-permissions.js"
     }
   },
   "scripts": {

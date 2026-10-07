@@ -10,6 +10,7 @@ import { createHash, randomBytes } from 'crypto';
 import { MailService } from '../../common/mail/mail.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { PermissionsService } from '../permissions/permissions.service';
 import type { RegisterMemberDto } from './dto/register-member.dto';
 import type { UpdateMemberDto } from './dto/update-member.dto';
 
@@ -40,6 +41,7 @@ export class TeamService {
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
     private readonly notifications: NotificationsService,
+    private readonly permissions: PermissionsService,
   ) {}
 
   // All users in this organisation, including the Org Admin.
@@ -73,9 +75,11 @@ export class TeamService {
     actorRole: string,
     dto: RegisterMemberDto,
   ) {
-    if (actorRole !== 'ORG_ADMIN') {
-      throw new ForbiddenException('Only organisation admins can register team members');
-    }
+    await this.permissions.assertAction(
+      organisationId,
+      actorRole,
+      'REGISTER_TEAM_MEMBERS',
+    );
 
     const email = dto.email.trim().toLowerCase();
 

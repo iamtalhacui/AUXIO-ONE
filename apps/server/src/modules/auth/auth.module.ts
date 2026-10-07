@@ -1,6 +1,7 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { PlatformApprovedGuard } from '../../common/guards/platform-approved.guard';
+import { PermissionsModule } from '../permissions/permissions.module';
 import { PlatformModule } from '../platform/platform.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 import { AuthController } from './auth.controller';
@@ -11,6 +12,7 @@ import { OrgJwtGuard } from './org-jwt.guard';
   imports: [
     PlatformModule,
     SubscriptionsModule,
+    forwardRef(() => PermissionsModule),
     JwtModule.registerAsync({
       useFactory: () => {
         const secret = process.env.JWT_SECRET;

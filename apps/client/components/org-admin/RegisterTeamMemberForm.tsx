@@ -18,7 +18,11 @@ const ROLE_ICONS = {
 } as const;
 
 // Invite a new Manager, Rostering Expert, or Employee to this organisation.
-export function RegisterTeamMemberForm() {
+export function RegisterTeamMemberForm({
+  returnTo = "/org-admin/team",
+}: {
+  returnTo?: string;
+} = {}) {
   const { toast } = useToast();
   const router = useRouter();
   const [firstName, setFirstName] = useState("");
@@ -38,7 +42,7 @@ export function RegisterTeamMemberForm() {
         title: "Invite sent",
         description: `${firstName} ${lastName} will receive a setup email.`,
       });
-      router.replace("/org-admin/team");
+      router.replace(returnTo);
     } catch (err) {
       toast({
         variant: "error",
@@ -57,7 +61,7 @@ export function RegisterTeamMemberForm() {
         title="Register team member"
         description="Invite someone to your organisation. They’ll get an email to set their password and sign in."
         action={
-          <Link href="/org-admin/team" className="rtm-back">
+          <Link href={returnTo} className="rtm-back">
             <ArrowLeft className="h-4 w-4" aria-hidden />
             Back
           </Link>

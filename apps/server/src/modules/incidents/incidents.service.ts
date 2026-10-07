@@ -22,6 +22,7 @@ import { MailService } from '../../common/mail/mail.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { LocalFileStorageService } from '../../common/storage/local-file-storage.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { PermissionsService } from '../permissions/permissions.service';
 import {
   CreateIncidentActionDto,
   CreateIncidentDto,
@@ -102,6 +103,7 @@ export class IncidentsService {
     private readonly storage: LocalFileStorageService,
     private readonly notifications: NotificationsService,
     private readonly mail: MailService,
+    private readonly permissions: PermissionsService,
   ) {}
 
   async createIncident(
@@ -234,7 +236,7 @@ export class IncidentsService {
     role: string,
     query: ListIncidentsQueryDto = {},
   ) {
-    this.assertCanList(role);
+    await this.assertCanList(organisationId, role);
 
     const where: Prisma.IncidentWhereInput = { organisationId };
 
@@ -278,11 +280,14 @@ export class IncidentsService {
     role: string,
     incidentId: string,
   ) {
-    this.assertCanList(role);
+    await this.assertCanList(organisationId, role);
     const incident = await this.findOrgIncident(organisationId, incidentId);
     this.assertCanView(role, userId, incident);
 
-    if (role === 'MANAGER' || role === 'ORG_ADMIN') {
+    if (
+      role === 'ORG_ADMIN' ||
+      (await this.permissions.hasAction(organisationId, role, 'MANAGE_INCIDENTS'))
+    ) {
       await this.maybeRecordManagerView(organisationId, userId, incident);
       return this.toIncidentDto(await this.findOrgIncident(organisationId, incidentId));
     }
@@ -297,7 +302,7 @@ export class IncidentsService {
     incidentId: string,
     dto: UpdateIncidentDto,
   ) {
-    this.assertManagerOrAdmin(role);
+    await this.assertManageIncidents(organisationId, role);
 
     const hasChange =
       dto.status !== undefined ||
@@ -476,7 +481,7 @@ export class IncidentsService {
     incidentId: string,
     dto: CreateIncidentActionDto,
   ) {
-    this.assertManagerOrAdmin(role);
+    await this.assertManageIncidents(organisationId, role);
     const incident = await this.findOrgIncident(organisationId, incidentId);
     const actor = await this.actorName(organisationId, userId);
 
@@ -533,7 +538,7 @@ export class IncidentsService {
     actionId: string,
     dto: UpdateIncidentActionDto,
   ) {
-    this.assertManagerOrAdmin(role);
+    await this.assertManageIncidents(organisationId, role);
     const incident = await this.findOrgIncident(organisationId, incidentId);
     const existing = incident.actions.find((a) => a.id === actionId);
     if (!existing) {
@@ -622,9 +627,9 @@ export class IncidentsService {
     incidentId: string,
     file: MulterUpload | undefined,
   ) {
-    this.assertCanList(role);
+    await this.assertCanList(organisationId, role);
     const incident = await this.findOrgIncident(organisationId, incidentId);
-    this.assertCanUpload(role, userId, incident);
+    await this.assertCanUpload(organisationId, role, userId, incident);
 
     if (!file) {
       throw new BadRequestException('File is required');
@@ -687,7 +692,7 @@ export class IncidentsService {
     attachmentId: string,
     res: { set: (headers: Record<string, string>) => void },
   ) {
-    this.assertCanList(role);
+    await this.assertCanList(organisationId, role);
     const incident = await this.findOrgIncident(organisationId, incidentId);
     this.assertCanView(role, userId, incident);
 
@@ -715,9 +720,9 @@ export class IncidentsService {
     incidentId: string,
     attachmentId: string,
   ) {
-    this.assertCanList(role);
+    await this.assertCanList(organisationId, role);
     const incident = await this.findOrgIncident(organisationId, incidentId);
-    this.assertCanUpload(role, userId, incident);
+    await this.assertCanUpload(organisationId, role, userId, incident);
 
     const attachment = incident.attachments.find((a) => a.id === attachmentId);
     if (!attachment) {
@@ -926,16 +931,17 @@ export class IncidentsService {
     }
   }
 
-  private assertManagerOrAdmin(role: string) {
-    if (role !== 'MANAGER' && role !== 'ORG_ADMIN') {
-      throw new ForbiddenException('Only managers can update incident workflow fields');
-    }
+  private async assertManageIncidents(organisationId: string, role: string) {
+    await this.permissions.assertAction(
+      organisationId,
+      role,
+      'MANAGE_INCIDENTS',
+    );
   }
 
-  private assertCanList(role: string) {
-    if (role !== 'EMPLOYEE' && role !== 'MANAGER' && role !== 'ORG_ADMIN') {
-      throw new ForbiddenException('Not allowed to access incidents');
-    }
+  private async assertCanList(organisationId: string, role: string) {
+    if (role === 'EMPLOYEE' || role === 'ORG_ADMIN') return;
+    await this.permissions.assertPage(organisationId, role, 'INCIDENTS');
   }
 
   private assertCanView(
@@ -948,12 +954,16 @@ export class IncidentsService {
     }
   }
 
-  private assertCanUpload(
+  private async assertCanUpload(
+    organisationId: string,
     role: string,
     userId: string,
     incident: Pick<Incident, 'reporterId' | 'status'>,
   ) {
-    if (role === 'MANAGER' || role === 'ORG_ADMIN') return;
+    if (role === 'ORG_ADMIN') return;
+    if (await this.permissions.hasAction(organisationId, role, 'MANAGE_INCIDENTS')) {
+      return;
+    }
     if (role === 'EMPLOYEE') {
       if (incident.reporterId !== userId) {
         throw new ForbiddenException('Not your incident');

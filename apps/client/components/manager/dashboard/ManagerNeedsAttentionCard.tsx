@@ -65,7 +65,7 @@ export function ManagerNeedsAttentionCard({
         key: `activate-${item.customerId}`,
         title: item.displayName,
         detail: item.serviceLine || "No service line",
-        href: `/manager/customers/${item.customerId}`,
+        href: `/customers/${item.customerId}`,
         cta: "Activate",
       })),
     },
@@ -76,7 +76,7 @@ export function ManagerNeedsAttentionCard({
         key: `docs-${item.customerId}`,
         title: item.displayName,
         detail: `${item.missingDocs} mandatory doc${item.missingDocs === 1 ? "" : "s"} missing`,
-        href: `/manager/customers/${item.customerId}`,
+        href: `/customers/${item.customerId}`,
         cta: "Open",
       })),
     },
@@ -88,7 +88,7 @@ export function ManagerNeedsAttentionCard({
         title: item.title,
         detail: `${item.stage}${item.contactName ? ` · ${item.contactName}` : ""}`,
         age: formatAge(item.nextFollowUpAt),
-        href: "/manager/crm",
+        href: "/crm",
         cta: "Open CRM",
       })),
     },
@@ -104,7 +104,7 @@ export function ManagerNeedsAttentionCard({
         ]
           .filter(Boolean)
           .join(" · ") || "Ready to convert",
-        href: "/manager/crm",
+        href: "/crm",
         cta: "Convert",
       })),
     },
@@ -128,7 +128,7 @@ export function ManagerNeedsAttentionCard({
           </p>
         </div>
         {modules.crmEnabled && attention.overdueFollowUps.length > 0 ? (
-          <Link href="/manager/crm" className="text-sm font-semibold text-primary">
+          <Link href="/crm" className="text-sm font-semibold text-primary">
             Open CRM
           </Link>
         ) : null}

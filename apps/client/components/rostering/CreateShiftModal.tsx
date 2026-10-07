@@ -27,7 +27,8 @@ type Props = {
 
 /**
  * Create one draft shift or a recurring series.
- * Worker is NOT chosen here — publish/offer happens from Matching.
+ * Optionally broadcast so any eligible employee can accept (first wins).
+ * Direct assignment happens from Matching.
  */
 export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Props) {
   const { toast } = useToast();
@@ -46,6 +47,7 @@ export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Prop
   const [hours, setHours] = useState(4);
   const [minutes, setMinutes] = useState(0);
   const [notes, setNotes] = useState("");
+  const [broadcast, setBroadcast] = useState(false);
   const [recurring, setRecurring] = useState(false);
   const [frequency, setFrequency] = useState<RecurrenceFrequency>("WEEKLY");
   const [interval, setInterval] = useState(1);
@@ -67,6 +69,7 @@ export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Prop
     setDate(defaultDate);
     setError("");
     setPreviewResult(null);
+    setBroadcast(false);
     setRecurring(false);
     setServiceTitle("");
     setNotes("");
@@ -121,6 +124,7 @@ export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Prop
       startTime,
       durationMinutes,
       notes: notes.trim() || undefined,
+      broadcast,
       recurring,
       frequency: recurring ? frequency : undefined,
       interval: recurring ? interval : undefined,
@@ -153,7 +157,9 @@ export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Prop
       toast({
         variant: "success",
         title: result.shifts.length > 1 ? "Shift series created" : "Shift created",
-        description: `${result.shifts.length} draft shift${result.shifts.length === 1 ? "" : "s"} saved.`,
+        description: broadcast
+          ? `${result.shifts.length} shift${result.shifts.length === 1 ? "" : "s"} broadcast — first accept wins.`
+          : `${result.shifts.length} draft shift${result.shifts.length === 1 ? "" : "s"} saved. Assign from Matching.`,
       });
       onClose();
     } catch (err) {
@@ -178,7 +184,7 @@ export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Prop
               Create shift
             </h2>
             <p className="mt-0.5 text-sm text-muted">
-              Saves as draft. Publish and offer a worker from Matching.
+              Save as draft and assign later, or broadcast to all employees now.
             </p>
           </div>
           <button
@@ -383,6 +389,21 @@ export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Prop
           <label className="flex items-center gap-3 rounded-xl border border-border/60 px-4 py-3">
             <input
               type="checkbox"
+              checked={broadcast}
+              onChange={(e) => setBroadcast(e.target.checked)}
+              className="h-4 w-4 rounded border-border text-primary"
+            />
+            <span>
+              <span className="block text-sm font-semibold">Broadcast to all employees</span>
+              <span className="text-xs text-muted">
+                Publish now as an open offer — first eligible employee to accept gets the shift
+              </span>
+            </span>
+          </label>
+
+          <label className="flex items-center gap-3 rounded-xl border border-border/60 px-4 py-3">
+            <input
+              type="checkbox"
               checked={recurring}
               onChange={(e) => {
                 setRecurring(e.target.checked);
@@ -482,9 +503,13 @@ export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Prop
             <button type="submit" className="btn-primary" disabled={busy}>
               {createState.isLoading
                 ? "Saving…"
-                : recurring
-                  ? "Create series"
-                  : "Create draft"}
+                : broadcast
+                  ? recurring
+                    ? "Broadcast series"
+                    : "Broadcast shift"
+                  : recurring
+                    ? "Create series"
+                    : "Create draft"}
             </button>
           </div>
         </form>

@@ -1,5 +1,5 @@
-import { ScheduleBoardContent } from "@/components/rostering/ScheduleBoardContent";
+import { redirect } from "next/navigation";
 
-export default function Page() {
-  return <ScheduleBoardContent />;
+export default function LegacySchedulePage() {
+  redirect("/schedule");
 }

@@ -5,9 +5,9 @@ import { useAppSelector } from "@/lib/store/hooks";
 import type { ManagerOverview } from "@/lib/api/types";
 
 const QUICK_ACTIONS = [
-  { label: "Register customer", href: "/manager/customers/new", primary: true },
-  { label: "Open CRM", href: "/manager/crm", primary: false },
-  { label: "All customers", href: "/manager/customers", primary: false },
+  { label: "Register customer", href: "/customers/new", primary: true },
+  { label: "Open CRM", href: "/crm", primary: false },
+  { label: "All customers", href: "/customers", primary: false },
   { label: "Your profile", href: "/manager/profile", primary: false },
 ] as const;
 

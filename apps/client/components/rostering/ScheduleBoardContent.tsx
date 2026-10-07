@@ -10,6 +10,7 @@ import { useListScheduleShiftsQuery } from "@/lib/api/authApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
 import { LIVE_POLL_MS } from "@/lib/api/liveRefresh";
 import type { ScheduleShift } from "@/lib/api/types";
+import { useHasAction } from "@/lib/permissions/hooks";
 import {
   addDays,
   BOARD_END_HOUR,
@@ -62,6 +63,7 @@ function blockTone(shift: ScheduleShift) {
 }
 
 export function ScheduleBoardContent() {
+  const canManageShifts = useHasAction("MANAGE_SHIFTS");
   const [date, setDate] = useState(todayIso());
   const [range, setRange] = useState<RangeMode>("day");
   const [view, setView] = useState<ViewMode>("table");
@@ -106,8 +108,8 @@ export function ScheduleBoardContent() {
   function onCreated(count: number) {
     setFlash(
       count > 1
-        ? `${count} draft shifts created. Publish and offer from Matching.`
-        : "Draft shift created. Publish and offer from Matching.",
+        ? `${count} shifts created. Assign from Matching if they are drafts.`
+        : "Shift created. Assign from Matching if it is a draft.",
     );
     window.setTimeout(() => setFlash(""), 4000);
     void refetch();
@@ -117,11 +119,13 @@ export function ScheduleBoardContent() {
     <div className="space-y-4">
       <PageHeader
         title="Schedule"
-        description="Create draft shifts, then publish and offer workers from Matching."
+        description="Create drafts or broadcast open shifts. Assign eligible workers from Matching."
         action={
-          <button type="button" className="btn-primary" onClick={() => setCreateOpen(true)}>
-            + Create Shift
-          </button>
+          canManageShifts ? (
+            <button type="button" className="btn-primary" onClick={() => setCreateOpen(true)}>
+              + Create Shift
+            </button>
+          ) : undefined
         }
       />
 
@@ -336,7 +340,7 @@ function TableView({
                   shift.status === "UNFILLED" ||
                   shift.status === "OFFERED" ? (
                     <Link
-                      href={`/roster/matching?shift=${shift.id}`}
+                      href={`/schedule/matching?shift=${shift.id}`}
                       className="text-sm font-semibold text-primary hover:underline"
                     >
                       {shift.status === "OFFERED" ? "View offer" : "Match"}

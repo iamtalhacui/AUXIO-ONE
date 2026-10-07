@@ -134,6 +134,21 @@ export function toSubscriptionDto(row: {
   };
 }
 
+/**
+ * Org Admins may submit renewal payment proof only in the reminder window
+ * (within SUBSCRIPTION_REMINDER_DAYS of nextRenewalDate), during grace, or
+ * when already suspended for non-payment — not while the period is healthy.
+ */
+export function canSubmitSubscriptionPayment(
+  status: SubscriptionStatus | string,
+): boolean {
+  return (
+    status === 'EXPIRING_SOON' ||
+    status === 'GRACE_PERIOD' ||
+    status === 'SUSPENDED'
+  );
+}
+
 export function buildBillingReminder(args: {
   status: SubscriptionStatus | string;
   nextRenewalDate: Date;

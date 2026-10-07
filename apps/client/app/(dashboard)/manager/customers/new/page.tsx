@@ -1,5 +1,5 @@
-import { ManagerCreateCustomerForm } from "@/components/manager/ManagerCreateCustomerForm";
+import { redirect } from "next/navigation";
 
-export default function ManagerNewCustomerPage() {
-  return <ManagerCreateCustomerForm />;
+export default function LegacyNewCustomerPage() {
+  redirect("/customers/new");
 }

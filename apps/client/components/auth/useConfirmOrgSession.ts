@@ -3,7 +3,11 @@
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useOrgMeQuery } from "@/lib/api/authApi";
-import { patchOrgUser, setOrganisation } from "@/lib/store/orgAuthSlice";
+import {
+  patchOrgUser,
+  setOrganisation,
+  setPermissions,
+} from "@/lib/store/orgAuthSlice";
 import { useAppDispatch } from "@/lib/store/hooks";
 
 // Re-check /auth/me on every route change and keep session + branding in sync.
@@ -19,7 +23,10 @@ export function useConfirmOrgSession(enabled: boolean) {
     if (data?.organisation) {
       dispatch(setOrganisation(data.organisation));
     }
-  }, [data?.user, data?.organisation, dispatch]);
+    if (data?.permissions) {
+      dispatch(setPermissions(data.permissions));
+    }
+  }, [data?.user, data?.organisation, data?.permissions, dispatch]);
 
   return enabled && isSuccess;
 }

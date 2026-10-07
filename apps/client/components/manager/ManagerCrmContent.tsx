@@ -87,7 +87,7 @@ export function ManagerCrmContent() {
     try {
       const result = await convertOpp(id).unwrap();
       toast({ variant: "success", title: result.message });
-      router.push(`/manager/customers/${result.customer.id}`);
+      router.push(`/customers/${result.customer.id}`);
     } catch (err) {
       const message = getErrorMessage(err, "Could not convert opportunity");
       setLocalError(message);
@@ -113,7 +113,7 @@ export function ManagerCrmContent() {
         title="CRM"
         description="Capture enquiries and convert accepted work into customer onboarding."
         action={
-          <Link href="/manager/customers" className="btn-secondary">
+          <Link href="/customers" className="btn-secondary">
             Open customers
           </Link>
         }
@@ -258,7 +258,7 @@ export function ManagerCrmContent() {
                   <td className="text-muted">
                     {opp.convertedCustomer ? (
                       <Link
-                        href={`/manager/customers/${opp.convertedCustomer.id}`}
+                        href={`/customers/${opp.convertedCustomer.id}`}
                         className="font-semibold text-primary"
                       >
                         Open customer

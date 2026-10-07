@@ -16,8 +16,8 @@ const STYLES: Record<ShiftStatus, string> = {
 const LABELS: Record<ShiftStatus, string> = {
   DRAFT: "Draft",
   UNFILLED: "Unfilled",
-  OFFERED: "Offered",
-  ACCEPTED: "Accepted",
+  OFFERED: "Broadcast / open",
+  ACCEPTED: "Assigned",
   IN_PROGRESS: "In progress",
   PENDING_APPROVAL: "Pending approval",
   APPROVED: "Approved",

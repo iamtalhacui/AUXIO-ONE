@@ -1,5 +1,5 @@
-import { ManagerIncidentsContent } from "@/components/incidents/ManagerIncidentsContent";
+import { redirect } from "next/navigation";
 
-export default function ManagerIncidentsPage() {
-  return <ManagerIncidentsContent />;
+export default function LegacyIncidentsPage() {
+  redirect("/incidents");
 }

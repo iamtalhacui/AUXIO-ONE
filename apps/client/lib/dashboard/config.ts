@@ -1,9 +1,12 @@
+import type { PagePermission } from "@/lib/dashboard/content/org-admin-roles";
 import type { UserRole } from "@/lib/dashboard/roles";
 
 export type NavItem = {
   label: string;
   href?: string;
   module?: string;
+  /** Role page permission required (configurable matrix). */
+  page?: PagePermission;
   locked?: boolean;
   children?: NavItem[];
 };
@@ -20,6 +23,34 @@ export type DashboardConfig = {
   title: string;
   sidebarGroups: NavGroup[];
 };
+
+/** Shared feature pages gated by page permission + module. */
+const FEATURE_PAGES: NavItem[] = [
+  { label: "CRM", href: "/crm", module: "CRM", page: "CRM" },
+  { label: "Customers", href: "/customers", module: "CUSTOMERS", page: "CUSTOMERS" },
+  { label: "Workforce", href: "/workforce", module: "WORKFORCE", page: "WORKFORCE" },
+  { label: "Schedule", href: "/schedule", module: "SCHEDULE", page: "SCHEDULE" },
+  {
+    label: "Matching",
+    href: "/schedule/matching",
+    module: "SCHEDULE",
+    page: "SCHEDULE",
+  },
+  {
+    label: "Service delivery",
+    href: "/service-delivery",
+    module: "SERVICE_DELIVERY",
+    page: "SERVICE_DELIVERY",
+  },
+  { label: "Incidents", href: "/incidents", module: "INCIDENTS", page: "INCIDENTS" },
+  {
+    label: "Forms & documents",
+    href: "/forms-documents",
+    page: "FORMS_DOCUMENTS",
+  },
+  { label: "Finance", href: "/finance", module: "FINANCE", page: "FINANCE" },
+  { label: "Insights", href: "/insights", module: "DASHBOARD", page: "INSIGHTS" },
+];
 
 const superAdminNav: NavGroup[] = [
   {
@@ -90,20 +121,20 @@ const orgAdminNav: NavGroup[] = [
       { label: "Payments", href: "/org-admin/payments" },
     ],
   },
+  {
+    title: "Operations",
+    items: FEATURE_PAGES,
+  },
 ];
 
 const managerNav: NavGroup[] = [
   {
     title: "Overview",
-    items: [{ label: "Dashboard", href: "/manager", module: "DASHBOARD" }],
+    items: [{ label: "Dashboard", href: "/manager", module: "DASHBOARD", page: "INSIGHTS" }],
   },
   {
     title: "Operations",
-    items: [
-      { label: "Customers", href: "/manager/customers", module: "CUSTOMERS" },
-      { label: "CRM", href: "/manager/crm", module: "CRM" },
-      { label: "Incidents", href: "/manager/incidents", module: "INCIDENTS" },
-    ],
+    items: FEATURE_PAGES,
   },
   {
     title: "Account",
@@ -114,14 +145,11 @@ const managerNav: NavGroup[] = [
 const rosterNav: NavGroup[] = [
   {
     title: "Overview",
-    items: [{ label: "Dashboard", href: "/roster", module: "DASHBOARD" }],
+    items: [{ label: "Dashboard", href: "/roster", module: "DASHBOARD", page: "INSIGHTS" }],
   },
   {
-    title: "Rostering",
-    items: [
-      { label: "Schedule", href: "/roster/schedule", module: "SCHEDULE" },
-      { label: "Matching", href: "/roster/matching", module: "SCHEDULE" },
-    ],
+    title: "Operations",
+    items: FEATURE_PAGES,
   },
   {
     title: "Account",
@@ -132,7 +160,7 @@ const rosterNav: NavGroup[] = [
 const employeeNav: NavGroup[] = [
   {
     title: "Overview",
-    items: [{ label: "Dashboard", href: "/employee", module: "DASHBOARD" }],
+    items: [{ label: "Dashboard", href: "/employee", module: "DASHBOARD", page: "INSIGHTS" }],
   },
   {
     title: "My work",
@@ -141,6 +169,10 @@ const employeeNav: NavGroup[] = [
       { label: "Availability", href: "/employee/availability", module: "SCHEDULE" },
       { label: "Timesheets", href: "/employee/timesheets", module: "FINANCE" },
     ],
+  },
+  {
+    title: "Operations",
+    items: FEATURE_PAGES,
   },
   {
     title: "Account",

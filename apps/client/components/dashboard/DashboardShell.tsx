@@ -6,7 +6,10 @@ import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { useConfirmOrgSession } from "@/components/auth/useConfirmOrgSession";
 import { useListOrgModulesQuery } from "@/lib/api/authApi";
-import { getDashboardConfigForPath } from "@/lib/dashboard/config";
+import {
+  getDashboardConfigForPath,
+  getDashboardConfigForRole,
+} from "@/lib/dashboard/config";
 import { filterNavByModules, findFirstNavHref } from "@/lib/dashboard/nav-modules";
 import {
   needsOnboardingLock,
@@ -22,9 +25,18 @@ export function DashboardShell({ children }: DashboardShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const orgUser = useAppSelector((state) => state.orgAuth.user);
+  const permissions = useAppSelector((state) => state.orgAuth.permissions);
   const platformUser = useAppSelector((state) => state.platformAuth.user);
   const isPlatform = pathname.startsWith("/super-admin");
-  const config = getDashboardConfigForPath(pathname);
+
+  const config = useMemo(() => {
+    if (isPlatform) return getDashboardConfigForPath(pathname);
+    return (
+      getDashboardConfigForRole(orgUser?.role) ??
+      getDashboardConfigForPath(pathname)
+    );
+  }, [isPlatform, orgUser?.role, pathname]);
+
   const sessionOk = useConfirmOrgSession(Boolean(orgUser) && !isPlatform);
   const lockedOnboarding =
     !isPlatform && needsOnboardingLock(orgUser?.role, orgUser?.onboardingStatus);
@@ -44,9 +56,14 @@ export function DashboardShell({ children }: DashboardShellProps) {
     const enabledCodes = modules.filter((mod) => mod.enabled).map((mod) => mod.code);
     return {
       ...config,
-      sidebarGroups: filterNavByModules(config.sidebarGroups, enabledCodes),
+      sidebarGroups: filterNavByModules(
+        config.sidebarGroups,
+        enabledCodes,
+        permissions,
+        orgUser.role === "ORG_ADMIN",
+      ),
     };
-  }, [config, isPlatform, lockedOnboarding, modules, orgUser]);
+  }, [config, isPlatform, lockedOnboarding, modules, orgUser, permissions]);
 
   // The role home page belongs to the DASHBOARD module. Without it, send the
   // user to their first enabled page instead of an empty overview.

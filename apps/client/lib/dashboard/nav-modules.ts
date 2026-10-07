@@ -1,12 +1,18 @@
+import type { RolePermissionsPayload } from "@/lib/api/types";
 import type { NavGroup, NavItem } from "@/lib/dashboard/config";
 
-function filterItem(item: NavItem, enabled: Set<string>): NavItem | null {
+function filterItem(
+  item: NavItem,
+  enabled: Set<string>,
+  pages: Set<string> | null,
+): NavItem | null {
   if (item.module && !enabled.has(item.module)) return null;
+  if (item.page && pages && !pages.has(item.page)) return null;
 
   if (!item.children?.length) return item;
 
   const children = item.children
-    .map((child) => filterItem(child, enabled))
+    .map((child) => filterItem(child, enabled, pages))
     .filter((child): child is NavItem => child !== null);
 
   if (item.href) return { ...item, children };
@@ -38,14 +44,28 @@ export function findFirstNavHref(
   return null;
 }
 
-export function filterNavByModules(groups: NavGroup[], enabledCodes: string[]): NavGroup[] {
+export function filterNavByModules(
+  groups: NavGroup[],
+  enabledCodes: string[],
+  permissions?: RolePermissionsPayload | null,
+  /** ORG_ADMIN bypasses page filters. */
+  bypassPagePermissions = false,
+): NavGroup[] {
   const enabled = new Set(enabledCodes);
+  const pages =
+    bypassPagePermissions || !permissions
+      ? null
+      : new Set(
+          Object.entries(permissions.pages)
+            .filter(([, on]) => on)
+            .map(([key]) => key),
+        );
 
   return groups
     .map((group) => ({
       ...group,
       items: group.items
-        .map((item) => filterItem(item, enabled))
+        .map((item) => filterItem(item, enabled, pages))
         .filter((item): item is NavItem => item !== null),
     }))
     .filter((group) => group.items.length > 0);

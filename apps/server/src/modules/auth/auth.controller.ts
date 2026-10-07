@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { PermissionsService } from '../permissions/permissions.service';
 import { AuthService } from './auth.service';
 import { CurrentOrgUser } from './current-org-user.decorator';
 import type { OrgJwtPayload } from './current-org-user.decorator';
@@ -13,7 +14,10 @@ import { OrgJwtGuard } from './org-jwt.guard';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly permissions: PermissionsService,
+  ) {}
 
   @Post('setup')
   setup(@Body() dto: SetupAccountDto) {
@@ -21,8 +25,13 @@ export class AuthController {
   }
 
   @Post('login')
-  login(@Body() dto: LoginDto) {
-    return this.authService.login(dto.email, dto.password);
+  async login(@Body() dto: LoginDto) {
+    const result = await this.authService.login(dto.email, dto.password);
+    const permissions = await this.permissions.resolve(
+      result.user.organisationId,
+      result.user.role,
+    );
+    return { ...result, permissions };
   }
 
   @Post('forgot-password')
@@ -37,8 +46,13 @@ export class AuthController {
 
   @UseGuards(OrgJwtGuard)
   @Get('me')
-  me(@CurrentOrgUser() user: OrgJwtPayload) {
-    return this.authService.getMe(user.sub);
+  async me(@CurrentOrgUser() user: OrgJwtPayload) {
+    const me = await this.authService.getMe(user.sub);
+    const permissions = await this.permissions.resolve(
+      user.organisationId,
+      user.role,
+    );
+    return { ...me, permissions };
   }
 
   @UseGuards(OrgJwtGuard)

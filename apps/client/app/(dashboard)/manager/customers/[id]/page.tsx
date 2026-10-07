@@ -1,10 +1,10 @@
-import { ManagerCustomerDetailContent } from "@/components/manager/ManagerCustomerDetailContent";
+import { redirect } from "next/navigation";
 
 type PageProps = {
   params: Promise<{ id: string }>;
 };
 
-export default async function ManagerCustomerDetailPage({ params }: PageProps) {
+export default async function LegacyCustomerDetailPage({ params }: PageProps) {
   const { id } = await params;
-  return <ManagerCustomerDetailContent customerId={id} />;
+  redirect(`/customers/${id}`);
 }

@@ -1,5 +1,5 @@
-import { ManagerCustomersContent } from "@/components/manager/ManagerCustomersContent";
+import { redirect } from "next/navigation";
 
-export default function ManagerCustomersPage() {
-  return <ManagerCustomersContent />;
+export default function LegacyManagerCustomersPage() {
+  redirect("/customers");
 }

@@ -216,6 +216,9 @@ importers:
       '@reduxjs/toolkit':
         specifier: ^2.12.0
         version: 2.12.0(react-redux@9.3.0(@types/react@19.2.18)(react@19.2.8)(redux@5.0.1))(react@19.2.8)
+      database:
+        specifier: workspace:*
+        version: link:../../packages/database
       lucide-react:
         specifier: ^1.39.0
         version: 1.39.0(react@19.2.8)

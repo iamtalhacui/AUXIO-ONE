@@ -12,6 +12,7 @@ import { LocalFileStorageService } from '../../common/storage/local-file-storage
 import { MailService } from '../../common/mail/mail.service';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { PermissionsService } from '../permissions/permissions.service';
 import type { SaveOnboardingDraftDto } from './dto/save-onboarding-draft.dto';
 import { OnboardingTemplatesService } from './onboarding-templates.service';
 import type { OnboardingPayload } from './onboarding-templates';
@@ -51,6 +52,7 @@ export class OnboardingService {
     private readonly storage: LocalFileStorageService,
     private readonly mail: MailService,
     private readonly notifications: NotificationsService,
+    private readonly permissions: PermissionsService,
   ) {}
 
   // Load the caller's onboarding state; creates nothing until first draft save.
@@ -479,14 +481,19 @@ export class OnboardingService {
 
   // ─── Org Admin review ───────────────────────────────────
 
-  private requireOrgAdmin(actorRole: string) {
-    if (actorRole !== 'ORG_ADMIN') {
-      throw new ForbiddenException('Only organisation admins can review onboarding');
-    }
+  private async requireApproveOnboarding(
+    organisationId: string,
+    actorRole: string,
+  ) {
+    await this.permissions.assertAction(
+      organisationId,
+      actorRole,
+      'APPROVE_ONBOARDING',
+    );
   }
 
   async listForAdmin(organisationId: string, actorRole: string, status?: string) {
-    this.requireOrgAdmin(actorRole);
+    await this.requireApproveOnboarding(organisationId, actorRole);
 
     const where: Prisma.OnboardingSubmissionWhereInput = {
       organisationId,
@@ -531,7 +538,7 @@ export class OnboardingService {
   }
 
   async getForAdmin(organisationId: string, actorRole: string, memberUserId: string) {
-    this.requireOrgAdmin(actorRole);
+    await this.requireApproveOnboarding(organisationId, actorRole);
 
     const submission = await this.prisma.onboardingSubmission.findFirst({
       where: { userId: memberUserId, organisationId },
@@ -586,7 +593,7 @@ export class OnboardingService {
     memberUserId: string,
     documentId: string,
   ) {
-    this.requireOrgAdmin(actorRole);
+    await this.requireApproveOnboarding(organisationId, actorRole);
 
     const document = await this.prisma.onboardingDocument.findFirst({
       where: {
@@ -622,7 +629,7 @@ export class OnboardingService {
     decision: 'VERIFIED' | 'CHANGES_REQUIRED',
     note?: string,
   ) {
-    this.requireOrgAdmin(actorRole);
+    await this.requireApproveOnboarding(organisationId, actorRole);
 
     if (decision === 'CHANGES_REQUIRED' && !note?.trim()) {
       throw new BadRequestException('A rejection reason is required');

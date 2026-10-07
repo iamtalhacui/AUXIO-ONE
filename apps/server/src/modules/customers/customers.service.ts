@@ -8,6 +8,7 @@ import {
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { LocalFileStorageService } from '../../common/storage/local-file-storage.service';
 import { OrganisationsService } from '../organisations/organisations.service';
+import { PermissionsService } from '../permissions/permissions.service';
 import {
   isMandatoryFieldKey,
   mandatoryLabel,
@@ -37,14 +38,27 @@ export class CustomersService {
     private readonly prisma: PrismaService,
     private readonly storage: LocalFileStorageService,
     private readonly organisations: OrganisationsService,
+    private readonly permissions: PermissionsService,
   ) {}
 
-  // ── Role gate: Manager only for CRM / customers in v1 ──
-
-  private assertManager(role: string) {
-    if (role !== 'MANAGER') {
-      throw new ForbiddenException('Only managers can manage customers and CRM');
+  private async assertCustomersPage(organisationId: string, role: string) {
+    const hasCustomers = await this.permissions.hasPage(
+      organisationId,
+      role,
+      'CUSTOMERS',
+    );
+    const hasCrm = await this.permissions.hasPage(organisationId, role, 'CRM');
+    if (!hasCustomers && !hasCrm) {
+      throw new ForbiddenException('Missing page permission: CUSTOMERS');
     }
+  }
+
+  private async assertManageCustomers(organisationId: string, role: string) {
+    await this.permissions.assertAction(
+      organisationId,
+      role,
+      'MANAGE_CUSTOMERS',
+    );
   }
 
   private displayName(c: {
@@ -166,7 +180,7 @@ export class CustomersService {
   // ── Customers ──
 
   async listCustomers(organisationId: string, role: string) {
-    this.assertManager(role);
+    await this.assertCustomersPage(organisationId, role);
     const rows = await this.prisma.customer.findMany({
       where: { organisationId },
       orderBy: { createdAt: 'desc' },
@@ -176,7 +190,7 @@ export class CustomersService {
   }
 
   async getCustomer(organisationId: string, role: string, customerId: string) {
-    this.assertManager(role);
+    await this.assertCustomersPage(organisationId, role);
     const customer = await this.prisma.customer.findFirst({
       where: { id: customerId, organisationId },
       include: { documents: { orderBy: { uploadedAt: 'desc' } } },
@@ -192,7 +206,7 @@ export class CustomersService {
     dto: CreateCustomerDto,
     sourceOpportunityId?: string,
   ) {
-    this.assertManager(role);
+    await this.assertManageCustomers(organisationId, role);
 
     const planStartDate = this.parseOptionalDate(dto.planStartDate);
     const planEndDate = this.parseOptionalDate(dto.planEndDate);
@@ -235,7 +249,7 @@ export class CustomersService {
     customerId: string,
     dto: UpdateCustomerDto,
   ) {
-    this.assertManager(role);
+    await this.assertManageCustomers(organisationId, role);
     const existing = await this.prisma.customer.findFirst({
       where: { id: customerId, organisationId },
     });
@@ -300,7 +314,7 @@ export class CustomersService {
 
   // Activate when all mandatory docs are present (Manager end-to-end — no separate review).
   async activateCustomer(organisationId: string, role: string, customerId: string) {
-    this.assertManager(role);
+    await this.assertManageCustomers(organisationId, role);
     const customer = await this.prisma.customer.findFirst({
       where: { id: customerId, organisationId },
       include: { documents: true },
@@ -339,7 +353,7 @@ export class CustomersService {
     fieldKey: string,
     file: UploadedFile | undefined,
   ) {
-    this.assertManager(role);
+    await this.assertManageCustomers(organisationId, role);
     if (!isMandatoryFieldKey(fieldKey)) {
       throw new BadRequestException('Unknown mandatory document slot');
     }
@@ -362,7 +376,7 @@ export class CustomersService {
     label: string,
     file: UploadedFile | undefined,
   ) {
-    this.assertManager(role);
+    await this.assertManageCustomers(organisationId, role);
     const trimmed = label.trim();
     if (!trimmed) throw new BadRequestException('Document label is required');
     const fieldKey = `OPTIONAL_${trimmed
@@ -455,7 +469,7 @@ export class CustomersService {
     customerId: string,
     documentId: string,
   ) {
-    this.assertManager(role);
+    await this.assertCustomersPage(organisationId, role);
     const doc = await this.prisma.customerDocument.findFirst({
       where: {
         id: documentId,
@@ -478,7 +492,7 @@ export class CustomersService {
     customerId: string,
     documentId: string,
   ) {
-    this.assertManager(role);
+    await this.assertManageCustomers(organisationId, role);
     const doc = await this.prisma.customerDocument.findFirst({
       where: {
         id: documentId,
@@ -495,7 +509,7 @@ export class CustomersService {
   // ── CRM opportunities ──
 
   async listOpportunities(organisationId: string, role: string) {
-    this.assertManager(role);
+    await this.assertCustomersPage(organisationId, role);
     return this.prisma.crmOpportunity.findMany({
       where: { organisationId },
       orderBy: { updatedAt: 'desc' },
@@ -507,7 +521,7 @@ export class CustomersService {
   }
 
   async pipelineSummary(organisationId: string, role: string) {
-    this.assertManager(role);
+    await this.assertCustomersPage(organisationId, role);
     const rows = await this.prisma.crmOpportunity.findMany({
       where: { organisationId },
       select: { stage: true, estimatedAnnualValue: true },
@@ -536,7 +550,7 @@ export class CustomersService {
     role: string,
     dto: CreateOpportunityDto,
   ) {
-    this.assertManager(role);
+    await this.assertManageCustomers(organisationId, role);
     return this.prisma.crmOpportunity.create({
       data: {
         organisationId,
@@ -564,7 +578,7 @@ export class CustomersService {
     opportunityId: string,
     dto: UpdateOpportunityDto,
   ) {
-    this.assertManager(role);
+    await this.assertManageCustomers(organisationId, role);
     const existing = await this.prisma.crmOpportunity.findFirst({
       where: { id: opportunityId, organisationId },
     });
@@ -608,7 +622,7 @@ export class CustomersService {
     role: string,
     opportunityId: string,
   ) {
-    this.assertManager(role);
+    await this.assertManageCustomers(organisationId, role);
     const opportunity = await this.prisma.crmOpportunity.findFirst({
       where: { id: opportunityId, organisationId },
       include: { convertedCustomer: true },
@@ -656,7 +670,7 @@ export class CustomersService {
    * Soft-gates sections by whether CUSTOMERS / CRM modules are enabled.
    */
   async getManagerOverview(organisationId: string, role: string) {
-    this.assertManager(role);
+    await this.assertCustomersPage(organisationId, role);
 
     const now = new Date();
     const joinWindowStart = startOfUtcDay(

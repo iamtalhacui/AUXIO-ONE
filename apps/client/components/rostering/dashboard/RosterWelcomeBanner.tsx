@@ -6,8 +6,8 @@ import type { RosterOverview } from "@/lib/api/types";
 import { formatLongDate } from "@/lib/rostering/format";
 
 const QUICK_ACTIONS = [
-  { label: "Open schedule", href: "/roster/schedule", primary: true },
-  { label: "Matching", href: "/roster/matching", primary: false },
+  { label: "Open schedule", href: "/schedule", primary: true },
+  { label: "Matching", href: "/schedule/matching", primary: false },
   { label: "Your profile", href: "/roster/profile", primary: false },
 ] as const;
 

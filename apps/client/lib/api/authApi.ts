@@ -57,6 +57,7 @@ import type {
   IncidentAttachmentMeta,
   OrgBillingSummary,
   OrganisationPayment,
+  RolePermissionMatrixPayload,
 } from "@/lib/api/types";
 import { isMaintenanceError, rememberMaintenanceLogout } from "@/lib/api/getErrorMessage";
 import { logoutOrg } from "@/lib/store/orgAuthSlice";
@@ -117,6 +118,7 @@ export const authApi = createApi({
     "Notifications",
     "Incidents",
     "Payments",
+    "RolePermissions",
   ],
   endpoints: (builder) => ({
     setupAccount: builder.mutation<SetupAccountResponse, SetupAccountRequest>({
@@ -208,6 +210,21 @@ export const authApi = createApi({
         body: { enabled },
       }),
       invalidatesTags: ["OrgModules", "OrgOverview"],
+    }),
+    getRolePermissions: builder.query<RolePermissionMatrixPayload, void>({
+      query: () => "/organisation/role-permissions",
+      providesTags: ["RolePermissions"],
+    }),
+    updateRolePermissions: builder.mutation<
+      RolePermissionMatrixPayload,
+      RolePermissionMatrixPayload
+    >({
+      query: (body) => ({
+        url: "/organisation/role-permissions",
+        method: "PUT",
+        body,
+      }),
+      invalidatesTags: ["RolePermissions"],
     }),
     listOrgTeam: builder.query<OrgTeamMember[], void>({
       query: () => "/organisation/team",
@@ -870,6 +887,8 @@ export const {
   useDeleteOrganisationLogoMutation,
   useListOrgModulesQuery,
   useSetOrgModuleEnabledMutation,
+  useGetRolePermissionsQuery,
+  useUpdateRolePermissionsMutation,
   useListOrgTeamQuery,
   useRegisterTeamMemberMutation,
   useGetOrgTeamMemberQuery,

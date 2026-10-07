@@ -18,7 +18,7 @@ type AttentionRow = {
 };
 
 function shiftHref(shiftId: string) {
-  return `/roster/matching?shift=${shiftId}`;
+  return `/schedule/matching?shift=${shiftId}`;
 }
 
 function shiftDetail(item: {
@@ -120,7 +120,7 @@ export function RosterNeedsAttentionCard({
           </p>
         </div>
         {total > 0 ? (
-          <Link href="/roster/matching" className="text-sm font-semibold text-primary">
+          <Link href="/schedule/matching" className="text-sm font-semibold text-primary">
             All matching
           </Link>
         ) : null}

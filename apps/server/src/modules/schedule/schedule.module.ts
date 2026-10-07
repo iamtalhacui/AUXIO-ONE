@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { OrganisationsModule } from '../organisations/organisations.module';
 import { OnboardingModule } from '../onboarding/onboarding.module';
+import { PermissionsModule } from '../permissions/permissions.module';
 import { PlatformModule } from '../platform/platform.module';
 import { EmployeeOverviewController } from './employee-overview.controller';
 import { EmployeeScheduleController } from './employee-schedule.controller';
@@ -11,7 +12,13 @@ import { ScheduleController } from './schedule.controller';
 import { ScheduleService } from './schedule.service';
 
 @Module({
-  imports: [AuthModule, OrganisationsModule, PlatformModule, OnboardingModule],
+  imports: [
+    AuthModule,
+    OrganisationsModule,
+    PlatformModule,
+    OnboardingModule,
+    PermissionsModule,
+  ],
   controllers: [
     ScheduleController,
     EmployeeScheduleController,

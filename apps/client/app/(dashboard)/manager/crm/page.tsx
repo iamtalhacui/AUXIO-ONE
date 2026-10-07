@@ -1,5 +1,5 @@
-import { ManagerCrmContent } from "@/components/manager/ManagerCrmContent";
+import { redirect } from "next/navigation";
 
-export default function ManagerCrmPage() {
-  return <ManagerCrmContent />;
+export default function LegacyCrmPage() {
+  redirect("/crm");
 }

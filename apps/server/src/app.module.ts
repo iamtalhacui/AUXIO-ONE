@@ -14,6 +14,7 @@ import { MailModule } from './common/mail/mail.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { IncidentsModule } from './modules/incidents/incidents.module';
 import { PaymentsModule } from './modules/payments/payments.module';
+import { PermissionsModule } from './modules/permissions/permissions.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 
 @Module({
@@ -26,6 +27,7 @@ import { SubscriptionsModule } from './modules/subscriptions/subscriptions.modul
     PlatformModule,
     OrganisationsModule,
     AuthModule,
+    PermissionsModule,
     TeamModule,
     OnboardingModule,
     CustomersModule,

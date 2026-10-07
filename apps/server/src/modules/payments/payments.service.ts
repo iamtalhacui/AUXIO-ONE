@@ -13,10 +13,13 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { PlatformService } from '../platform/platform.service';
 import { SubscriptionLifecycleService } from '../subscriptions/subscription-lifecycle.service';
 import {
+  addUtcDays,
   buildBillingReminder,
   calculateNextRenewalDate,
   calculateRenewalPeriodStart,
+  canSubmitSubscriptionPayment,
   defaultSubscriptionAmountCents,
+  SUBSCRIPTION_REMINDER_DAYS,
   toSubscriptionDto,
   toUtcDateOnly,
 } from '../organisations/subscription.util';
@@ -100,11 +103,13 @@ export class PaymentsService {
       gracePeriodDays: subscription.gracePeriodDays,
     });
 
+    const inSubmitWindow = canSubmitSubscriptionPayment(subscription.status);
+
     return {
       subscription: toSubscriptionDto(subscription),
       latestPayment: latestPayment ? this.toPaymentDto(latestPayment) : null,
       hasPendingPayment: pendingCount > 0,
-      canSubmitPayment: pendingCount === 0,
+      canSubmitPayment: inSubmitWindow && pendingCount === 0,
       reminder,
     };
   }
@@ -166,12 +171,24 @@ export class PaymentsService {
       throw new BadRequestException('Payment reference is required');
     }
 
+    await this.lifecycle.syncOrganisation(organisationId);
+
     const subscription = await this.prisma.subscription.findUnique({
       where: { organisationId },
       include: { organisation: { select: { name: true } } },
     });
     if (!subscription) {
       throw new NotFoundException('No subscription found for this organisation');
+    }
+
+    if (!canSubmitSubscriptionPayment(subscription.status)) {
+      const windowOpens = addUtcDays(
+        subscription.nextRenewalDate,
+        -SUBSCRIPTION_REMINDER_DAYS,
+      );
+      throw new BadRequestException(
+        `Payment can only be submitted within ${SUBSCRIPTION_REMINDER_DAYS} days of renewal, during grace, or when suspended. You can submit from ${windowOpens.toISOString().slice(0, 10)}.`,
+      );
     }
 
     const pending = await this.prisma.payment.findFirst({

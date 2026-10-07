@@ -58,10 +58,10 @@ export function RosterHomeContent() {
           <p className="page-subtitle">{formatLongDate(today)}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link href="/roster/matching" className="btn-secondary !rounded-lg">
+          <Link href="/schedule/matching" className="btn-secondary !rounded-lg">
             Matching
           </Link>
-          <Link href="/roster/schedule" className="btn-primary">
+          <Link href="/schedule" className="btn-primary">
             Open schedule
           </Link>
         </div>
@@ -116,7 +116,7 @@ export function RosterHomeContent() {
                 <div className="flex items-center gap-3">
                   <ShiftStatusPill status={shift.status} />
                   <Link
-                    href={`/roster/matching?shift=${shift.id}`}
+                    href={`/schedule/matching?shift=${shift.id}`}
                     className="text-sm font-semibold text-primary hover:underline"
                   >
                     Match

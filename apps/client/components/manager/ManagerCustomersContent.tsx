@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { useListCustomersQuery } from "@/lib/api/authApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { useHasAction } from "@/lib/permissions/hooks";
 
 function statusClass(status: string) {
   if (status === "ACTIVE") return "bg-primary/10 text-primary";
@@ -13,6 +14,7 @@ function statusClass(status: string) {
 }
 
 export function ManagerCustomersContent() {
+  const canManage = useHasAction("MANAGE_CUSTOMERS");
   const { data: customers = [], isLoading, error } = useListCustomersQuery();
   const [query, setQuery] = useState("");
 
@@ -42,9 +44,11 @@ export function ManagerCustomersContent() {
         title="Customers"
         description="Create customer records and complete document onboarding."
         action={
-          <Link href="/manager/customers/new" className="btn-primary">
-            Register customer
-          </Link>
+          canManage ? (
+            <Link href="/customers/new" className="btn-primary">
+              Register customer
+            </Link>
+          ) : undefined
         }
       />
 
@@ -92,7 +96,7 @@ export function ManagerCustomersContent() {
                     </td>
                     <td>
                       <Link
-                        href={`/manager/customers/${customer.id}`}
+                        href={`/customers/${customer.id}`}
                         className="text-sm font-semibold text-primary"
                       >
                         Open

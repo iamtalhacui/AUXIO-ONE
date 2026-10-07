@@ -69,7 +69,7 @@ export function RosterStatCards({
       </article>
 
       <Link
-        href="/roster/matching"
+        href="/schedule/matching"
         className="dashboard-card block p-5 transition hover:border-primary/40"
       >
         <p className="text-sm text-muted">Coverage (next 7 days)</p>

@@ -1,5 +1,10 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import type { OrgLoginResponse, OrgSummary, OrgUser } from "@/lib/api/types";
+import type {
+  OrgLoginResponse,
+  OrgSummary,
+  OrgUser,
+  RolePermissionsPayload,
+} from "@/lib/api/types";
 
 const STORAGE_KEY = "auxio_org_auth";
 
@@ -7,6 +12,7 @@ type OrgAuthState = {
   accessToken: string | null;
   user: OrgUser | null;
   organisation: OrgSummary | null;
+  permissions: RolePermissionsPayload | null;
   hydrated: boolean;
 };
 
@@ -14,6 +20,7 @@ const initialState: OrgAuthState = {
   accessToken: null,
   user: null,
   organisation: null,
+  permissions: null,
   hydrated: false,
 };
 
@@ -29,6 +36,7 @@ function persist(state: OrgAuthState) {
       accessToken: state.accessToken,
       user: state.user,
       organisation: state.organisation,
+      permissions: state.permissions,
     }),
   );
 }
@@ -60,6 +68,7 @@ const orgAuthSlice = createSlice({
           state.accessToken = parsed.accessToken ?? null;
           state.user = parsed.user ?? null;
           state.organisation = normalizeOrganisation(parsed.organisation);
+          state.permissions = parsed.permissions ?? null;
         } catch {
           localStorage.removeItem(STORAGE_KEY);
         }
@@ -70,6 +79,7 @@ const orgAuthSlice = createSlice({
       state.accessToken = action.payload.accessToken;
       state.user = action.payload.user;
       state.organisation = normalizeOrganisation(action.payload.organisation);
+      state.permissions = action.payload.permissions ?? null;
       persist(state);
     },
     patchOrgUser(state, action: PayloadAction<Partial<OrgUser>>) {
@@ -81,10 +91,15 @@ const orgAuthSlice = createSlice({
       state.organisation = normalizeOrganisation(action.payload);
       persist(state);
     },
+    setPermissions(state, action: PayloadAction<RolePermissionsPayload>) {
+      state.permissions = action.payload;
+      persist(state);
+    },
     logoutOrg(state) {
       state.accessToken = null;
       state.user = null;
       state.organisation = null;
+      state.permissions = null;
       persist(state);
     },
   },
@@ -95,6 +110,7 @@ export const {
   setOrgCredentials,
   patchOrgUser,
   setOrganisation,
+  setPermissions,
   logoutOrg,
 } = orgAuthSlice.actions;
 export default orgAuthSlice.reducer;

@@ -96,6 +96,12 @@ export function OrgAdminPaymentsContent() {
     event.preventDefault();
     setFormError("");
 
+    if (!summary?.canSubmitPayment) {
+      setFormError(
+        "Payment can only be submitted within 3 days of renewal, during grace, or when suspended.",
+      );
+      return;
+    }
     if (!file) {
       setFormError("Upload a payment screenshot or PDF proof.");
       return;
@@ -266,12 +272,30 @@ export function OrgAdminPaymentsContent() {
             is reviewed.
           </p>
         ) : null}
+
+        {!summary.canSubmitPayment &&
+        !summary.hasPendingPayment &&
+        subscription.status === "ACTIVE" ? (
+          <p className="mt-4 rounded-lg border border-border bg-surface-muted/60 px-4 py-3 text-sm text-muted">
+            Your subscription is paid and active
+            {typeof summary.reminder?.daysUntilRenewal === "number"
+              ? ` (${summary.reminder.daysUntilRenewal} day${
+                  summary.reminder.daysUntilRenewal === 1 ? "" : "s"
+                } until renewal on ${formatDay(subscription.nextRenewalDate)})`
+              : ` until ${formatDay(subscription.nextRenewalDate)}`}
+            . You can submit the next payment starting 3 days before the renewal date.
+          </p>
+        ) : null}
       </section>
 
       <section className="dashboard-card p-6">
         <h2 className="text-lg font-semibold">Submit payment</h2>
         <p className="mt-1 text-sm text-muted">
-          Pay offline, then upload proof here. Status starts as pending approval.
+          {summary.canSubmitPayment
+            ? "Pay offline, then upload proof here. Status starts as pending approval."
+            : summary.hasPendingPayment
+              ? "Submission is locked while a payment awaits Super Admin approval."
+              : "Submission opens 3 days before renewal, and stays open through grace or suspension."}
         </p>
 
         <form className="mt-5 space-y-4" onSubmit={handleSubmit}>

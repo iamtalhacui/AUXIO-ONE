@@ -97,7 +97,7 @@ export function ManagerCustomerDetailContent({ customerId }: { customerId: strin
         title={customer.displayName}
         description={`${customer.status} · ${customer.serviceLine || "No service line"}`}
         action={
-          <Link href="/manager/customers" className="btn-secondary">
+          <Link href="/customers" className="btn-secondary">
             Back to list
           </Link>
         }

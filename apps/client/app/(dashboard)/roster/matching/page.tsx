@@ -1,10 +1,5 @@
-import { Suspense } from "react";
-import { MatchingContent } from "@/components/rostering/MatchingContent";
+import { redirect } from "next/navigation";
 
-export default function Page() {
-  return (
-    <Suspense fallback={<p className="text-sm text-muted">Loading matching…</p>}>
-      <MatchingContent />
-    </Suspense>
-  );
+export default function LegacyMatchingPage() {
+  redirect("/schedule/matching");
 }

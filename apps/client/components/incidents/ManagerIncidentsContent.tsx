@@ -232,7 +232,7 @@ export function ManagerIncidentsContent() {
                     </td>
                     <td>
                       <Link
-                        href={`/manager/incidents/${inc.id}`}
+                        href={`/incidents/${inc.id}`}
                         className="text-sm font-semibold text-primary"
                       >
                         Open

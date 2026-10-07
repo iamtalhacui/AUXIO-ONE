@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { OrganisationsService } from '../organisations/organisations.service';
+import { PermissionsService } from '../permissions/permissions.service';
 import type {
   CreateShiftDto,
   PreviewRecurrenceDto,
@@ -161,6 +162,7 @@ type ShiftRow = {
   progressNote: string | null;
   offeredWorkerId: string | null;
   assignedWorkerId: string | null;
+  isBroadcast: boolean;
   createdById: string;
   publishedAt: Date | null;
   actualStartedAt: Date | null;
@@ -198,16 +200,36 @@ export class ScheduleService {
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
     private readonly organisations: OrganisationsService,
+    private readonly permissions: PermissionsService,
   ) {}
 
   // ─── Role helpers ───────────────────────────────────────
 
-  private assertRosteringExpert(role: string) {
-    if (role !== 'ROSTERING_EXPERT') {
-      throw new ForbiddenException(
-        'Only Rostering Experts can manage the schedule',
-      );
-    }
+  private async assertSchedulePage(organisationId: string, role: string) {
+    await this.permissions.assertPage(organisationId, role, 'SCHEDULE');
+  }
+
+  private async assertManageShifts(organisationId: string, role: string) {
+    await this.permissions.assertAction(organisationId, role, 'MANAGE_SHIFTS');
+  }
+
+  private async assertPublishAssign(organisationId: string, role: string) {
+    await this.permissions.assertAction(
+      organisationId,
+      role,
+      'PUBLISH_ASSIGN_SHIFTS',
+    );
+  }
+
+  private async assertApproveServiceDelivery(
+    organisationId: string,
+    role: string,
+  ) {
+    await this.permissions.assertAction(
+      organisationId,
+      role,
+      'APPROVE_TIMESHEETS_SERVICE_DELIVERY',
+    );
   }
 
   private assertEmployee(role: string) {
@@ -329,6 +351,7 @@ export class ScheduleService {
       progressNote: shift.progressNote,
       offeredWorkerId: shift.offeredWorkerId,
       assignedWorkerId: shift.assignedWorkerId,
+      isBroadcast: Boolean(shift.isBroadcast),
       offeredWorkerName: this.workerName(shift.offeredWorker),
       assignedWorkerName: this.workerName(shift.assignedWorker),
       publishedAt: shift.publishedAt?.toISOString() ?? null,
@@ -382,7 +405,7 @@ export class ScheduleService {
 
   /** Minimal participant list for Rostering Expert shift creation. */
   async listParticipants(organisationId: string, role: string) {
-    this.assertRosteringExpert(role);
+    await this.assertSchedulePage(organisationId, role);
 
     const rows = await this.prisma.customer.findMany({
       where: {
@@ -416,7 +439,7 @@ export class ScheduleService {
 
   /** Active verified employees available for matching. */
   async listWorkers(organisationId: string, role: string) {
-    this.assertRosteringExpert(role);
+    await this.assertSchedulePage(organisationId, role);
 
     const workers = await this.prisma.user.findMany({
       where: {
@@ -454,7 +477,7 @@ export class ScheduleService {
     from?: string,
     to?: string,
   ) {
-    this.assertRosteringExpert(role);
+    await this.assertSchedulePage(organisationId, role);
 
     const where: {
       organisationId: string;
@@ -477,7 +500,7 @@ export class ScheduleService {
   }
 
   async getShift(organisationId: string, role: string, shiftId: string) {
-    this.assertRosteringExpert(role);
+    await this.assertSchedulePage(organisationId, role);
     const shift = await this.findOrgShift(organisationId, shiftId);
     return this.toShiftDto(shift);
   }
@@ -494,9 +517,12 @@ export class ScheduleService {
   // ─── Recurrence preview & create ────────────────────────
 
   /** Build the list of dates a recurrence would produce (not persisted). */
-  previewRecurrence(organisationId: string, role: string, dto: PreviewRecurrenceDto) {
-    this.assertRosteringExpert(role);
-    void organisationId;
+  async previewRecurrence(
+    organisationId: string,
+    role: string,
+    dto: PreviewRecurrenceDto,
+  ) {
+    await this.assertManageShifts(organisationId, role);
     this.validateCreateInput(dto);
     const dates = this.buildOccurrenceDates(dto);
     return {
@@ -511,11 +537,18 @@ export class ScheduleService {
     role: string,
     dto: CreateShiftDto,
   ) {
-    this.assertRosteringExpert(role);
+    await this.assertManageShifts(organisationId, role);
     this.validateCreateInput(dto);
+
+    const broadcast = Boolean(dto.broadcast);
+    if (broadcast) {
+      await this.assertPublishAssign(organisationId, role);
+    }
 
     const resolved = await this.resolveParticipant(organisationId, dto);
     const endTime = this.endTimeFrom(dto.startTime, dto.durationMinutes);
+    const publishedAt = broadcast ? new Date() : null;
+    const initialStatus = broadcast ? 'OFFERED' : 'DRAFT';
 
     if (!dto.recurring) {
       const shift = await this.prisma.shift.create({
@@ -532,7 +565,9 @@ export class ScheduleService {
           startTime: dto.startTime,
           endTime,
           durationMinutes: dto.durationMinutes,
-          status: 'DRAFT',
+          status: initialStatus,
+          isBroadcast: broadcast,
+          publishedAt,
           notes: dto.notes?.trim() || null,
           createdById: actorId,
         },
@@ -540,6 +575,9 @@ export class ScheduleService {
       });
       await this.copyTasksOntoShift(organisationId, shift.id, shift.serviceLine);
       const withTasks = await this.findOrgShift(organisationId, shift.id);
+      if (broadcast) {
+        await this.notifyBroadcastEligible(organisationId, withTasks);
+      }
       return { shifts: [this.toShiftDto(withTasks)], seriesId: null };
     }
 
@@ -579,7 +617,9 @@ export class ScheduleService {
             startTime: dto.startTime,
             endTime,
             durationMinutes: dto.durationMinutes,
-            status: 'DRAFT',
+            status: initialStatus,
+            isBroadcast: broadcast,
+            publishedAt,
             notes: dto.notes?.trim() || null,
             createdById: actorId,
           },
@@ -597,6 +637,12 @@ export class ScheduleService {
       include: this.shiftInclude,
       orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
     });
+
+    if (broadcast) {
+      for (const shift of created) {
+        await this.notifyBroadcastEligible(organisationId, shift);
+      }
+    }
 
     return {
       seriesId: series.id,
@@ -678,7 +724,7 @@ export class ScheduleService {
     shiftId: string,
     dto: UpdateShiftDto,
   ) {
-    this.assertRosteringExpert(role);
+    await this.assertManageShifts(organisationId, role);
     const shift = await this.findOrgShift(organisationId, shiftId);
 
     if (
@@ -781,7 +827,7 @@ export class ScheduleService {
   }
 
   async cancelShift(organisationId: string, role: string, shiftId: string) {
-    this.assertRosteringExpert(role);
+    await this.assertManageShifts(organisationId, role);
     const shift = await this.findOrgShift(organisationId, shiftId);
     if (shift.status === 'APPROVED' || shift.status === 'IN_PROGRESS') {
       throw new BadRequestException('Cannot cancel a shift in this status');
@@ -801,8 +847,8 @@ export class ScheduleService {
   // ─── Publish / offer / matching ─────────────────────────
 
   /**
-   * Publish (if needed) and offer the shift to one eligible worker.
-   * No tentative draft assignment — offer happens only at this step.
+   * Publish (if needed) and directly assign an eligible worker.
+   * No employee accept step — availability/eligibility is checked here.
    */
   async publishAndOffer(
     organisationId: string,
@@ -810,15 +856,12 @@ export class ScheduleService {
     shiftId: string,
     workerId: string,
   ) {
-    this.assertRosteringExpert(role);
+    await this.assertPublishAssign(organisationId, role);
     const shift = await this.findOrgShift(organisationId, shiftId);
 
     if (!['DRAFT', 'UNFILLED', 'OFFERED'].includes(shift.status)) {
-      throw new BadRequestException('This shift cannot be offered in its current status');
-    }
-    if (shift.status === 'OFFERED' && shift.offeredWorkerId) {
       throw new BadRequestException(
-        'An offer is already pending — wait for accept/decline or cancel the offer first',
+        'This shift cannot be assigned in its current status',
       );
     }
 
@@ -832,9 +875,10 @@ export class ScheduleService {
     const updated = await this.prisma.shift.update({
       where: { id: shift.id },
       data: {
-        status: 'OFFERED',
-        offeredWorkerId: workerId,
-        assignedWorkerId: null,
+        status: 'ACCEPTED',
+        assignedWorkerId: workerId,
+        offeredWorkerId: null,
+        isBroadcast: false,
         publishedAt: shift.publishedAt ?? new Date(),
       },
       include: this.shiftInclude,
@@ -842,35 +886,60 @@ export class ScheduleService {
 
     void this.notifications.notifyUser(workerId, organisationId, {
       type: 'INFO',
-      title: 'New shift offer',
-      message: `You've been offered a ${updated.serviceTitle} shift on ${this.formatDateOnly(updated.date)} (${updated.startTime}–${updated.endTime}).`,
+      title: 'Shift assigned to you',
+      message: `You've been assigned a ${updated.serviceTitle} shift on ${this.formatDateOnly(updated.date)} (${updated.startTime}–${updated.endTime}).`,
       link: `/employee/shifts/${updated.id}`,
     });
 
     return this.toShiftDto(updated);
   }
 
-  /** Withdraw a pending offer and leave the shift published but unfilled. */
+  /** Withdraw a broadcast/open offer and leave the shift published but unfilled. */
   async withdrawOffer(organisationId: string, role: string, shiftId: string) {
-    this.assertRosteringExpert(role);
+    await this.assertPublishAssign(organisationId, role);
     const shift = await this.findOrgShift(organisationId, shiftId);
     if (shift.status !== 'OFFERED') {
-      throw new BadRequestException('Shift does not have a pending offer');
+      throw new BadRequestException('Shift does not have an open offer');
     }
     const updated = await this.prisma.shift.update({
       where: { id: shift.id },
       data: {
         status: 'UNFILLED',
         offeredWorkerId: null,
+        isBroadcast: false,
       },
       include: this.shiftInclude,
     });
     return this.toShiftDto(updated);
   }
 
+  /** Notify active employees about a broadcast shift (eligibility re-checked on accept). */
+  private async notifyBroadcastEligible(
+    organisationId: string,
+    shift: ShiftRow,
+  ) {
+    const workers = await this.prisma.user.findMany({
+      where: {
+        organisationId,
+        role: 'EMPLOYEE',
+        status: 'ACTIVE',
+      },
+      select: { id: true },
+    });
+
+    for (const worker of workers) {
+      void this.notifications.notifyUser(worker.id, organisationId, {
+        type: 'INFO',
+        title: 'Open shift available',
+        message: `A ${shift.serviceTitle} shift on ${this.formatDateOnly(shift.date)} (${shift.startTime}–${shift.endTime}) is open — first to accept gets it.`,
+        link: `/employee/shifts/${shift.id}`,
+      });
+    }
+  }
+
   /** Rank employees for a draft/unfilled/offered shift (hard rules only). */
   async listCandidates(organisationId: string, role: string, shiftId: string) {
-    this.assertRosteringExpert(role);
+    await this.assertPublishAssign(organisationId, role);
     const shift = await this.findOrgShift(organisationId, shiftId);
 
     if (!['DRAFT', 'UNFILLED', 'OFFERED'].includes(shift.status)) {
@@ -1034,6 +1103,7 @@ export class ScheduleService {
         organisationId,
         OR: [
           { offeredWorkerId: userId, status: 'OFFERED' },
+          { isBroadcast: true, status: 'OFFERED' },
           { assignedWorkerId: userId },
         ],
       },
@@ -1060,6 +1130,7 @@ export class ScheduleService {
         organisationId,
         OR: [
           { offeredWorkerId: userId, status: 'OFFERED' },
+          { isBroadcast: true, status: 'OFFERED' },
           { assignedWorkerId: userId },
         ],
       },
@@ -1080,30 +1151,53 @@ export class ScheduleService {
     this.assertEmployee(role);
     const shift = await this.findOrgShift(organisationId, shiftId);
 
-    if (shift.status !== 'OFFERED' || shift.offeredWorkerId !== userId) {
-      throw new BadRequestException('No pending offer for you on this shift');
+    const isPersonalOffer =
+      shift.status === 'OFFERED' && shift.offeredWorkerId === userId;
+    const isBroadcastOffer =
+      shift.status === 'OFFERED' && shift.isBroadcast && !shift.offeredWorkerId;
+
+    if (!isPersonalOffer && !isBroadcastOffer) {
+      throw new BadRequestException('No open offer for you on this shift');
     }
 
-    const conflict = await this.workerHasConflict(organisationId, userId, shift);
-    if (conflict) {
-      throw new BadRequestException('Cannot accept — you have a scheduling conflict');
+    const ranking = await this.evaluateWorker(organisationId, shift, userId);
+    if (!ranking.eligible) {
+      throw new BadRequestException(
+        `Cannot accept — ${ranking.blockers.join(', ') || 'not eligible'}`,
+      );
     }
 
-    const updated = await this.prisma.shift.update({
-      where: { id: shift.id },
+    // First-accept-wins for broadcasts (and safe claim for personal offers).
+    const claimed = await this.prisma.shift.updateMany({
+      where: {
+        id: shift.id,
+        organisationId,
+        status: 'OFFERED',
+        ...(isBroadcastOffer
+          ? { isBroadcast: true, offeredWorkerId: null }
+          : { offeredWorkerId: userId }),
+      },
       data: {
         status: 'ACCEPTED',
         assignedWorkerId: userId,
         offeredWorkerId: null,
+        isBroadcast: false,
       },
-      include: this.shiftInclude,
     });
+
+    if (claimed.count === 0) {
+      throw new BadRequestException(
+        'This shift was just taken by someone else',
+      );
+    }
+
+    const updated = await this.findOrgShift(organisationId, shift.id);
 
     void this.notifications.notifyUser(shift.createdById, organisationId, {
       type: 'SUCCESS',
-      title: 'Shift offer accepted',
+      title: isBroadcastOffer ? 'Broadcast shift filled' : 'Shift offer accepted',
       message: `${updated.assignedWorker?.firstName ?? 'A worker'} accepted the ${updated.serviceTitle} shift on ${this.formatDateOnly(updated.date)}.`,
-      link: '/roster/schedule',
+      link: '/schedule',
     });
 
     return this.toShiftDto(updated);
@@ -1118,6 +1212,12 @@ export class ScheduleService {
     this.assertEmployee(role);
     const shift = await this.findOrgShift(organisationId, shiftId);
 
+    if (shift.isBroadcast && shift.status === 'OFFERED' && !shift.offeredWorkerId) {
+      throw new BadRequestException(
+        'Broadcast shifts stay open for others — you can ignore this offer',
+      );
+    }
+
     if (shift.status !== 'OFFERED' || shift.offeredWorkerId !== userId) {
       throw new BadRequestException('No pending offer for you on this shift');
     }
@@ -1129,6 +1229,7 @@ export class ScheduleService {
         status: 'UNFILLED',
         offeredWorkerId: null,
         assignedWorkerId: null,
+        isBroadcast: false,
       },
       include: this.shiftInclude,
     });
@@ -1137,7 +1238,7 @@ export class ScheduleService {
       type: 'WARNING',
       title: 'Shift offer declined',
       message: `The offer for the ${updated.serviceTitle} shift on ${this.formatDateOnly(updated.date)} was declined and needs rematching.`,
-      link: '/roster/matching',
+      link: '/schedule/matching',
     });
 
     return this.toShiftDto(updated);
@@ -1650,7 +1751,7 @@ export class ScheduleService {
   // ─── Org Admin approval queue ───────────────────────────
 
   async listPendingApprovals(organisationId: string, role: string) {
-    this.assertOrgAdmin(role);
+    await this.assertApproveServiceDelivery(organisationId, role);
     const shifts = await this.prisma.shift.findMany({
       where: { organisationId, status: 'PENDING_APPROVAL' },
       include: this.shiftInclude,
@@ -1666,7 +1767,7 @@ export class ScheduleService {
     shiftId: string,
     reviewNote?: string,
   ) {
-    this.assertOrgAdmin(role);
+    await this.assertApproveServiceDelivery(organisationId, role);
     const shift = await this.findOrgShift(organisationId, shiftId);
     if (shift.status !== 'PENDING_APPROVAL') {
       throw new BadRequestException('Shift is not awaiting approval');
@@ -1702,7 +1803,7 @@ export class ScheduleService {
     shiftId: string,
     reviewNote?: string,
   ) {
-    this.assertOrgAdmin(role);
+    await this.assertApproveServiceDelivery(organisationId, role);
     const shift = await this.findOrgShift(organisationId, shiftId);
     if (shift.status !== 'PENDING_APPROVAL') {
       throw new BadRequestException('Shift is not awaiting approval');
@@ -1739,7 +1840,7 @@ export class ScheduleService {
    * Soft-gates when SCHEDULE module is disabled.
    */
   async getRosterOverview(organisationId: string, role: string) {
-    this.assertRosteringExpert(role);
+    await this.assertSchedulePage(organisationId, role);
 
     const now = new Date();
 
@@ -2062,6 +2163,7 @@ export class ScheduleService {
           organisationId,
           OR: [
             { offeredWorkerId: userId, status: 'OFFERED' },
+            { isBroadcast: true, status: 'OFFERED' },
             { assignedWorkerId: userId },
           ],
         },
@@ -2076,6 +2178,7 @@ export class ScheduleService {
           status: true,
           offeredWorkerId: true,
           assignedWorkerId: true,
+          isBroadcast: true,
         },
         orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
       }),
@@ -2129,7 +2232,9 @@ export class ScheduleService {
       const inWeek = dateKey >= todayKey && dateKey <= weekEndKey;
       const isMineAssigned = shift.assignedWorkerId === userId;
       const isOffer =
-        shift.status === 'OFFERED' && shift.offeredWorkerId === userId;
+        shift.status === 'OFFERED' &&
+        (shift.offeredWorkerId === userId ||
+          (Boolean(shift.isBroadcast) && !shift.offeredWorkerId));
 
       if (isOffer) {
         myStatusMix.OFFERED += 1;

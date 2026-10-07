@@ -55,9 +55,13 @@ export function ShiftActionRail({
       {clock.phase === "offer" ? (
         <section className="dashboard-card space-y-3 px-5 py-4">
           <div>
-            <h2 className="text-base font-semibold text-foreground">Respond to this offer</h2>
+            <h2 className="text-base font-semibold text-foreground">
+              {shift.isBroadcast ? "Open shift available" : "Respond to this offer"}
+            </h2>
             <p className="mt-0.5 text-sm text-muted">
-              Accepting adds it to your roster. Declining sends it back to the rostering team.
+              {shift.isBroadcast
+                ? "This shift was broadcast to the team. Accept quickly — first eligible employee gets it."
+                : "Accepting adds it to your roster. Declining sends it back to the rostering team."}
             </p>
           </div>
           <button
@@ -68,14 +72,16 @@ export function ShiftActionRail({
           >
             {responding ? "Working…" : "Accept shift"}
           </button>
-          <button
-            type="button"
-            className="btn-secondary w-full disabled:opacity-50"
-            disabled={responding}
-            onClick={onDecline}
-          >
-            Decline
-          </button>
+          {!shift.isBroadcast ? (
+            <button
+              type="button"
+              className="btn-secondary w-full disabled:opacity-50"
+              disabled={responding}
+              onClick={onDecline}
+            >
+              Decline
+            </button>
+          ) : null}
         </section>
       ) : null}
 

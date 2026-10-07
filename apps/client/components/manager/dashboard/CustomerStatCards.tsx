@@ -66,7 +66,7 @@ export function CustomerStatCards({
       </article>
 
       <Link
-        href="/manager/crm"
+        href="/crm"
         className="dashboard-card block p-5 transition hover:border-primary/40"
       >
         <p className="text-sm text-muted">Open pipeline</p>

@@ -201,6 +201,17 @@ export type OrgUser = {
   organisationId: string;
 };
 
+export type RolePermissionsPayload = {
+  pages: Record<string, boolean>;
+  actions: Record<string, boolean>;
+};
+
+export type RolePermissionMatrixPayload = {
+  MANAGER: RolePermissionsPayload;
+  ROSTERING_EXPERT: RolePermissionsPayload;
+  EMPLOYEE: RolePermissionsPayload;
+};
+
 export type OrgSummary = {
   id: string;
   name: string;
@@ -228,11 +239,13 @@ export type OrgLoginResponse = {
   accessToken: string;
   user: OrgUser;
   organisation: OrgSummary;
+  permissions: RolePermissionsPayload;
 };
 
 export type OrgMeResponse = {
   user: OrgUser;
   organisation: OrgSummary;
+  permissions: RolePermissionsPayload;
 };
 
 export type OrgModule = {
@@ -907,6 +920,7 @@ export type ScheduleShift = {
   progressNote: string | null;
   offeredWorkerId: string | null;
   assignedWorkerId: string | null;
+  isBroadcast: boolean;
   offeredWorkerName: string | null;
   assignedWorkerName: string | null;
   publishedAt: string | null;
@@ -963,6 +977,8 @@ export type CreateScheduleShiftRequest = {
   startTime: string;
   durationMinutes: number;
   notes?: string;
+  /** Publish immediately as an open offer; first eligible accept wins. */
+  broadcast?: boolean;
   recurring: boolean;
   frequency?: RecurrenceFrequency;
   interval?: number;

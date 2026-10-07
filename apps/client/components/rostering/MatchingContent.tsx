@@ -22,8 +22,8 @@ import {
 } from "@/lib/rostering/format";
 
 /**
- * Matching board: pick a draft/unfilled/offered shift, review hard-rule
- * candidates, then publish+offer (or withdraw offer).
+ * Matching board: pick a draft/unfilled/broadcast shift, review hard-rule
+ * candidates, then assign directly (or withdraw a broadcast).
  */
 export function MatchingContent() {
   const { toast } = useToast();
@@ -83,21 +83,21 @@ export function MatchingContent() {
 
   const busy = offerState.isLoading || withdrawState.isLoading;
 
-  async function handleOffer(workerId: string) {
+  async function handleAssign(workerId: string) {
     if (!selected) return;
     setActionError("");
     try {
       await publishOffer({ id: selected.id, workerId }).unwrap();
       toast({
         variant: "success",
-        title: "Offer published",
-        description: "Waiting for the employee to accept or decline.",
+        title: "Worker assigned",
+        description: "Shift is scheduled — no employee acceptance required.",
       });
       void refetch();
     } catch (err) {
-      const message = getErrorMessage(err, "Could not publish offer");
+      const message = getErrorMessage(err, "Could not assign worker");
       setActionError(message);
-      toast({ variant: "error", title: "Could not publish offer", description: message });
+      toast({ variant: "error", title: "Could not assign worker", description: message });
     }
   }
 
@@ -106,12 +106,16 @@ export function MatchingContent() {
     setActionError("");
     try {
       await withdraw(selected.id).unwrap();
-      toast({ variant: "success", title: "Offer withdrawn", description: "Shift is unfilled again." });
+      toast({
+        variant: "success",
+        title: "Broadcast withdrawn",
+        description: "Shift is unfilled again.",
+      });
       void refetch();
     } catch (err) {
-      const message = getErrorMessage(err, "Could not withdraw offer");
+      const message = getErrorMessage(err, "Could not withdraw broadcast");
       setActionError(message);
-      toast({ variant: "error", title: "Could not withdraw offer", description: message });
+      toast({ variant: "error", title: "Could not withdraw broadcast", description: message });
     }
   }
 
@@ -119,7 +123,7 @@ export function MatchingContent() {
     <div className="space-y-4">
       <PageHeader
         title="Matching"
-        description="Publish and offer shifts to eligible employees. Hard rules: readiness, availability, and conflicts."
+        description="Assign eligible employees directly, or withdraw open broadcasts. Hard rules: readiness, availability, and conflicts."
       />
 
       {actionError ? (
@@ -178,20 +182,21 @@ export function MatchingContent() {
                   </p>
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <ShiftStatusPill status={selected.status} />
-                    {selected.status === "OFFERED" ? (
+                    {selected.status === "OFFERED" && selected.isBroadcast ? (
                       <button
                         type="button"
                         className="btn-secondary !rounded-lg !px-3 !py-1.5 text-xs"
                         disabled={busy}
                         onClick={() => void handleWithdraw()}
                       >
-                        Withdraw offer
+                        Withdraw broadcast
                       </button>
                     ) : null}
                   </div>
-                  {selected.status === "OFFERED" && selected.offeredWorkerName ? (
+                  {selected.status === "OFFERED" && selected.isBroadcast ? (
                     <p className="mt-3 rounded-lg bg-sky-50 px-3 py-2 text-sm font-medium text-sky-900">
-                      Offer pending: {selected.offeredWorkerName}
+                      Broadcast open — first eligible employee to accept gets this shift. You can
+                      still assign someone below.
                     </p>
                   ) : null}
                 </div>
@@ -205,9 +210,7 @@ export function MatchingContent() {
                 ) : (
                   <ul className="divide-y divide-border/40">
                     {candidates.map((row) => {
-                      const isPendingOffer = selected.offeredWorkerId === row.workerId;
-                      const offerLocked = selected.status === "OFFERED";
-                      const canOffer = row.eligible && !offerLocked;
+                      const canAssign = row.eligible;
 
                       return (
                         <li
@@ -237,22 +240,16 @@ export function MatchingContent() {
                           </div>
 
                           <div className="shrink-0">
-                            {isPendingOffer ? (
-                              <span className="status-pill bg-sky-50 text-sky-700">
-                                Offer pending
-                              </span>
-                            ) : (
-                              <button
-                                type="button"
-                                disabled={!canOffer || busy}
-                                onClick={() => void handleOffer(row.workerId)}
-                                className={`btn-primary !px-3 !py-2 ${
-                                  !canOffer || busy ? "cursor-not-allowed opacity-40" : ""
-                                }`}
-                              >
-                                Publish & offer
-                              </button>
-                            )}
+                            <button
+                              type="button"
+                              disabled={!canAssign || busy}
+                              onClick={() => void handleAssign(row.workerId)}
+                              className={`btn-primary !px-3 !py-2 ${
+                                !canAssign || busy ? "cursor-not-allowed opacity-40" : ""
+                              }`}
+                            >
+                              Assign
+                            </button>
                           </div>
                         </li>
                       );
@@ -292,7 +289,14 @@ function ShiftCard({
           <p className="text-sm font-semibold">{shift.participantName}</p>
           <p className="mt-0.5 text-xs text-muted">{shift.locationLabel}</p>
         </div>
-        <ShiftStatusPill status={shift.status} />
+        <div className="flex flex-col items-end gap-1">
+          <ShiftStatusPill status={shift.status} />
+          {shift.isBroadcast && shift.status === "OFFERED" ? (
+            <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[10px] font-semibold text-violet-700">
+              Broadcast
+            </span>
+          ) : null}
+        </div>
       </div>
       <p className="mt-2 text-sm font-medium">
         {formatLongDate(shift.date)} · {formatShiftTime(shift.startTime, shift.endTime)}

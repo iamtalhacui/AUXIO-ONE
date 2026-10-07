@@ -52,6 +52,7 @@ model Organisation {
 
   users                 User[]
   organisationModules   OrganisationModule[]
+  rolePermissions       OrganisationRolePermission[]
   onboardingSubmissions OnboardingSubmission[]
   customers             Customer[]
   crmOpportunities      CrmOpportunity[]
@@ -394,8 +395,25 @@ model OrganisationModule {
   @@index([organisationId])
 }
 
+/// Per-role page/action matrix for MANAGER / ROSTERING_EXPERT / EMPLOYEE.
+/// Missing row ⇒ code defaults from database/role-permissions.
+model OrganisationRolePermission {
+  id             String   @id @default(uuid())
+  organisationId String
+  role           UserRole
+  pages          Json     @default("{}")
+  actions        Json     @default("{}")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@unique([organisationId, role])
+  @@index([organisationId])
+}
+
 // ─── Rostering / SCHEDULE + SERVICE_DELIVERY ──────────────
-// Phase A: Draft → publish/offer → accept/decline
+// Phase A: Draft → direct assign (ACCEPTED) OR broadcast offer (first accept wins)
 // Phase B: Start → tasks/note → finish (±15 min auto-approve or Org Admin)
 
 enum ShiftStatus {
@@ -483,6 +501,8 @@ model Shift {
   progressNote     String?
   offeredWorkerId  String?
   assignedWorkerId String?
+  /// Open offer to all eligible employees; first accept wins. Direct assign clears this.
+  isBroadcast      Boolean           @default(false)
   createdById      String
   publishedAt      DateTime?
   // Phase B execution times (server clock).

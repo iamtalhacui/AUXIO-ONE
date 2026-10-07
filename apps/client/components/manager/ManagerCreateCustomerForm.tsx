@@ -42,7 +42,7 @@ export function ManagerCreateCustomerForm() {
         planEndDate: planEndDate || undefined,
       }).unwrap();
       toast({ variant: "success", title: "Customer registered", description: `${firstName} ${surname} was created.` });
-      router.replace(`/manager/customers/${customer.id}`);
+      router.replace(`/customers/${customer.id}`);
     } catch (err) {
       toast({ variant: "error", title: "Could not create customer", description: getErrorMessage(err, "Could not create customer") });
     }
@@ -54,7 +54,7 @@ export function ManagerCreateCustomerForm() {
         title="Register customer"
         description="Creates the master record and starts document onboarding."
         action={
-          <Link href="/manager/customers" className="btn-secondary">
+          <Link href="/customers" className="btn-secondary">
             Back to list
           </Link>
         }
