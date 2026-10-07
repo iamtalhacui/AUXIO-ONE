@@ -52,3 +52,4 @@ Thumbs.db
 !.vscode/extensions.json
 .idea/
 *.sublime-workspace
+.neon
