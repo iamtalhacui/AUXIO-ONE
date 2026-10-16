@@ -22,6 +22,7 @@ import {
   useShiftClock,
 } from "@/lib/rostering/useShiftClock";
 import { formatLongDate, formatShiftTime } from "@/lib/rostering/format";
+import { auTimezoneLabel } from "@/lib/timezones/au";
 import { ShiftActionRail } from "./ShiftActionRail";
 import { ShiftNotesPanel } from "./ShiftNotesPanel";
 import { ShiftPrepPanel } from "./ShiftPrepPanel";
@@ -200,6 +201,9 @@ export function ShiftWorkspace({ shiftId }: { shiftId: string }) {
             {formatLongDate(shift.date)} ·{" "}
             {formatShiftTime(shift.startTime, shift.endTime)} · {shift.serviceTitle}
           </p>
+          <p className="mt-1 text-xs font-medium text-primary">
+            Times in {auTimezoneLabel(clock.timeZone)}
+          </p>
         </div>
         <ShiftStatusPill status={shift.status} audience="employee" />
       </div>
@@ -228,6 +232,7 @@ export function ShiftWorkspace({ shiftId }: { shiftId: string }) {
                 interactive
                 busyTaskId={busyTaskId}
                 disabled={busy}
+                timeZone={clock.timeZone}
                 onComplete={(taskId) => void handleCompleteTask(taskId)}
               />
               <ShiftNotesPanel
@@ -247,7 +252,7 @@ export function ShiftWorkspace({ shiftId }: { shiftId: string }) {
           ) : (
             <>
               <ShiftPrepPanel shift={shift} />
-              <ShiftTaskList tasks={tasks} interactive={false} />
+              <ShiftTaskList tasks={tasks} interactive={false} timeZone={clock.timeZone} />
               {finished ? (
                 <ShiftNotesPanel
                   value={serverNote}

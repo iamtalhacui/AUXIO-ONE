@@ -93,7 +93,9 @@ export function FinishShiftModal({
           <SummaryRow
             label="Actual"
             value={`${
-              shift.actualStartedAt ? formatClock(shift.actualStartedAt) : "—"
+              shift.actualStartedAt
+                ? formatClock(shift.actualStartedAt, clock.timeZone)
+                : "—"
             } – now`}
           />
           <SummaryRow label="Time worked" value={formatElapsed(clock.elapsedMs)} />

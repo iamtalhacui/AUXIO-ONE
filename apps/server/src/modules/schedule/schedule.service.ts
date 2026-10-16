@@ -249,7 +249,7 @@ export class ScheduleService {
   }
 
   private formatDateOnly(d: Date): string {
-    return d.toISOString().slice(0, 10);
+    return this.calendarDateKey(d);
   }
 
   private parseTimeToMinutes(time: string): number {
@@ -1585,6 +1585,14 @@ export class ScheduleService {
     return org?.timezone || 'UTC';
   }
 
+  /** Calendar YYYY-MM-DD for a Prisma @db.Date (always UTC midnight). */
+  private calendarDateKey(date: Date): string {
+    const y = date.getUTCFullYear();
+    const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(date.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
   /** Combine shift calendar date + HH:mm in the organisation timezone. */
   private async scheduledDateTime(
     organisationId: string,
@@ -1592,8 +1600,7 @@ export class ScheduleService {
     time: string,
   ): Promise<Date> {
     const timeZone = await this.orgTimeZone(organisationId);
-    const dateKey = date.toISOString().slice(0, 10);
-    return zonedWallTimeToUtc(dateKey, time, timeZone);
+    return zonedWallTimeToUtc(this.calendarDateKey(date), time, timeZone);
   }
 
   private minutesBetween(a: Date, b: Date): number {
@@ -1734,11 +1741,15 @@ export class ScheduleService {
       shift.date,
       shift.startTime,
     );
-    const scheduledEnd = await this.scheduledDateTime(
+    let scheduledEnd = await this.scheduledDateTime(
       organisationId,
       shift.date,
       shift.endTime,
     );
+    // Overnight shifts store endTime on the next calendar day (e.g. 22:00 → 02:00).
+    if (scheduledEnd.getTime() <= scheduledStart.getTime()) {
+      scheduledEnd = new Date(scheduledEnd.getTime() + 24 * 60 * 60 * 1000);
+    }
 
     // Positive = late/after scheduled; negative = early/before scheduled.
     const startVarianceMinutes = this.minutesBetween(scheduledStart, shift.actualStartedAt);

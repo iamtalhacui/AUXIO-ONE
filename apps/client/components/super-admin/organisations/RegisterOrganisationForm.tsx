@@ -9,14 +9,7 @@ import {
 } from "@/lib/api/platformAuthApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
 import type { BillingCycle, OrgPlan } from "@/lib/api/types";
-
-const timeZones = [
-  "Australia/Sydney",
-  "Australia/Melbourne",
-  "Australia/Brisbane",
-  "Australia/Perth",
-  "Australia/Adelaide",
-];
+import { AU_TIMEZONES, DEFAULT_AU_TIMEZONE } from "@/lib/timezones/au";
 
 const PLANS: {
   value: OrgPlan;
@@ -80,7 +73,7 @@ export function RegisterOrganisationForm() {
   const [register, { isLoading, error, reset }] = useRegisterOrganisationMutation();
   const [step, setStep] = useState(0);
   const [name, setName] = useState("");
-  const [timezone, setTimezone] = useState(timeZones[0]);
+  const [timezone, setTimezone] = useState(DEFAULT_AU_TIMEZONE);
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [plan, setPlan] = useState<OrgPlan>("BASIC");
@@ -248,12 +241,16 @@ export function RegisterOrganisationForm() {
                   onChange={(e) => setTimezone(e.target.value)}
                   className="input-field"
                 >
-                  {timeZones.map((zone) => (
-                    <option key={zone} value={zone}>
-                      {zone.replace("Australia/", "")}
+                  {AU_TIMEZONES.map((zone) => (
+                    <option key={zone.value} value={zone.value}>
+                      {zone.label}
                     </option>
                   ))}
                 </select>
+                <span className="mt-1 block text-xs text-muted">
+                  {AU_TIMEZONES.find((z) => z.value === timezone)?.hint ??
+                    "Shift times use this timezone."}
+                </span>
               </label>
               <label className="reg-field">
                 <span className="input-label">

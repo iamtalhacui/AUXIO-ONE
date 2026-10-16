@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   useCreateScheduleShiftsMutation,
+  useGetOrganisationQuery,
   useListScheduleParticipantsQuery,
   usePreviewRecurrenceMutation,
 } from "@/lib/api/authApi";
@@ -19,6 +20,7 @@ import {
   SERVICE_LINE_OPTIONS,
   snapDurationMinutes,
 } from "@/lib/rostering/format";
+import { auTimezoneLabel } from "@/lib/timezones/au";
 
 type Props = {
   open: boolean;
@@ -33,6 +35,8 @@ type Props = {
  */
 export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Props) {
   const { toast } = useToast();
+  const { data: org } = useGetOrganisationQuery(undefined, { skip: !open });
+  const timeZoneLabel = auTimezoneLabel(org?.timezone);
   const { data: participants = [], isLoading: loadingParticipants } =
     useListScheduleParticipantsQuery(undefined, { skip: !open });
   const [preview, previewState] = usePreviewRecurrenceMutation();
@@ -204,6 +208,9 @@ export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Prop
             </h2>
             <p className="mt-0.5 text-sm text-muted">
               Save as draft, then assign or broadcast from Matching.
+            </p>
+            <p className="mt-1 text-xs font-medium text-primary">
+              All times are in {timeZoneLabel}
             </p>
           </div>
           <button

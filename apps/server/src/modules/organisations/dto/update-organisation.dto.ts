@@ -1,4 +1,12 @@
-import { IsEmail, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsEmail,
+  IsIn,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
+import { AU_TIMEZONES } from '../../../common/au-timezones';
 
 // Org Admin updates profile for their own tenant.
 export class UpdateOrganisationDto {
@@ -26,7 +34,8 @@ export class UpdateOrganisationDto {
   phone?: string;
 
   @IsString()
-  @MinLength(1)
-  @MaxLength(80)
+  @IsIn([...AU_TIMEZONES], {
+    message: 'Timezone must be a supported Australian zone',
+  })
   timezone: string;
 }

@@ -9,6 +9,8 @@ type Props = {
   interactive: boolean;
   busyTaskId?: string | null;
   disabled?: boolean;
+  /** Organisation timezone for completed-at timestamps. */
+  timeZone?: string;
   onComplete?: (taskId: string) => void;
 };
 
@@ -17,6 +19,7 @@ export function ShiftTaskList({
   interactive,
   busyTaskId,
   disabled = false,
+  timeZone = "UTC",
   onComplete,
 }: Props) {
   const total = tasks.length;
@@ -100,7 +103,7 @@ export function ShiftTaskList({
                   </p>
                   <p className="mt-0.5 text-xs text-muted">
                     {complete
-                      ? `Done at ${formatClock(task.completedAt as string)}`
+                      ? `Done at ${formatClock(task.completedAt as string, timeZone)}`
                       : task.required
                         ? "Required"
                         : "Optional"}

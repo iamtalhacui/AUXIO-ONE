@@ -77,32 +77,31 @@ export function formatDuration(minutes: number) {
 }
 
 /**
- * Scheduled shift instants. The server builds these with setUTCHours, so the
- * client must parse as UTC too — otherwise variance and overdue maths disagree
- * with what the API will calculate on finish.
+ * @deprecated Prefer zonedWallTimeToUtc from useShiftClock — wall times belong
+ * to the organisation timezone, not a raw UTC read of HH:mm.
  */
 export function shiftDateTime(dateIso: string, time: string) {
   return new Date(`${dateIso}T${time}:00.000Z`);
 }
 
-/** Wall clock for a recorded instant, in the same UTC frame as scheduled times. */
-export function formatClock(iso: string) {
+/** Wall clock for a recorded instant, in the organisation timezone. */
+export function formatClock(iso: string, timeZone = "UTC") {
   return new Date(iso).toLocaleTimeString("en-AU", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
-    timeZone: "UTC",
+    timeZone,
   });
 }
 
-export function formatDateTime(iso: string) {
+export function formatDateTime(iso: string, timeZone = "UTC") {
   return new Date(iso).toLocaleString("en-AU", {
     day: "numeric",
     month: "short",
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
-    timeZone: "UTC",
+    timeZone,
   });
 }
 
@@ -131,8 +130,14 @@ export function formatCountdown(ms: number) {
 export function formatVariance(minutes: number) {
   const abs = Math.abs(minutes);
   if (abs === 0) return "on time";
-  const unit = abs === 1 ? "min" : "mins";
-  return `${abs} ${unit} ${minutes > 0 ? "late" : "early"}`;
+  const direction = minutes > 0 ? "late" : "early";
+  if (abs < 60) {
+    return `${abs} ${abs === 1 ? "min" : "mins"} ${direction}`;
+  }
+  const h = Math.floor(abs / 60);
+  const m = abs % 60;
+  if (m === 0) return `${h}h ${direction}`;
+  return `${h}h ${String(m).padStart(2, "0")}m ${direction}`;
 }
 
 /** "Today", "Tomorrow", or a weekday heading for list grouping. */

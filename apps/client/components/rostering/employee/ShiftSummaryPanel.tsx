@@ -60,7 +60,9 @@ export function ShiftSummaryPanel({ shift, clock }: Props) {
             {shift.reviewNote}
           </p>
           {shift.reviewedAt ? (
-            <p className="mt-1 text-xs text-muted">{formatDateTime(shift.reviewedAt)}</p>
+            <p className="mt-1 text-xs text-muted">
+              {formatDateTime(shift.reviewedAt, clock.timeZone)}
+            </p>
           ) : null}
         </div>
       ) : null}
@@ -71,7 +73,7 @@ export function ShiftSummaryPanel({ shift, clock }: Props) {
           label="Actual"
           value={
             shift.actualStartedAt && shift.actualEndedAt
-              ? `${formatClock(shift.actualStartedAt)} – ${formatClock(shift.actualEndedAt)}`
+              ? `${formatClock(shift.actualStartedAt, clock.timeZone)} – ${formatClock(shift.actualEndedAt, clock.timeZone)}`
               : "—"
           }
         />

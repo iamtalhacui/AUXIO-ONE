@@ -4,6 +4,7 @@ import {
   IsDateString,
   IsEmail,
   IsEnum,
+  IsIn,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -11,6 +12,7 @@ import {
   Min,
 } from 'class-validator';
 import { BillingCycle, OrgPlan } from 'database';
+import { AU_TIMEZONES } from '../../../common/au-timezones';
 
 export class RegisterOrganisationDto {
   @IsString()
@@ -18,7 +20,9 @@ export class RegisterOrganisationDto {
   name: string;
 
   @IsString()
-  @IsNotEmpty()
+  @IsIn([...AU_TIMEZONES], {
+    message: 'Timezone must be a supported Australian zone',
+  })
   timezone: string;
 
   @IsEmail()

@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/dashboard/PageHeader";
 import { CreateShiftModal } from "@/components/rostering/CreateShiftModal";
 import { EditShiftModal } from "@/components/rostering/EditShiftModal";
 import { ShiftStatusPill } from "@/components/rostering/ShiftStatusPill";
-import { useListScheduleShiftsQuery } from "@/lib/api/authApi";
+import { useGetOrganisationQuery, useListScheduleShiftsQuery } from "@/lib/api/authApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
 import { LIVE_POLL_MS } from "@/lib/api/liveRefresh";
 import type { ScheduleShift } from "@/lib/api/types";
@@ -22,6 +22,7 @@ import {
   parseTimeToMinutes,
   todayIso,
 } from "@/lib/rostering/format";
+import { auTimezoneLabel } from "@/lib/timezones/au";
 
 type ViewMode = "table" | "calendar";
 type RangeMode = "day" | "week";
@@ -64,6 +65,8 @@ function blockTone(shift: ScheduleShift) {
 
 export function ScheduleBoardContent() {
   const canManageShifts = useHasAction("MANAGE_SHIFTS");
+  const { data: org } = useGetOrganisationQuery();
+  const timeZoneLabel = auTimezoneLabel(org?.timezone);
   const [date, setDate] = useState(todayIso());
   const [range, setRange] = useState<RangeMode>("day");
   const [view, setView] = useState<ViewMode>("table");
@@ -119,7 +122,7 @@ export function ScheduleBoardContent() {
     <div className="space-y-4">
       <PageHeader
         title="Schedule"
-        description="Create draft shifts, then assign or broadcast from Matching."
+        description={`Create draft shifts, then assign or broadcast from Matching. Times are in ${timeZoneLabel}.`}
         action={
           canManageShifts ? (
             <button type="button" className="btn-primary" onClick={() => setCreateOpen(true)}>

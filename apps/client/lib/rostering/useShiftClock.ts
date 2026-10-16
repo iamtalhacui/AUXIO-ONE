@@ -35,6 +35,8 @@ export type ShiftPhase =
 export type ShiftClock = {
   /** False until the first client tick, so SSR never renders a live number. */
   ready: boolean;
+  /** Organisation IANA timezone used for scheduled wall-clock maths. */
+  timeZone: string;
   phase: ShiftPhase;
   scheduledStart: Date;
   scheduledEnd: Date;
@@ -127,7 +129,11 @@ export function describeShiftClock(
   timeZone = "UTC",
 ): ShiftClock {
   const scheduledStart = zonedWallTimeToUtc(shift.date, shift.startTime, timeZone);
-  const scheduledEnd = zonedWallTimeToUtc(shift.date, shift.endTime, timeZone);
+  let scheduledEnd = zonedWallTimeToUtc(shift.date, shift.endTime, timeZone);
+  // Overnight shifts store endTime on the next calendar day (e.g. 22:00 → 02:00).
+  if (scheduledEnd.getTime() <= scheduledStart.getTime()) {
+    scheduledEnd = new Date(scheduledEnd.getTime() + 24 * 60 * 60 * 1000);
+  }
   const t = now ?? scheduledStart.getTime();
 
   const msToStart = scheduledStart.getTime() - t;
@@ -179,6 +185,7 @@ export function describeShiftClock(
 
   return {
     ready: now !== null,
+    timeZone,
     phase,
     scheduledStart,
     scheduledEnd,

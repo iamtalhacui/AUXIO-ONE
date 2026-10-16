@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/dashboard/PageHeader";
 import { ShiftStatusPill } from "@/components/rostering/ShiftStatusPill";
 import {
   useBroadcastScheduleShiftMutation,
+  useGetOrganisationQuery,
   useListMatchCandidatesQuery,
   useListScheduleShiftsQuery,
   usePublishOfferShiftMutation,
@@ -21,6 +22,7 @@ import {
   formatShiftTime,
   todayIso,
 } from "@/lib/rostering/format";
+import { auTimezoneLabel } from "@/lib/timezones/au";
 
 /**
  * Matching board: pick a draft/unfilled/broadcast shift, then either
@@ -28,6 +30,8 @@ import {
  */
 export function MatchingContent() {
   const { toast } = useToast();
+  const { data: org } = useGetOrganisationQuery();
+  const timeZoneLabel = auTimezoneLabel(org?.timezone);
   const searchParams = useSearchParams();
   const initialShift = searchParams.get("shift");
 
@@ -150,7 +154,7 @@ export function MatchingContent() {
     <div className="space-y-4">
       <PageHeader
         title="Matching"
-        description="Direct-assign an eligible employee, or broadcast to all active employees. Hard rules are re-checked when someone accepts a broadcast."
+        description={`Direct-assign an eligible employee, or broadcast to all active employees. Times are in ${timeZoneLabel}.`}
       />
 
       {actionError ? (

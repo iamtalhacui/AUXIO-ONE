@@ -13,14 +13,7 @@ import { getErrorMessage } from "@/lib/api/getErrorMessage";
 import { useToast } from "@/components/toast/ToastProvider";
 import { setOrganisation } from "@/lib/store/orgAuthSlice";
 import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
-
-const timeZones = [
-  "Australia/Sydney",
-  "Australia/Melbourne",
-  "Australia/Brisbane",
-  "Australia/Perth",
-  "Australia/Adelaide",
-];
+import { AU_TIMEZONES, DEFAULT_AU_TIMEZONE } from "@/lib/timezones/au";
 
 const MAX_LOGO_BYTES = 2 * 1024 * 1024;
 
@@ -38,7 +31,7 @@ export function OrgAdminOrganisationDetailsForm() {
   const [tradingName, setTradingName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
-  const [timeZone, setTimeZone] = useState(timeZones[0]);
+  const [timeZone, setTimeZone] = useState(DEFAULT_AU_TIMEZONE);
   const [tagline, setTagline] = useState("");
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [pendingLogo, setPendingLogo] = useState<File | null>(null);
@@ -294,12 +287,19 @@ export function OrgAdminOrganisationDetailsForm() {
                   onChange={(event) => setTimeZone(event.target.value)}
                   className="input-field"
                 >
-                  {Array.from(new Set([timeZone, ...timeZones])).map((zone) => (
-                    <option key={zone} value={zone}>
-                      {zone.replace("Australia/", "")}
+                  {AU_TIMEZONES.map((zone) => (
+                    <option key={zone.value} value={zone.value}>
+                      {zone.label}
                     </option>
                   ))}
+                  {!AU_TIMEZONES.some((z) => z.value === timeZone) && timeZone ? (
+                    <option value={timeZone}>{timeZone}</option>
+                  ) : null}
                 </select>
+                <span className="mt-1 block text-xs text-muted">
+                  {AU_TIMEZONES.find((z) => z.value === timeZone)?.hint ??
+                    "Roster and shift times use this timezone."}
+                </span>
               </label>
 
               <label className="orgd-field orgd-field-full">

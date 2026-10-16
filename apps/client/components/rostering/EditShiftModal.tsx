@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import {
   useCancelScheduleShiftMutation,
+  useGetOrganisationQuery,
   useUpdateScheduleShiftMutation,
 } from "@/lib/api/authApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
@@ -14,6 +15,7 @@ import {
   SERVICE_LINE_OPTIONS,
   snapDurationMinutes,
 } from "@/lib/rostering/format";
+import { auTimezoneLabel } from "@/lib/timezones/au";
 
 type Props = {
   shift: ScheduleShift | null;
@@ -24,6 +26,8 @@ type Props = {
 /** Edit one shift, or this + following shifts in a recurring series. */
 export function EditShiftModal({ shift, onClose, onSaved }: Props) {
   const { toast } = useToast();
+  const { data: org } = useGetOrganisationQuery(undefined, { skip: !shift });
+  const timeZoneLabel = auTimezoneLabel(org?.timezone);
   const [update, updateState] = useUpdateScheduleShiftMutation();
   const [cancel, cancelState] = useCancelScheduleShiftMutation();
 
@@ -141,6 +145,9 @@ export function EditShiftModal({ shift, onClose, onSaved }: Props) {
             </h2>
             <p className="mt-0.5 text-sm text-muted">
               {shift.participantName} · {shift.status}
+            </p>
+            <p className="mt-1 text-xs font-medium text-primary">
+              All times are in {timeZoneLabel}
             </p>
           </div>
           <button
