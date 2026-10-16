@@ -544,6 +544,18 @@ export const authApi = createApi({
         "RosterOverview",
       ],
     }),
+    broadcastScheduleShift: builder.mutation<ScheduleShift, string>({
+      query: (id) => ({
+        url: `/organisation/schedule/shifts/${id}/broadcast`,
+        method: "POST",
+      }),
+      invalidatesTags: [
+        "ScheduleShifts",
+        "MyShifts",
+        "MatchCandidates",
+        "RosterOverview",
+      ],
+    }),
     withdrawShiftOffer: builder.mutation<ScheduleShift, string>({
       query: (id) => ({
         url: `/organisation/schedule/shifts/${id}/withdraw-offer`,
@@ -923,6 +935,7 @@ export const {
   useUpdateScheduleShiftMutation,
   useCancelScheduleShiftMutation,
   usePublishOfferShiftMutation,
+  useBroadcastScheduleShiftMutation,
   useWithdrawShiftOfferMutation,
   useListMatchCandidatesQuery,
   useListMyShiftsQuery,

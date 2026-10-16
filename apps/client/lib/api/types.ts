@@ -977,8 +977,6 @@ export type CreateScheduleShiftRequest = {
   startTime: string;
   durationMinutes: number;
   notes?: string;
-  /** Publish immediately as an open offer; first eligible accept wins. */
-  broadcast?: boolean;
   recurring: boolean;
   frequency?: RecurrenceFrequency;
   interval?: number;

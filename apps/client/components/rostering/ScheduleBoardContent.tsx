@@ -119,7 +119,7 @@ export function ScheduleBoardContent() {
     <div className="space-y-4">
       <PageHeader
         title="Schedule"
-        description="Create drafts or broadcast open shifts. Assign eligible workers from Matching."
+        description="Create draft shifts, then assign or broadcast from Matching."
         action={
           canManageShifts ? (
             <button type="button" className="btn-primary" onClick={() => setCreateOpen(true)}>

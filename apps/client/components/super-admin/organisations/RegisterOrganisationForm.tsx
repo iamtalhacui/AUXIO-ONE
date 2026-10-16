@@ -28,13 +28,13 @@ const PLANS: {
     value: "BASIC",
     label: "Basic",
     blurb: "Core ops for smaller providers",
-    modules: ["Workforce", "Customers", "Schedule", "Service Delivery"],
+    modules: ["Workforce", "Customers", "Schedule", "Service Delivery", "Incidents"],
   },
   {
     value: "ADVANCED",
     label: "Advanced",
     blurb: "Full suite for growing teams",
-    modules: ["Everything in Basic", "Dashboard", "CRM", "Finance", "Incidents"],
+    modules: ["Everything in Basic", "Dashboard", "CRM", "Finance"],
   },
   {
     value: "CUSTOM",

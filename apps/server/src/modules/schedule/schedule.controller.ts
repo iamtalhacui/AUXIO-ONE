@@ -24,7 +24,7 @@ import { ScheduleService } from './schedule.service';
 
 /**
  * Rostering Expert schedule APIs (SCHEDULE module).
- * Create drafts, match, publish/offer — no Manager create in Phase A.
+ * Create drafts, then assign or broadcast from Matching.
  */
 @Controller('organisation/schedule')
 @UseGuards(
@@ -105,6 +105,11 @@ export class ScheduleController {
       id,
       dto.workerId,
     );
+  }
+
+  @Post('shifts/:id/broadcast')
+  broadcast(@CurrentOrgUser() user: OrgJwtPayload, @Param('id') id: string) {
+    return this.schedule.broadcastShift(user.organisationId, user.role, id);
   }
 
   @Post('shifts/:id/withdraw-offer')

@@ -407,10 +407,11 @@ export class ScheduleService {
   async listParticipants(organisationId: string, role: string) {
     await this.assertSchedulePage(organisationId, role);
 
+    // Only activated participants — onboarding customers are not service-ready.
     const rows = await this.prisma.customer.findMany({
       where: {
         organisationId,
-        status: { in: ['ACTIVE', 'ONBOARDING'] },
+        status: 'ACTIVE',
       },
       orderBy: [{ surname: 'asc' }, { firstName: 'asc' }],
       select: {
@@ -540,15 +541,9 @@ export class ScheduleService {
     await this.assertManageShifts(organisationId, role);
     this.validateCreateInput(dto);
 
-    const broadcast = Boolean(dto.broadcast);
-    if (broadcast) {
-      await this.assertPublishAssign(organisationId, role);
-    }
-
+    // Create always saves drafts. Broadcast / assign happens from Matching.
     const resolved = await this.resolveParticipant(organisationId, dto);
     const endTime = this.endTimeFrom(dto.startTime, dto.durationMinutes);
-    const publishedAt = broadcast ? new Date() : null;
-    const initialStatus = broadcast ? 'OFFERED' : 'DRAFT';
 
     if (!dto.recurring) {
       const shift = await this.prisma.shift.create({
@@ -565,9 +560,9 @@ export class ScheduleService {
           startTime: dto.startTime,
           endTime,
           durationMinutes: dto.durationMinutes,
-          status: initialStatus,
-          isBroadcast: broadcast,
-          publishedAt,
+          status: 'DRAFT',
+          isBroadcast: false,
+          publishedAt: null,
           notes: dto.notes?.trim() || null,
           createdById: actorId,
         },
@@ -575,9 +570,6 @@ export class ScheduleService {
       });
       await this.copyTasksOntoShift(organisationId, shift.id, shift.serviceLine);
       const withTasks = await this.findOrgShift(organisationId, shift.id);
-      if (broadcast) {
-        await this.notifyBroadcastEligible(organisationId, withTasks);
-      }
       return { shifts: [this.toShiftDto(withTasks)], seriesId: null };
     }
 
@@ -617,9 +609,9 @@ export class ScheduleService {
             startTime: dto.startTime,
             endTime,
             durationMinutes: dto.durationMinutes,
-            status: initialStatus,
-            isBroadcast: broadcast,
-            publishedAt,
+            status: 'DRAFT',
+            isBroadcast: false,
+            publishedAt: null,
             notes: dto.notes?.trim() || null,
             createdById: actorId,
           },
@@ -637,12 +629,6 @@ export class ScheduleService {
       include: this.shiftInclude,
       orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
     });
-
-    if (broadcast) {
-      for (const shift of created) {
-        await this.notifyBroadcastEligible(organisationId, shift);
-      }
-    }
 
     return {
       seriesId: series.id,
@@ -703,6 +689,11 @@ export class ScheduleService {
         where: { id: dto.customerId, organisationId },
       });
       if (!customer) throw new BadRequestException('Participant not found');
+      if (customer.status !== 'ACTIVE') {
+        throw new BadRequestException(
+          'Only active participants can be rostered. Finish customer onboarding first.',
+        );
+      }
       const participantName = customer.preferredName
         ? `${customer.preferredName} ${customer.surname}`
         : `${customer.firstName} ${customer.surname}`;
@@ -894,12 +885,54 @@ export class ScheduleService {
     return this.toShiftDto(updated);
   }
 
+  /**
+   * Open (or re-open) a shift as a broadcast to all active employees.
+   * Used from Matching when no suitable worker is available to assign yet —
+   * someone marked unavailable can update availability and then accept.
+   * First eligible accept wins; eligibility is re-checked at accept time.
+   */
+  async broadcastShift(organisationId: string, role: string, shiftId: string) {
+    await this.assertPublishAssign(organisationId, role);
+    const shift = await this.findOrgShift(organisationId, shiftId);
+
+    const canOpen =
+      shift.status === 'DRAFT' ||
+      shift.status === 'UNFILLED' ||
+      (shift.status === 'OFFERED' && shift.isBroadcast && !shift.offeredWorkerId);
+
+    if (!canOpen) {
+      throw new BadRequestException(
+        'This shift cannot be broadcast in its current status',
+      );
+    }
+
+    const isRebroadcast =
+      shift.status === 'OFFERED' && shift.isBroadcast && !shift.offeredWorkerId;
+
+    const updated = isRebroadcast
+      ? shift
+      : await this.prisma.shift.update({
+          where: { id: shift.id },
+          data: {
+            status: 'OFFERED',
+            isBroadcast: true,
+            offeredWorkerId: null,
+            assignedWorkerId: null,
+            publishedAt: shift.publishedAt ?? new Date(),
+          },
+          include: this.shiftInclude,
+        });
+
+    await this.notifyBroadcastEligible(organisationId, updated);
+    return this.toShiftDto(updated);
+  }
+
   /** Withdraw a broadcast/open offer and leave the shift published but unfilled. */
   async withdrawOffer(organisationId: string, role: string, shiftId: string) {
     await this.assertPublishAssign(organisationId, role);
     const shift = await this.findOrgShift(organisationId, shiftId);
-    if (shift.status !== 'OFFERED') {
-      throw new BadRequestException('Shift does not have an open offer');
+    if (shift.status !== 'OFFERED' || !shift.isBroadcast) {
+      throw new BadRequestException('Shift does not have an open broadcast');
     }
     const updated = await this.prisma.shift.update({
       where: { id: shift.id },

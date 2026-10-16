@@ -71,14 +71,6 @@ export class CreateShiftDto {
   @IsString()
   notes?: string;
 
-  /**
-   * When true, publish immediately as an open offer to all employees.
-   * First eligible employee to accept wins the shift.
-   */
-  @IsOptional()
-  @IsBoolean()
-  broadcast?: boolean;
-
   /** When true, recurrence fields are required and multiple drafts are created. */
   @IsBoolean()
   recurring: boolean;

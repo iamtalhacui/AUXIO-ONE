@@ -50,6 +50,24 @@ export function endTimeFromDuration(startTime: string, durationMinutes: number) 
   return minutesToTime(parseTimeToMinutes(startTime) + durationMinutes);
 }
 
+/**
+ * Minutes between start and end. If end is earlier than (or equal to) start,
+ * treat it as finishing the next day (overnight shift).
+ */
+export function durationMinutesFromTimes(startTime: string, endTime: string) {
+  const start = parseTimeToMinutes(startTime);
+  const end = parseTimeToMinutes(endTime);
+  let diff = end - start;
+  if (diff <= 0) diff += 24 * 60;
+  return diff;
+}
+
+/** Snap a minute count down/up to the nearest 5-minute step (minimum 5). */
+export function snapDurationMinutes(minutes: number) {
+  const snapped = Math.round(minutes / 5) * 5;
+  return Math.max(5, snapped);
+}
+
 export function formatDuration(minutes: number) {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;

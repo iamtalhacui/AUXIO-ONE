@@ -313,11 +313,13 @@ body,
 }
 
 .dashboard-shell {
-  @apply flex h-screen overflow-hidden bg-background;
+  /* min-h-0 stops this flex child of <body> growing with page content, which
+     was causing a second (body) scrollbar beside .dashboard-content. */
+  @apply flex h-dvh min-h-0 overflow-hidden bg-background;
 }
 
 .dashboard-main {
-  @apply flex min-w-0 flex-1 flex-col overflow-hidden;
+  @apply flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -508,7 +510,14 @@ body,
 }
 
 .dashboard-content {
-  @apply flex-1 overflow-y-auto px-8 py-8 lg:px-10;
+  @apply min-h-0 flex-1 overflow-y-auto px-8 py-8 lg:px-10;
+}
+
+/* Dashboard owns scrolling; keep the document from growing a second bar. */
+html:has(.dashboard-shell),
+body:has(.dashboard-shell) {
+  height: 100%;
+  overflow: hidden;
 }
 
 .dashboard-card {
@@ -522,10 +531,10 @@ body,
 .sb-root {
   --sb-w-expanded: 264px;
   --sb-w-collapsed: 76px;
-  @apply fixed inset-y-0 left-0 z-40 flex h-screen w-[264px] -translate-x-full flex-col
+  @apply fixed inset-y-0 left-0 z-40 flex h-dvh w-[264px] -translate-x-full flex-col
     bg-surface shadow-[var(--sidebar-shadow)]
     transition-[width,transform] duration-[220ms] ease-in-out
-    lg:static lg:z-auto lg:translate-x-0;
+    lg:static lg:z-auto lg:h-auto lg:min-h-0 lg:translate-x-0 lg:self-stretch;
   width: var(--sb-w-expanded);
 }
 
@@ -718,7 +727,7 @@ body,
 }
 
 .data-table-wrap {
-  @apply overflow-hidden rounded-xl border border-border/50 bg-surface;
+  @apply overflow-x-auto rounded-xl border border-border/50 bg-surface;
 }
 
 .data-table {
@@ -743,6 +752,37 @@ body,
 
 .data-table tbody tr:hover {
   @apply bg-surface-subtle;
+}
+
+/* Pin the last column so action buttons stay visible without horizontal scroll. */
+.data-table th.data-table-actions,
+.data-table td.data-table-actions {
+  @apply sticky right-0 z-10 whitespace-nowrap bg-surface px-3 text-right sm:px-4;
+  box-shadow: -10px 0 12px -10px rgba(15, 23, 22, 0.18);
+}
+
+.data-table thead th.data-table-actions {
+  @apply bg-surface-subtle;
+}
+
+.data-table tbody tr:hover td.data-table-actions {
+  @apply bg-surface-subtle;
+}
+
+.dark .data-table th.data-table-actions,
+.dark .data-table td.data-table-actions {
+  box-shadow: -10px 0 12px -10px rgba(0, 0, 0, 0.45);
+}
+
+/* Denser layout for the wide Super Admin organisations list. */
+.orgs-table th,
+.orgs-table td {
+  @apply px-3 py-3;
+}
+
+.orgs-table th.data-table-actions,
+.orgs-table td.data-table-actions {
+  @apply px-3;
 }
 
 .tab-bar {

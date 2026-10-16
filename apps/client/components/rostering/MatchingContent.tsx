@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { ShiftStatusPill } from "@/components/rostering/ShiftStatusPill";
 import {
+  useBroadcastScheduleShiftMutation,
   useListMatchCandidatesQuery,
   useListScheduleShiftsQuery,
   usePublishOfferShiftMutation,
@@ -22,8 +23,8 @@ import {
 } from "@/lib/rostering/format";
 
 /**
- * Matching board: pick a draft/unfilled/broadcast shift, review hard-rule
- * candidates, then assign directly (or withdraw a broadcast).
+ * Matching board: pick a draft/unfilled/broadcast shift, then either
+ * direct-assign an eligible worker or broadcast to all active employees.
  */
 export function MatchingContent() {
   const { toast } = useToast();
@@ -79,9 +80,15 @@ export function MatchingContent() {
   });
 
   const [publishOffer, offerState] = usePublishOfferShiftMutation();
+  const [broadcastShift, broadcastState] = useBroadcastScheduleShiftMutation();
   const [withdraw, withdrawState] = useWithdrawShiftOfferMutation();
 
-  const busy = offerState.isLoading || withdrawState.isLoading;
+  const busy =
+    offerState.isLoading || broadcastState.isLoading || withdrawState.isLoading;
+
+  const isBroadcastOpen =
+    selected?.status === "OFFERED" && selected.isBroadcast;
+  const eligibleCount = candidates.filter((row) => row.eligible).length;
 
   async function handleAssign(workerId: string) {
     if (!selected) return;
@@ -101,6 +108,26 @@ export function MatchingContent() {
     }
   }
 
+  async function handleBroadcast() {
+    if (!selected) return;
+    setActionError("");
+    const rebroadcast = isBroadcastOpen;
+    try {
+      await broadcastShift(selected.id).unwrap();
+      toast({
+        variant: "success",
+        title: rebroadcast ? "Broadcast sent again" : "Shift broadcast",
+        description:
+          "All active employees can see this open shift. First eligible accept wins.",
+      });
+      void refetch();
+    } catch (err) {
+      const message = getErrorMessage(err, "Could not broadcast shift");
+      setActionError(message);
+      toast({ variant: "error", title: "Could not broadcast shift", description: message });
+    }
+  }
+
   async function handleWithdraw() {
     if (!selected) return;
     setActionError("");
@@ -109,7 +136,7 @@ export function MatchingContent() {
       toast({
         variant: "success",
         title: "Broadcast withdrawn",
-        description: "Shift is unfilled again.",
+        description: "Shift is unfilled again. You can assign or broadcast.",
       });
       void refetch();
     } catch (err) {
@@ -123,7 +150,7 @@ export function MatchingContent() {
     <div className="space-y-4">
       <PageHeader
         title="Matching"
-        description="Assign eligible employees directly, or withdraw open broadcasts. Hard rules: readiness, availability, and conflicts."
+        description="Direct-assign an eligible employee, or broadcast to all active employees. Hard rules are re-checked when someone accepts a broadcast."
       />
 
       {actionError ? (
@@ -182,31 +209,73 @@ export function MatchingContent() {
                   </p>
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     <ShiftStatusPill status={selected.status} />
-                    {selected.status === "OFFERED" && selected.isBroadcast ? (
+                    {isBroadcastOpen ? (
+                      <>
+                        <button
+                          type="button"
+                          className="btn-secondary !rounded-lg !px-3 !py-1.5 text-xs"
+                          disabled={busy}
+                          onClick={() => void handleBroadcast()}
+                        >
+                          Rebroadcast
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-secondary !rounded-lg !px-3 !py-1.5 text-xs"
+                          disabled={busy}
+                          onClick={() => void handleWithdraw()}
+                        >
+                          Withdraw broadcast
+                        </button>
+                      </>
+                    ) : (
                       <button
                         type="button"
-                        className="btn-secondary !rounded-lg !px-3 !py-1.5 text-xs"
+                        className="btn-primary !rounded-lg !px-3 !py-1.5 text-xs"
                         disabled={busy}
-                        onClick={() => void handleWithdraw()}
+                        onClick={() => void handleBroadcast()}
                       >
-                        Withdraw broadcast
+                        Broadcast to all employees
                       </button>
-                    ) : null}
+                    )}
                   </div>
-                  {selected.status === "OFFERED" && selected.isBroadcast ? (
+                  {isBroadcastOpen ? (
                     <p className="mt-3 rounded-lg bg-sky-50 px-3 py-2 text-sm font-medium text-sky-900">
-                      Broadcast open — first eligible employee to accept gets this shift. You can
-                      still assign someone below.
+                      Broadcast open — all active employees can see it. First eligible accept
+                      wins. You can still assign someone below, withdraw, or rebroadcast.
                     </p>
-                  ) : null}
+                  ) : eligibleCount === 0 && !loadingCandidates ? (
+                    <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900">
+                      No eligible workers right now. Broadcast anyway — someone marked
+                      unavailable can update their availability and accept.
+                    </p>
+                  ) : (
+                    <p className="mt-3 text-xs text-muted">
+                      Assign locks the shift immediately. Broadcast lets any active employee
+                      claim it (first eligible accept wins).
+                    </p>
+                  )}
                 </div>
 
                 {loadingCandidates ? (
                   <p className="px-5 py-8 text-sm text-muted">Loading candidates…</p>
                 ) : candidates.length === 0 ? (
-                  <p className="px-5 py-8 text-sm text-muted">
-                    No employees found. Invite and verify employees first.
-                  </p>
+                  <div className="space-y-3 px-5 py-8">
+                    <p className="text-sm text-muted">
+                      No employees found. Invite and verify employees first, or broadcast if
+                      workers already exist but are not listed yet.
+                    </p>
+                    {!isBroadcastOpen ? (
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        disabled={busy}
+                        onClick={() => void handleBroadcast()}
+                      >
+                        Broadcast to all employees
+                      </button>
+                    ) : null}
+                  </div>
                 ) : (
                   <ul className="divide-y divide-border/40">
                     {candidates.map((row) => {

@@ -8,7 +8,12 @@ import {
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
 import { useToast } from "@/components/toast/ToastProvider";
 import type { ScheduleShift, SeriesEditScope } from "@/lib/api/types";
-import { endTimeFromDuration, SERVICE_LINE_OPTIONS } from "@/lib/rostering/format";
+import {
+  durationMinutesFromTimes,
+  endTimeFromDuration,
+  SERVICE_LINE_OPTIONS,
+  snapDurationMinutes,
+} from "@/lib/rostering/format";
 
 type Props = {
   shift: ScheduleShift | null;
@@ -28,6 +33,7 @@ export function EditShiftModal({ shift, onClose, onSaved }: Props) {
   const [startTime, setStartTime] = useState("");
   const [hours, setHours] = useState(0);
   const [minutes, setMinutes] = useState(0);
+  const [endTime, setEndTime] = useState("");
   const [notes, setNotes] = useState("");
   const [locationLabel, setLocationLabel] = useState("");
   const [seriesScope, setSeriesScope] = useState<SeriesEditScope>("THIS");
@@ -41,6 +47,7 @@ export function EditShiftModal({ shift, onClose, onSaved }: Props) {
     setStartTime(shift.startTime);
     setHours(Math.floor(shift.durationMinutes / 60));
     setMinutes(shift.durationMinutes % 60);
+    setEndTime(endTimeFromDuration(shift.startTime, shift.durationMinutes));
     setNotes(shift.notes ?? "");
     setLocationLabel(shift.locationLabel);
     setSeriesScope("THIS");
@@ -50,9 +57,31 @@ export function EditShiftModal({ shift, onClose, onSaved }: Props) {
   if (!shift) return null;
 
   const durationMinutes = hours * 60 + minutes;
-  const endTime =
-    durationMinutes >= 5 ? endTimeFromDuration(startTime, durationMinutes) : "—";
   const busy = updateState.isLoading || cancelState.isLoading;
+
+  function setDurationFromParts(nextHours: number, nextMinutes: number) {
+    const h = Math.max(0, Math.min(23, Number.isFinite(nextHours) ? nextHours : 0));
+    const m = nextMinutes;
+    setHours(h);
+    setMinutes(m);
+    const dur = h * 60 + m;
+    if (dur >= 5) setEndTime(endTimeFromDuration(startTime, dur));
+  }
+
+  function setEndTimeAndDuration(nextEnd: string) {
+    setEndTime(nextEnd);
+    if (!nextEnd || !startTime) return;
+    const snapped = snapDurationMinutes(durationMinutesFromTimes(startTime, nextEnd));
+    setHours(Math.floor(snapped / 60));
+    setMinutes(snapped % 60);
+    setEndTime(endTimeFromDuration(startTime, snapped));
+  }
+
+  function setStartTimeKeepingDuration(nextStart: string) {
+    setStartTime(nextStart);
+    const dur = hours * 60 + minutes;
+    if (dur >= 5) setEndTime(endTimeFromDuration(nextStart, dur));
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -195,7 +224,7 @@ export function EditShiftModal({ shift, onClose, onSaved }: Props) {
                 step={300}
                 className="input-field"
                 value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
+                onChange={(e) => setStartTimeKeepingDuration(e.target.value)}
                 required
               />
             </div>
@@ -210,9 +239,10 @@ export function EditShiftModal({ shift, onClose, onSaved }: Props) {
                 id="edit-h"
                 type="number"
                 min={0}
+                max={23}
                 className="input-field"
                 value={hours}
-                onChange={(e) => setHours(Number(e.target.value))}
+                onChange={(e) => setDurationFromParts(Number(e.target.value), minutes)}
               />
             </div>
             <div>
@@ -223,7 +253,7 @@ export function EditShiftModal({ shift, onClose, onSaved }: Props) {
                 id="edit-m"
                 className="input-field"
                 value={minutes}
-                onChange={(e) => setMinutes(Number(e.target.value))}
+                onChange={(e) => setDurationFromParts(hours, Number(e.target.value))}
               >
                 {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map((m) => (
                   <option key={m} value={m}>
@@ -233,10 +263,18 @@ export function EditShiftModal({ shift, onClose, onSaved }: Props) {
               </select>
             </div>
             <div>
-              <p className="input-label">End time</p>
-              <p className="rounded-lg border border-border/60 bg-surface-subtle px-3.5 py-2.5 text-sm font-medium">
-                {endTime}
-              </p>
+              <label className="input-label" htmlFor="edit-end">
+                End time
+              </label>
+              <input
+                id="edit-end"
+                type="time"
+                step={300}
+                className="input-field"
+                value={endTime}
+                onChange={(e) => setEndTimeAndDuration(e.target.value)}
+                required
+              />
             </div>
           </div>
 
