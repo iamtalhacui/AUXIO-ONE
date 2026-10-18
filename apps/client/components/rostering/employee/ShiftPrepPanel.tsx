@@ -92,7 +92,7 @@ export function ShiftPrepPanel({ shift, collapsible = false }: Props) {
                 </p>
                 {shift.customerId ? (
                   <Link
-                    href={`/employee/participants/${shift.customerId}`}
+                    href={`/my-participants/${shift.customerId}`}
                     className="text-xs font-semibold text-primary hover:underline"
                   >
                     Full care summary

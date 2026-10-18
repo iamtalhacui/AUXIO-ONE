@@ -2,6 +2,7 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
+import { ConstrainedDateInput } from "@/components/ui/ConstrainedDateInput";
 import {
   useGetOrgBillingSummaryQuery,
   useListOrgPaymentsQuery,
@@ -300,14 +301,12 @@ export function OrgAdminPaymentsContent() {
 
         <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block">
+            <label className="block min-w-0">
               <span className="input-label">Payment date</span>
-              <input
-                type="date"
-                required
+              <ConstrainedDateInput
+                aria-label="Payment date"
                 value={paymentDate}
-                onChange={(e) => setPaymentDate(e.target.value)}
-                className="input-field"
+                onChange={setPaymentDate}
                 disabled={!summary.canSubmitPayment || isSubmitting}
               />
             </label>

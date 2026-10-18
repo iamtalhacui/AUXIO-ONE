@@ -19,7 +19,7 @@ import {
 } from "@/lib/rostering/format";
 
 /**
- * Org Admin queue for shifts finished outside allowed start/end time windows.
+ * Manager queue for shifts finished outside allowed start/end time windows.
  */
 export function ShiftApprovalsContent() {
   const { toast } = useToast();
@@ -87,7 +87,7 @@ export function ShiftApprovalsContent() {
     <div className="space-y-4">
       <PageHeader
         title="Shift approvals"
-        description="Shifts finished more than 15 minutes early or late need your approve or reject."
+        description="Shifts finished outside the allowed start/end windows (start 30 min early–15 min late; end up to 30 min early or half the shift, and 15 min late) need your approve or reject."
       />
 
       {actionError ? (

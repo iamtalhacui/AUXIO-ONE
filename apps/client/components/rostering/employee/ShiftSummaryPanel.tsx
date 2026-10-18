@@ -31,7 +31,7 @@ export function ShiftSummaryPanel({ shift, clock }: Props) {
           }`}
         >
           {rejected
-            ? "Returned by your Org Admin"
+            ? "Returned by your Manager"
             : approved
               ? "Shift approved"
               : "Submitted for approval"}
@@ -42,12 +42,12 @@ export function ShiftSummaryPanel({ shift, clock }: Props) {
           }`}
         >
           {rejected
-            ? "Read the note below and speak to your Org Admin about what to do next."
+            ? "Read the note below and speak to your Manager about what to do next."
             : approved
               ? shift.reviewedByName
                 ? `Approved by ${shift.reviewedByName}.`
                 : "Automatically approved — your times were within the margin."
-              : "An Org Admin is reviewing your recorded times."}
+              : "A Manager is reviewing your recorded times."}
         </p>
       </div>
 

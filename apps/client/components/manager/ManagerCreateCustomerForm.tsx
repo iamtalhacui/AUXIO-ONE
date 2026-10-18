@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/dashboard/PageHeader";
+import { ConstrainedDateInput } from "@/components/ui/ConstrainedDateInput";
 import { useCreateCustomerMutation } from "@/lib/api/authApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
 import { useToast } from "@/components/toast/ToastProvider";
@@ -86,9 +87,13 @@ export function ManagerCreateCustomerForm() {
             <span className="input-label">Phone</span>
             <input className="input-field" value={phone} onChange={(e) => setPhone(e.target.value)} />
           </label>
-          <label className="block">
+          <label className="block min-w-0">
             <span className="input-label">Date of birth</span>
-            <input type="date" className="input-field" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} />
+            <ConstrainedDateInput
+              aria-label="Date of birth"
+              value={dateOfBirth}
+              onChange={setDateOfBirth}
+            />
           </label>
           <label className="block">
             <span className="input-label">Service line</span>
@@ -103,13 +108,22 @@ export function ManagerCreateCustomerForm() {
             <span className="input-label">Address</span>
             <input className="input-field" value={address} onChange={(e) => setAddress(e.target.value)} />
           </label>
-          <label className="block">
+          <label className="block min-w-0">
             <span className="input-label">Plan start</span>
-            <input type="date" className="input-field" value={planStartDate} onChange={(e) => setPlanStartDate(e.target.value)} />
+            <ConstrainedDateInput
+              aria-label="Plan start"
+              value={planStartDate}
+              onChange={setPlanStartDate}
+            />
           </label>
-          <label className="block">
+          <label className="block min-w-0">
             <span className="input-label">Plan end</span>
-            <input type="date" className="input-field" value={planEndDate} onChange={(e) => setPlanEndDate(e.target.value)} />
+            <ConstrainedDateInput
+              aria-label="Plan end"
+              value={planEndDate}
+              min={planStartDate || undefined}
+              onChange={setPlanEndDate}
+            />
           </label>
         </div>
 

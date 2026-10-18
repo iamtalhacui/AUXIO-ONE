@@ -112,7 +112,11 @@ export class IncidentsService {
     role: string,
     dto: CreateIncidentDto,
   ) {
-    this.assertEmployee(role);
+    await this.permissions.assertAction(
+      organisationId,
+      role,
+      'EXECUTE_MY_SHIFTS',
+    );
     await this.assertUserInOrg(organisationId, userId);
 
     const shift = await this.prisma.shift.findFirst({
@@ -240,7 +244,11 @@ export class IncidentsService {
 
     const where: Prisma.IncidentWhereInput = { organisationId };
 
-    if (role === 'EMPLOYEE') {
+    const canBrowseAll =
+      role === 'ORG_ADMIN' ||
+      (await this.permissions.hasPage(organisationId, role, 'INCIDENTS')) ||
+      (await this.permissions.hasAction(organisationId, role, 'MANAGE_INCIDENTS'));
+    if (!canBrowseAll) {
       where.reporterId = userId;
     }
 
@@ -282,7 +290,7 @@ export class IncidentsService {
   ) {
     await this.assertCanList(organisationId, role);
     const incident = await this.findOrgIncident(organisationId, incidentId);
-    this.assertCanView(role, userId, incident);
+    await this.assertCanView(organisationId, role, userId, incident);
 
     if (
       role === 'ORG_ADMIN' ||
@@ -694,7 +702,7 @@ export class IncidentsService {
   ) {
     await this.assertCanList(organisationId, role);
     const incident = await this.findOrgIncident(organisationId, incidentId);
-    this.assertCanView(role, userId, incident);
+    await this.assertCanView(organisationId, role, userId, incident);
 
     const attachment = incident.attachments.find((a) => a.id === attachmentId);
     if (!attachment) {
@@ -848,7 +856,7 @@ export class IncidentsService {
       title: `Incident ${args.reference} updated`,
       message: `${args.actorName} updated your incident${parts.length ? `: ${parts.join('; ')}` : ''}.`,
       // Employees do not have a dedicated incident detail route yet — send them to shifts.
-      link: '/employee/shifts',
+      link: '/my-shifts',
     });
   }
 
@@ -925,12 +933,6 @@ export class IncidentsService {
     throw new BadRequestException('Approximate time must be HH:mm');
   }
 
-  private assertEmployee(role: string) {
-    if (role !== 'EMPLOYEE') {
-      throw new ForbiddenException('Only employees can report incidents from a shift');
-    }
-  }
-
   private async assertManageIncidents(organisationId: string, role: string) {
     await this.permissions.assertAction(
       organisationId,
@@ -940,18 +942,30 @@ export class IncidentsService {
   }
 
   private async assertCanList(organisationId: string, role: string) {
-    if (role === 'EMPLOYEE' || role === 'ORG_ADMIN') return;
+    if (role === 'ORG_ADMIN') return;
+    if (await this.permissions.hasPage(organisationId, role, 'INCIDENTS')) {
+      return;
+    }
+    // Workers without the Incidents page may still open incidents they reported.
+    if (await this.permissions.hasAction(organisationId, role, 'EXECUTE_MY_SHIFTS')) {
+      return;
+    }
     await this.permissions.assertPage(organisationId, role, 'INCIDENTS');
   }
 
-  private assertCanView(
+  private async assertCanView(
+    organisationId: string,
     role: string,
     userId: string,
     incident: Pick<Incident, 'reporterId'>,
   ) {
-    if (role === 'EMPLOYEE' && incident.reporterId !== userId) {
-      throw new ForbiddenException('Not your incident');
+    if (incident.reporterId === userId) return;
+    if (role === 'ORG_ADMIN') return;
+    if (await this.permissions.hasPage(organisationId, role, 'INCIDENTS')) return;
+    if (await this.permissions.hasAction(organisationId, role, 'MANAGE_INCIDENTS')) {
+      return;
     }
+    throw new ForbiddenException('Not your incident');
   }
 
   private async assertCanUpload(
@@ -964,10 +978,7 @@ export class IncidentsService {
     if (await this.permissions.hasAction(organisationId, role, 'MANAGE_INCIDENTS')) {
       return;
     }
-    if (role === 'EMPLOYEE') {
-      if (incident.reporterId !== userId) {
-        throw new ForbiddenException('Not your incident');
-      }
+    if (incident.reporterId === userId) {
       if (incident.status !== 'PENDING_REVIEW') {
         throw new BadRequestException(
           'Attachments can only be added while the incident is pending review',

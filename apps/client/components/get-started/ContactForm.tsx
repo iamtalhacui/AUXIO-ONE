@@ -2,6 +2,7 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import { FadeIn } from "@/components/ui/FadeIn";
+import { ConstrainedDateInput } from "@/components/ui/ConstrainedDateInput";
 import { getStarted, site } from "@/lib/content";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
 
@@ -218,15 +219,13 @@ export function ContactForm() {
                 />
               </label>
 
-              <label className="block sm:col-span-2">
+              <label className="block min-w-0 sm:col-span-2">
                 <span className="mb-2 block text-sm font-medium">Preferred demo date</span>
-                <input
-                  required
-                  type="date"
-                  min={minDate}
+                <ConstrainedDateInput
+                  aria-label="Preferred demo date"
                   value={form.preferredDate}
-                  onChange={(e) => update("preferredDate", e.target.value)}
-                  className={inputClass}
+                  min={minDate}
+                  onChange={(next) => update("preferredDate", next)}
                 />
               </label>
 

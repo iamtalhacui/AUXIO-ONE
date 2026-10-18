@@ -45,9 +45,17 @@ export class NotificationsService {
     organisationId: string,
     role: 'ORG_ADMIN' | 'MANAGER' | 'ROSTERING_EXPERT' | 'EMPLOYEE',
     input: NotifyInput,
+    options?: { excludeUserId?: string },
   ) {
     const users = await this.prisma.user.findMany({
-      where: { organisationId, role, status: 'ACTIVE' },
+      where: {
+        organisationId,
+        role,
+        status: 'ACTIVE',
+        ...(options?.excludeUserId
+          ? { id: { not: options.excludeUserId } }
+          : {}),
+      },
       select: { id: true },
     });
     if (users.length === 0) return;

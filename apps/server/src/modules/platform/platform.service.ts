@@ -1,8 +1,22 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { isOptionalModule } from '../organisations/plan-modules';
+import type { UpdatePlatformSettingsDto } from './dto/update-platform-settings.dto';
 
 const SETTINGS_ID = 'default';
+
+const DEFAULT_EMERGENCY_MESSAGE =
+  'The platform is undergoing emergency maintenance. Please try again later.';
+
+type MaintenanceSnapshot = {
+  active: boolean;
+  upcoming: boolean;
+  startsAt: Date | null;
+  endsAt: Date | null;
+  message: string | null;
+  /** Window ended — caller may clear persisted fields. */
+  expired: boolean;
+};
 
 function dateKey(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -22,7 +36,13 @@ export class PlatformService {
     return this.prisma.platformSetting.upsert({
       where: { id: SETTINGS_ID },
       update: {},
-      create: { id: SETTINGS_ID, maintenanceMode: false },
+      create: {
+        id: SETTINGS_ID,
+        maintenanceMode: false,
+        maintenanceStartsAt: null,
+        maintenanceEndsAt: null,
+        maintenanceMessage: null,
+      },
     });
   }
 
@@ -272,8 +292,10 @@ export class PlatformService {
       };
     });
 
+    const maintenance = await this.resolveAndSyncMaintenance(settings);
+
     return {
-      maintenanceMode: settings.maintenanceMode,
+      maintenanceMode: maintenance.active,
       kpis: {
         organisationsTotal: organisations.length,
         organisationsActive: active,
@@ -322,31 +344,247 @@ export class PlatformService {
 
   async getSettings() {
     const row = await this.getSettingsRow();
-    return { maintenanceMode: row.maintenanceMode, updatedAt: row.updatedAt };
+    const maintenance = await this.resolveAndSyncMaintenance(row);
+    return this.toSettingsPayload(maintenance, row.updatedAt);
+  }
+
+  /** Public status for login pages and org banners (no secrets). */
+  async getMaintenanceStatus() {
+    const row = await this.getSettingsRow();
+    const maintenance = await this.resolveAndSyncMaintenance(row);
+    return {
+      active: maintenance.active,
+      upcoming: maintenance.upcoming,
+      startsAt: maintenance.startsAt?.toISOString() ?? null,
+      endsAt: maintenance.endsAt?.toISOString() ?? null,
+      message: maintenance.message,
+    };
   }
 
   // Used by org login and OrgJwtGuard so Super Admin routes stay up.
   async isMaintenanceMode() {
     const row = await this.getSettingsRow();
-    return row.maintenanceMode;
+    const maintenance = await this.resolveAndSyncMaintenance(row);
+    return maintenance.active;
   }
 
-  async setMaintenanceMode(maintenanceMode: boolean, actorEmail: string) {
+  async updateMaintenance(dto: UpdatePlatformSettingsDto, actorEmail: string) {
+    if (dto.action === 'clear') {
+      const row = await this.prisma.platformSetting.upsert({
+        where: { id: SETTINGS_ID },
+        update: {
+          maintenanceMode: false,
+          maintenanceStartsAt: null,
+          maintenanceEndsAt: null,
+          maintenanceMessage: null,
+        },
+        create: {
+          id: SETTINGS_ID,
+          maintenanceMode: false,
+          maintenanceStartsAt: null,
+          maintenanceEndsAt: null,
+          maintenanceMessage: null,
+        },
+      });
+
+      await this.writeAudit({
+        action: 'MAINTENANCE_OFF',
+        actorEmail,
+        details: 'Maintenance cleared — organisation logins are allowed',
+      });
+
+      return this.toSettingsPayload(
+        {
+          active: false,
+          upcoming: false,
+          startsAt: null,
+          endsAt: null,
+          message: null,
+          expired: false,
+        },
+        row.updatedAt,
+      );
+    }
+
+    const now = new Date();
+    let startsAt: Date;
+    let message: string | null =
+      typeof dto.message === 'string' && dto.message.trim()
+        ? dto.message.trim()
+        : null;
+
+    if (dto.action === 'emergency') {
+      startsAt = now;
+      if (!message) message = DEFAULT_EMERGENCY_MESSAGE;
+    } else {
+      if (!dto.startsAt) {
+        throw new BadRequestException('startsAt is required when scheduling maintenance');
+      }
+      startsAt = new Date(dto.startsAt);
+      if (Number.isNaN(startsAt.getTime())) {
+        throw new BadRequestException('startsAt must be a valid date');
+      }
+    }
+
+    let endsAt: Date | null = null;
+    if (dto.endsAt) {
+      endsAt = new Date(dto.endsAt);
+      if (Number.isNaN(endsAt.getTime())) {
+        throw new BadRequestException('endsAt must be a valid date');
+      }
+      if (endsAt <= startsAt) {
+        throw new BadRequestException('endsAt must be after startsAt');
+      }
+    }
+
+    const active = now >= startsAt && (!endsAt || now < endsAt);
+
     const row = await this.prisma.platformSetting.upsert({
       where: { id: SETTINGS_ID },
-      update: { maintenanceMode },
-      create: { id: SETTINGS_ID, maintenanceMode },
+      update: {
+        maintenanceMode: active,
+        maintenanceStartsAt: startsAt,
+        maintenanceEndsAt: endsAt,
+        maintenanceMessage: message,
+      },
+      create: {
+        id: SETTINGS_ID,
+        maintenanceMode: active,
+        maintenanceStartsAt: startsAt,
+        maintenanceEndsAt: endsAt,
+        maintenanceMessage: message,
+      },
     });
 
     await this.writeAudit({
-      action: maintenanceMode ? 'MAINTENANCE_ON' : 'MAINTENANCE_OFF',
+      action: active ? 'MAINTENANCE_ON' : 'MAINTENANCE_SCHEDULED',
       actorEmail,
-      details: maintenanceMode
-        ? 'Organisation logins are blocked'
-        : 'Organisation logins are allowed',
+      details:
+        dto.action === 'emergency'
+          ? `Emergency maintenance on${endsAt ? ` until ${endsAt.toISOString()}` : ''}`
+          : `Maintenance scheduled ${startsAt.toISOString()}${endsAt ? ` → ${endsAt.toISOString()}` : ''}`,
     });
 
-    return { maintenanceMode: row.maintenanceMode, updatedAt: row.updatedAt };
+    const maintenance = this.computeMaintenance(row, now);
+    return this.toSettingsPayload(maintenance, row.updatedAt);
+  }
+
+  private toSettingsPayload(maintenance: MaintenanceSnapshot, updatedAt: Date) {
+    return {
+      maintenanceMode: maintenance.active,
+      status: maintenance.active
+        ? ('active' as const)
+        : maintenance.upcoming
+          ? ('scheduled' as const)
+          : ('off' as const),
+      startsAt: maintenance.startsAt?.toISOString() ?? null,
+      endsAt: maintenance.endsAt?.toISOString() ?? null,
+      message: maintenance.message,
+      updatedAt,
+    };
+  }
+
+  private computeMaintenance(
+    row: {
+      maintenanceMode: boolean;
+      maintenanceStartsAt: Date | null;
+      maintenanceEndsAt: Date | null;
+      maintenanceMessage: string | null;
+      updatedAt: Date;
+    },
+    now = new Date(),
+  ): MaintenanceSnapshot {
+    // Legacy rows: boolean on with no schedule → treat as open-ended active.
+    if (row.maintenanceMode && !row.maintenanceStartsAt) {
+      return {
+        active: true,
+        upcoming: false,
+        startsAt: row.updatedAt,
+        endsAt: null,
+        message: row.maintenanceMessage,
+        expired: false,
+      };
+    }
+
+    if (!row.maintenanceStartsAt) {
+      return {
+        active: false,
+        upcoming: false,
+        startsAt: null,
+        endsAt: null,
+        message: null,
+        expired: false,
+      };
+    }
+
+    if (row.maintenanceEndsAt && now >= row.maintenanceEndsAt) {
+      return {
+        active: false,
+        upcoming: false,
+        startsAt: null,
+        endsAt: null,
+        message: null,
+        expired: true,
+      };
+    }
+
+    if (now < row.maintenanceStartsAt) {
+      return {
+        active: false,
+        upcoming: true,
+        startsAt: row.maintenanceStartsAt,
+        endsAt: row.maintenanceEndsAt,
+        message: row.maintenanceMessage,
+        expired: false,
+      };
+    }
+
+    return {
+      active: true,
+      upcoming: false,
+      startsAt: row.maintenanceStartsAt,
+      endsAt: row.maintenanceEndsAt,
+      message: row.maintenanceMessage,
+      expired: false,
+    };
+  }
+
+  /** Resolve window and clear/sync persisted flags when the window ends or activates. */
+  private async resolveAndSyncMaintenance(
+    row: {
+      id: string;
+      maintenanceMode: boolean;
+      maintenanceStartsAt: Date | null;
+      maintenanceEndsAt: Date | null;
+      maintenanceMessage: string | null;
+      updatedAt: Date;
+    },
+  ): Promise<MaintenanceSnapshot> {
+    const now = new Date();
+    const maintenance = this.computeMaintenance(row, now);
+
+    if (maintenance.expired) {
+      await this.prisma.platformSetting.update({
+        where: { id: row.id },
+        data: {
+          maintenanceMode: false,
+          maintenanceStartsAt: null,
+          maintenanceEndsAt: null,
+          maintenanceMessage: null,
+        },
+      });
+      return maintenance;
+    }
+
+    // Sync boolean when the scheduled window has started (or should stay off).
+    if (row.maintenanceMode !== maintenance.active) {
+      await this.prisma.platformSetting.update({
+        where: { id: row.id },
+        data: { maintenanceMode: maintenance.active },
+      });
+    }
+
+    return maintenance;
   }
 
   async writeAudit(entry: {

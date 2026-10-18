@@ -9,8 +9,8 @@ import { ReviewShiftDto, SaveServiceLineTasksDto } from './dto/schedule.dto';
 import { ScheduleService } from './schedule.service';
 
 /**
- * Org Admin: variance approval queue + service-line task catalogues.
- * Both are execution concerns, so they sit under SERVICE_DELIVERY.
+ * Service-delivery admin APIs: Manager variance approval queue +
+ * Org Admin service-line task catalogues (permission-gated per action).
  */
 @Controller('organisation/schedule/admin')
 @UseGuards(

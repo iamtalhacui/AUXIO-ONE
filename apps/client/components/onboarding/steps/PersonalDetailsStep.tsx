@@ -1,6 +1,8 @@
 "use client";
 
 import type { ChangeEvent } from "react";
+import { ConstrainedDateInput } from "@/components/ui/ConstrainedDateInput";
+import { ConstrainedSelect } from "@/components/ui/ConstrainedSelect";
 import { inputClass, labelClass, sectionClass } from "@/lib/onboarding/form-styles";
 import type { OnboardingPersonal } from "@/lib/onboarding/types";
 
@@ -41,19 +43,28 @@ export function PersonalDetailsStep({ value, onChange }: PersonalDetailsStepProp
 
         <label className="block">
           <span className={labelClass}>Date of birth</span>
-          <input type="date" value={value.dateOfBirth} onChange={update("dateOfBirth")} className={inputClass} />
+          <ConstrainedDateInput
+            aria-label="Date of birth"
+            value={value.dateOfBirth}
+            onChange={(next) => onChange({ ...value, dateOfBirth: next })}
+          />
         </label>
 
         <label className="block">
           <span className={labelClass}>Gender</span>
-          <select value={value.gender} onChange={update("gender")} className={inputClass}>
-            <option value="">Select gender</option>
-            {GENDER_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
+          <ConstrainedSelect
+            aria-label="Gender"
+            value={value.gender}
+            placeholder="Select gender"
+            onChange={(next) => onChange({ ...value, gender: next })}
+            options={[
+              { value: "", label: "Select gender" },
+              ...GENDER_OPTIONS.map((option) => ({
+                value: option,
+                label: option,
+              })),
+            ]}
+          />
         </label>
 
         <label className="block">

@@ -32,7 +32,7 @@ export class TeamController {
     return this.teamService.register(user.organisationId, user.role, dto);
   }
 
-  // Update name, email, role, or status for a non-admin member.
+  // Update name, email, or status for a non-admin member (role is fixed at invite).
   @Patch(':id')
   update(
     @CurrentOrgUser() user: OrgJwtPayload,

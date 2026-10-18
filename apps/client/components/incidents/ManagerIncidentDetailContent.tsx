@@ -5,6 +5,8 @@ import Link from "next/link";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { IncidentStatusPill } from "@/components/incidents/IncidentStatusPill";
 import { IncidentSeverityPill } from "@/components/incidents/IncidentSeverityPill";
+import { ConstrainedDateInput } from "@/components/ui/ConstrainedDateInput";
+import { ConstrainedSelect } from "@/components/ui/ConstrainedSelect";
 import {
   INCIDENT_ACTION_STATUS_LABELS,
   INCIDENT_SEVERITIES,
@@ -369,25 +371,25 @@ export function ManagerIncidentDetailContent({ incidentId }: { incidentId: strin
                 disabled={busy}
                 onChange={(e) => setFollowUpText(e.target.value)}
               />
-              <select
-                className="input-field"
+              <ConstrainedSelect
+                aria-label="Follow-up assignee"
                 value={followUpAssignee}
                 disabled={busy}
-                onChange={(e) => setFollowUpAssignee(e.target.value)}
-              >
-                <option value="">Unassigned</option>
-                {team.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.firstName} {m.lastName}
-                  </option>
-                ))}
-              </select>
-              <input
-                type="date"
-                className="input-field"
+                placeholder="Unassigned"
+                onChange={setFollowUpAssignee}
+                options={[
+                  { value: "", label: "Unassigned" },
+                  ...team.map((m) => ({
+                    value: m.id,
+                    label: `${m.firstName} ${m.lastName}`,
+                  })),
+                ]}
+              />
+              <ConstrainedDateInput
+                aria-label="Follow-up due date"
                 value={followUpDue}
                 disabled={busy}
-                onChange={(e) => setFollowUpDue(e.target.value)}
+                onChange={setFollowUpDue}
               />
             </div>
             <button
@@ -506,8 +508,8 @@ export function ManagerIncidentDetailContent({ incidentId }: { incidentId: strin
           </section>
         </div>
 
-        <aside className="space-y-4 lg:sticky lg:top-6">
-          <section className="dashboard-card space-y-3 p-5">
+        <aside className="min-w-0 space-y-4 lg:sticky lg:top-6">
+          <section className="dashboard-card min-w-0 space-y-3 p-4 sm:p-5">
             <h2 className="text-base font-semibold text-foreground">Workflow</h2>
             <p className="text-xs text-muted">
               Initial severity stays {INCIDENT_SEVERITY_LABELS[incident.initialSeverity]}. Only
@@ -517,37 +519,33 @@ export function ManagerIncidentDetailContent({ incidentId }: { incidentId: strin
               <label className="input-label" htmlFor="mgr-status">
                 Status
               </label>
-              <select
+              <ConstrainedSelect
                 id="mgr-status"
-                className="input-field"
+                aria-label="Incident status"
                 value={incident.status}
                 disabled={busy}
-                onChange={(e) => void onStatus(e.target.value as IncidentStatus)}
-              >
-                {statusOptions.map((s) => (
-                  <option key={s} value={s}>
-                    {INCIDENT_STATUS_LABELS[s]}
-                  </option>
-                ))}
-              </select>
+                onChange={(next) => void onStatus(next as IncidentStatus)}
+                options={statusOptions.map((s) => ({
+                  value: s,
+                  label: INCIDENT_STATUS_LABELS[s],
+                }))}
+              />
             </div>
             <div>
               <label className="input-label" htmlFor="mgr-severity">
                 Current severity
               </label>
-              <select
+              <ConstrainedSelect
                 id="mgr-severity"
-                className="input-field"
+                aria-label="Current severity"
                 value={incident.currentSeverity}
                 disabled={busy}
-                onChange={(e) => void onSeverity(e.target.value as IncidentSeverity)}
-              >
-                {INCIDENT_SEVERITIES.map((s) => (
-                  <option key={s} value={s}>
-                    {INCIDENT_SEVERITY_LABELS[s]}
-                  </option>
-                ))}
-              </select>
+                onChange={(next) => void onSeverity(next as IncidentSeverity)}
+                options={INCIDENT_SEVERITIES.map((s) => ({
+                  value: s,
+                  label: INCIDENT_SEVERITY_LABELS[s],
+                }))}
+              />
             </div>
             <div className="flex flex-col gap-2 pt-1">
               {incident.status === "PENDING_REVIEW" ? (

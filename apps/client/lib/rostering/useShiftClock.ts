@@ -9,13 +9,22 @@ import { todayIso } from "./format";
 export const LATE_START_APPROVAL_MINUTES = 15;
 /** May start from this many minutes before scheduled start. */
 export const EARLY_START_ALLOW_MINUTES = 30;
-/** Finish more than this many minutes before scheduled end → approval. */
-export const EARLY_END_ALLOW_MINUTES = 3 * 60;
+/**
+ * Max minutes before scheduled end that still auto-approves.
+ * Short shifts use min(this, half duration).
+ */
+export const EARLY_END_ALLOW_MINUTES = 30;
 /** Finish more than this many minutes after scheduled end → approval. */
 export const LATE_END_ALLOW_MINUTES = 15;
 
 /** @deprecated Use LATE_START_APPROVAL_MINUTES / LATE_END_ALLOW_MINUTES. */
 export const VARIANCE_MARGIN_MINUTES = LATE_START_APPROVAL_MINUTES;
+
+/** Early-end allow for one shift: min(30, half duration), at least 1 minute. */
+export function earlyEndAllowMinutes(durationMinutes: number): number {
+  const half = Math.floor(Math.max(0, durationMinutes) / 2);
+  return Math.max(1, Math.min(EARLY_END_ALLOW_MINUTES, half));
+}
 
 /** Inside this window the shift is treated as "about to start". */
 export const STARTING_SOON_MS = 60 * 60 * 1000;
@@ -49,7 +58,9 @@ export type ShiftClock = {
   overrunMs: number;
   startVarianceMinutes: number | null;
   endVarianceMinutes: number | null;
-  /** True when finishing now would require a reason and Org Admin approval. */
+  /** Allowed early-end minutes for this shift (min 30, half duration). */
+  earlyEndAllowMinutes: number;
+  /** True when finishing now would require a reason and Manager approval. */
   outsideMargin: boolean;
   isActive: boolean;
   /** Local calendar date matches the shift's roster date (informational). */
@@ -114,11 +125,13 @@ export function zonedWallTimeToUtc(dateKey: string, hhmm: string, timeZone: stri
 export function needsFinishApproval(
   startVarianceMinutes: number,
   endVarianceMinutes: number,
+  durationMinutes: number,
 ): boolean {
+  const earlyEndAllow = earlyEndAllowMinutes(durationMinutes);
   return (
     startVarianceMinutes > LATE_START_APPROVAL_MINUTES ||
     startVarianceMinutes < -EARLY_START_ALLOW_MINUTES ||
-    endVarianceMinutes < -EARLY_END_ALLOW_MINUTES ||
+    endVarianceMinutes < -earlyEndAllow ||
     endVarianceMinutes > LATE_END_ALLOW_MINUTES
   );
 }
@@ -152,10 +165,15 @@ export function describeShiftClock(
       ? null
       : Math.round((endReference - scheduledEnd.getTime()) / 60000));
 
+  const earlyEndAllow = earlyEndAllowMinutes(shift.durationMinutes);
   const outsideMargin =
     startVarianceMinutes !== null &&
     endVarianceMinutes !== null &&
-    needsFinishApproval(startVarianceMinutes, endVarianceMinutes);
+    needsFinishApproval(
+      startVarianceMinutes,
+      endVarianceMinutes,
+      shift.durationMinutes,
+    );
 
   const isShiftDay = todayIso() === shift.date;
   const startBlockedTooEarly =
@@ -195,6 +213,7 @@ export function describeShiftClock(
     overrunMs: Math.max(0, -msToEnd),
     startVarianceMinutes,
     endVarianceMinutes,
+    earlyEndAllowMinutes: earlyEndAllow,
     outsideMargin,
     isActive: shift.status === "IN_PROGRESS",
     isShiftDay,

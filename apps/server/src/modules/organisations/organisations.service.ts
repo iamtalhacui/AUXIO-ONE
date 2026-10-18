@@ -741,7 +741,7 @@ export class OrganisationsService {
       now.getTime() - 29 * 24 * 60 * 60 * 1000,
     );
 
-    const [org, users, pendingOnboarding, pendingShifts, approvalShifts, moduleRows] =
+    const [org, users, pendingOnboarding, approvalShifts, moduleRows] =
       await Promise.all([
         this.prisma.organisation.findUnique({
           where: { id: organisationId },
@@ -768,17 +768,6 @@ export class OrganisationsService {
             userId: true,
             submittedAt: true,
             user: { select: { firstName: true, lastName: true, role: true } },
-          },
-        }),
-        this.prisma.shift.findMany({
-          where: { organisationId, status: 'PENDING_APPROVAL' },
-          orderBy: { actualEndedAt: 'asc' },
-          select: {
-            id: true,
-            participantName: true,
-            startVarianceMinutes: true,
-            endVarianceMinutes: true,
-            actualEndedAt: true,
           },
         }),
         this.prisma.shift.findMany({
@@ -869,20 +858,8 @@ export class OrganisationsService {
       submittedAt: s.submittedAt ?? now,
     }));
 
-    const pendingShiftApprovals = pendingShifts.map((s) => ({
-      shiftId: s.id,
-      participantName: s.participantName,
-      variance: Math.max(
-        Math.abs(s.startVarianceMinutes ?? 0),
-        Math.abs(s.endVarianceMinutes ?? 0),
-      ),
-      endedAt: s.actualEndedAt,
-    }));
-
     const awaitingAction =
-      pendingOnboardingReviews.length +
-      pendingShiftApprovals.length +
-      staleInvites.length;
+      pendingOnboardingReviews.length + staleInvites.length;
 
     return {
       organisation: { name: org.name, plan: org.plan, status: org.status },
@@ -899,7 +876,6 @@ export class OrganisationsService {
       })),
       attention: {
         pendingOnboardingReviews,
-        pendingShiftApprovals,
         staleInvites,
       },
       onboardingFunnel,

@@ -17,6 +17,7 @@ import type {
   PlatformOrganisationDetail,
   PlatformOverview,
   PlatformSettings,
+  UpdatePlatformSettingsRequest,
   PlatformUser,
   OrganisationSubscription,
   RegisterOrganisationRequest,
@@ -182,7 +183,10 @@ export const platformAuthApi = createApi({
       query: () => "/platform/settings",
       providesTags: ["Settings"],
     }),
-    updatePlatformSettings: builder.mutation<PlatformSettings, { maintenanceMode: boolean }>({
+    updatePlatformSettings: builder.mutation<
+      PlatformSettings,
+      UpdatePlatformSettingsRequest
+    >({
       query: (body) => ({
         url: "/platform/settings",
         method: "PATCH",

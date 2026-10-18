@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
+import { ConstrainedSelect } from "@/components/ui/ConstrainedSelect";
 import {
   useListServiceLineTasksQuery,
   useSaveServiceLineTasksMutation,
@@ -30,6 +31,15 @@ export function ServiceLineTasksContent() {
     const row = data.find((d) => d.serviceLine === selectedLine);
     if (row) setLabelsText(row.labels.join("\n"));
   }, [data, selectedLine]);
+
+  const lineOptions = useMemo(
+    () =>
+      data.map((row) => ({
+        value: row.serviceLine,
+        label: row.serviceLine,
+      })),
+    [data],
+  );
 
   async function handleSave() {
     setLocalError("");
@@ -60,7 +70,7 @@ export function ServiceLineTasksContent() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4">
+    <div className="mx-auto w-full min-w-0 max-w-2xl space-y-4">
       <PageHeader
         title="Service line tasks"
         description="Required checklist copied onto shifts for each service line (v1)."
@@ -77,38 +87,33 @@ export function ServiceLineTasksContent() {
         </div>
       ) : null}
 
-      <div className="dashboard-card space-y-4 p-5">
-        <div>
+      <div className="dashboard-card min-w-0 space-y-4 overflow-visible p-4 sm:p-5">
+        <div className="min-w-0">
           <label className="input-label" htmlFor="service-line">
             Service line
           </label>
-          <select
+          <ConstrainedSelect
             id="service-line"
-            className="input-field"
+            aria-label="Service line"
             value={selectedLine}
-            onChange={(e) => setSelectedLine(e.target.value)}
-          >
-            {data.map((row) => (
-              <option key={row.serviceLine} value={row.serviceLine}>
-                {row.serviceLine}
-              </option>
-            ))}
-          </select>
+            options={lineOptions}
+            onChange={setSelectedLine}
+          />
         </div>
-        <div>
+        <div className="min-w-0">
           <label className="input-label" htmlFor="labels">
             Required tasks (one per line)
           </label>
           <textarea
             id="labels"
-            className="input-field min-h-[200px] font-mono text-sm"
+            className="input-field min-h-[200px] max-w-full font-mono text-sm"
             value={labelsText}
             onChange={(e) => setLabelsText(e.target.value)}
           />
         </div>
         <button
           type="button"
-          className="btn-primary"
+          className="btn-primary w-full sm:w-auto"
           disabled={saveState.isLoading}
           onClick={() => void handleSave()}
         >

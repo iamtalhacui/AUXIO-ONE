@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { DemoStatusBadge } from "@/components/dashboard/StatusBadge";
+import { ConstrainedSelect } from "@/components/ui/ConstrainedSelect";
 import { useListDemoRequestsQuery } from "@/lib/api/platformAuthApi";
 import type { DemoRequestStatus } from "@/lib/api/types";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
@@ -54,26 +55,23 @@ export function DemoRequestsPageContent() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search organisation, contact, email…"
-          className="input-field max-w-sm"
+          className="input-field w-full min-w-0 sm:max-w-sm"
         />
-        <select
+        <ConstrainedSelect
+          className="w-full sm:max-w-[10rem]"
+          aria-label="Status filter"
           value={statusFilter}
-          onChange={(event) =>
-            setStatusFilter(event.target.value as DemoRequestStatus | "ALL")
-          }
-          className="input-field max-w-[10rem]"
-        >
-          {STATUS_FILTERS.map((status) => (
-            <option key={status} value={status}>
-              {status === "ALL" ? "All statuses" : status}
-            </option>
-          ))}
-        </select>
+          onChange={(next) => setStatusFilter(next as DemoRequestStatus | "ALL")}
+          options={STATUS_FILTERS.map((status) => ({
+            value: status,
+            label: status === "ALL" ? "All statuses" : status,
+          }))}
+        />
       </div>
 
       <div className="data-table-wrap">

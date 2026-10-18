@@ -666,31 +666,71 @@ export class CustomersService {
   }
 
   /**
-   * Manager home dashboard aggregate — customers + CRM only.
-   * Soft-gates sections by whether CUSTOMERS / CRM modules are enabled.
+   * Manager home — always reachable when Dashboard can open.
+   * Soft-gates Customers / CRM / shift approvals by module + page/action
+   * (does not 403 when those page permissions are off).
    */
   async getManagerOverview(organisationId: string, role: string) {
-    await this.assertCustomersPage(organisationId, role);
-
     const now = new Date();
     const joinWindowStart = startOfUtcDay(
       new Date(now.getTime() - 13 * 24 * 60 * 60 * 1000),
     );
 
-    const [org, moduleRows] = await Promise.all([
+    const [
+      org,
+      moduleRows,
+      pendingShifts,
+      hasCustomersPage,
+      hasCrmPage,
+      canApproveShifts,
+    ] = await Promise.all([
       this.prisma.organisation.findUnique({
         where: { id: organisationId },
         select: { name: true },
       }),
       this.organisations.listOrgModules(organisationId),
+      this.prisma.shift.findMany({
+        where: { organisationId, status: 'PENDING_APPROVAL' },
+        orderBy: { actualEndedAt: 'asc' },
+        select: {
+          id: true,
+          participantName: true,
+          startVarianceMinutes: true,
+          endVarianceMinutes: true,
+          actualEndedAt: true,
+        },
+      }),
+      this.permissions.hasPage(organisationId, role, 'CUSTOMERS'),
+      this.permissions.hasPage(organisationId, role, 'CRM'),
+      this.permissions.hasAction(
+        organisationId,
+        role,
+        'APPROVE_TIMESHEETS_SERVICE_DELIVERY',
+      ),
     ]);
 
     if (!org) throw new NotFoundException('Organisation not found');
 
-    const customersEnabled = moduleRows.some(
-      (m) => m.code === 'CUSTOMERS' && m.enabled,
-    );
-    const crmEnabled = moduleRows.some((m) => m.code === 'CRM' && m.enabled);
+    const customersEnabled =
+      hasCustomersPage &&
+      moduleRows.some((m) => m.code === 'CUSTOMERS' && m.enabled);
+    const crmEnabled =
+      hasCrmPage && moduleRows.some((m) => m.code === 'CRM' && m.enabled);
+    const serviceDeliveryEnabled =
+      canApproveShifts &&
+      moduleRows.some((m) => m.code === 'SERVICE_DELIVERY' && m.enabled);
+
+    const pendingShiftApprovals = serviceDeliveryEnabled
+      ? pendingShifts.map((s) => ({
+          shiftId: s.id,
+          participantName: s.participantName,
+          variance: Math.max(
+            Math.abs(s.startVarianceMinutes ?? 0),
+            Math.abs(s.endVarianceMinutes ?? 0),
+          ),
+          endedAt: s.actualEndedAt,
+        }))
+      : [];
 
     const emptyStatusMix = {
       ONBOARDING: 0,
@@ -851,6 +891,7 @@ export class CustomersService {
     }
 
     const awaitingAction =
+      pendingShiftApprovals.length +
       readyToActivate.length +
       incompleteOnboarding.length +
       overdueFollowUps.length +
@@ -858,7 +899,7 @@ export class CustomersService {
 
     return {
       organisation: { name: org.name },
-      modules: { customersEnabled, crmEnabled },
+      modules: { customersEnabled, crmEnabled, serviceDeliveryEnabled },
       kpis: {
         customersTotal,
         customersActive,
@@ -870,6 +911,7 @@ export class CustomersService {
         count,
       })),
       attention: {
+        pendingShiftApprovals,
         readyToActivate,
         incompleteOnboarding,
         overdueFollowUps,

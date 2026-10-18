@@ -289,12 +289,6 @@ export type OrgAdminOverview = {
       role: string;
       submittedAt: string;
     }>;
-    pendingShiftApprovals: Array<{
-      shiftId: string;
-      participantName: string;
-      variance: number;
-      endedAt: string | null;
-    }>;
     staleInvites: Array<{
       userId: string;
       name: string;
@@ -324,7 +318,11 @@ export type OrgAdminOverview = {
 // GET /organisation/manager/overview — Manager home dashboard aggregate.
 export type ManagerOverview = {
   organisation: { name: string };
-  modules: { customersEnabled: boolean; crmEnabled: boolean };
+  modules: {
+    customersEnabled: boolean;
+    crmEnabled: boolean;
+    serviceDeliveryEnabled: boolean;
+  };
   kpis: {
     customersTotal: number;
     customersActive: number;
@@ -333,6 +331,12 @@ export type ManagerOverview = {
   };
   customerJoinsLast14Days: Array<{ date: string; count: number }>;
   attention: {
+    pendingShiftApprovals: Array<{
+      shiftId: string;
+      participantName: string;
+      variance: number;
+      endedAt: string | null;
+    }>;
     readyToActivate: Array<{
       customerId: string;
       displayName: string;
@@ -521,7 +525,6 @@ export type UpdateTeamMemberRequest = {
   firstName?: string;
   lastName?: string;
   email?: string;
-  role?: WorkforceRole;
   status?: UserStatus;
 };
 
@@ -565,6 +568,26 @@ export type SaveOnboardingDraftRequest = {
   payload: {
     personal?: Record<string, string | string[]>;
     work?: Record<string, string | string[]>;
+  };
+};
+
+export type OnboardingAdminListItem = {
+  id: string;
+  status: OnboardingStatus;
+  roleSnapshot: string;
+  submittedAt: string | null;
+  reviewedAt: string | null;
+  reviewNote: string | null;
+  updatedAt: string;
+  documentCount: number;
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    role: string;
+    status: UserStatus;
+    onboardingStatus: OnboardingStatus;
   };
 };
 
@@ -632,9 +655,28 @@ export type PlatformInvite = {
   expired: boolean;
 };
 
+export type MaintenanceStatus = {
+  active: boolean;
+  upcoming: boolean;
+  startsAt: string | null;
+  endsAt: string | null;
+  message: string | null;
+};
+
 export type PlatformSettings = {
   maintenanceMode: boolean;
+  status: "off" | "scheduled" | "active";
+  startsAt: string | null;
+  endsAt: string | null;
+  message: string | null;
   updatedAt: string;
+};
+
+export type UpdatePlatformSettingsRequest = {
+  action: "schedule" | "emergency" | "clear";
+  startsAt?: string;
+  endsAt?: string | null;
+  message?: string | null;
 };
 
 export type PlatformOverview = {

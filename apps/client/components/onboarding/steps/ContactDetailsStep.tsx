@@ -1,6 +1,7 @@
 "use client";
 
 import type { ChangeEvent } from "react";
+import { ConstrainedSelect } from "@/components/ui/ConstrainedSelect";
 import { AU_STATES } from "@/lib/onboarding/constants";
 import { inputClass, labelClass, sectionClass } from "@/lib/onboarding/form-styles";
 import type { OnboardingContact } from "@/lib/onboarding/types";
@@ -67,14 +68,16 @@ export function ContactDetailsStep({ value, onChange }: ContactDetailsStepProps)
 
         <label className="block">
           <span className={labelClass}>State</span>
-          <select value={value.state} onChange={update("state")} className={inputClass}>
-            <option value="">Select state</option>
-            {AU_STATES.map((state) => (
-              <option key={state} value={state}>
-                {state}
-              </option>
-            ))}
-          </select>
+          <ConstrainedSelect
+            aria-label="State"
+            value={value.state}
+            placeholder="Select state"
+            onChange={(next) => onChange({ ...value, state: next })}
+            options={[
+              { value: "", label: "Select state" },
+              ...AU_STATES.map((state) => ({ value: state, label: state })),
+            ]}
+          />
         </label>
 
         <label className="block">

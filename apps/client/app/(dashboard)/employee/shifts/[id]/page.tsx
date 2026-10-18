@@ -1,10 +1,10 @@
-import { EmployeeShiftDetailContent } from "@/components/rostering/EmployeeShiftDetailContent";
+import { redirect } from "next/navigation";
 
-export default async function Page({
+export default async function LegacyEmployeeShiftDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  return <EmployeeShiftDetailContent shiftId={id} />;
+  redirect(`/my-shifts/${id}`);
 }

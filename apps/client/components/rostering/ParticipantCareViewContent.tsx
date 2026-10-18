@@ -23,7 +23,7 @@ export function ParticipantCareViewContent({ customerId }: { customerId: string 
     return (
       <div className="space-y-4">
         <Link
-          href="/employee/shifts"
+          href="/my-shifts"
           className="inline-flex text-sm font-semibold text-primary hover:underline"
         >
           ← Back to shifts
@@ -41,7 +41,7 @@ export function ParticipantCareViewContent({ customerId }: { customerId: string 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
       <Link
-        href="/employee/shifts"
+        href="/my-shifts"
         className="inline-flex text-sm font-semibold text-primary hover:underline"
       >
         ← Back to shifts
@@ -82,7 +82,7 @@ export function ParticipantCareViewContent({ customerId }: { customerId: string 
           {data.shiftRelationships.map((rel) => (
             <li key={rel.shiftId}>
               <Link
-                href={`/employee/shifts/${rel.shiftId}`}
+                href={`/my-shifts/${rel.shiftId}`}
                 className="flex items-center justify-between gap-3 px-5 py-4 hover:bg-surface-subtle"
               >
                 <div>

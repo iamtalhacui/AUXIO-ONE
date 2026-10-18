@@ -10,6 +10,7 @@ import {
   CONFIGURABLE_ROLES,
   fullPermissions,
   isConfigurableRole,
+  isPersonalWorkerAction,
   mergeRolePermissions,
   PAGE_PERMISSIONS,
   sanitizeRolePermissionsInput,
@@ -38,7 +39,14 @@ export class PermissionsService {
     role: string,
   ): Promise<RolePermissions> {
     if (role === 'ORG_ADMIN') {
-      return fullPermissions();
+      // Full ops access, but not a rostered field worker by default.
+      const full = fullPermissions();
+      for (const action of Object.keys(full.actions) as ActionPermission[]) {
+        if (isPersonalWorkerAction(action)) {
+          full.actions[action] = false;
+        }
+      }
+      return full;
     }
     if (!isConfigurableRole(role)) {
       return {
@@ -144,9 +152,7 @@ export class PermissionsService {
     role: string,
     action: ActionPermission,
   ): Promise<void> {
-    if (role === 'ORG_ADMIN') return;
-    const perms = await this.resolve(organisationId, role);
-    if (!perms.actions[action]) {
+    if (!(await this.hasAction(organisationId, role, action))) {
       throw new ForbiddenException(`Missing action permission: ${action}`);
     }
   }
@@ -156,9 +162,21 @@ export class PermissionsService {
     role: string,
     action: ActionPermission,
   ): Promise<boolean> {
-    if (role === 'ORG_ADMIN') return true;
     const perms = await this.resolve(organisationId, role);
     return Boolean(perms.actions[action]);
+  }
+
+  async assertAnyAction(
+    organisationId: string,
+    role: string,
+    actions: ActionPermission[],
+  ): Promise<void> {
+    for (const action of actions) {
+      if (await this.hasAction(organisationId, role, action)) return;
+    }
+    throw new ForbiddenException(
+      `Missing action permission: ${actions.join(' or ')}`,
+    );
   }
 
   async hasPage(

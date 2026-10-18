@@ -13,6 +13,7 @@ import { getErrorMessage } from "@/lib/api/getErrorMessage";
 import { useToast } from "@/components/toast/ToastProvider";
 import { setOrganisation } from "@/lib/store/orgAuthSlice";
 import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
+import { ConstrainedSelect } from "@/components/ui/ConstrainedSelect";
 import { AU_TIMEZONES, DEFAULT_AU_TIMEZONE } from "@/lib/timezones/au";
 
 const MAX_LOGO_BYTES = 2 * 1024 * 1024;
@@ -282,20 +283,20 @@ export function OrgAdminOrganisationDetailsForm() {
 
               <label className="orgd-field">
                 <span className="input-label">Timezone</span>
-                <select
+                <ConstrainedSelect
+                  aria-label="Timezone"
                   value={timeZone}
-                  onChange={(event) => setTimeZone(event.target.value)}
-                  className="input-field"
-                >
-                  {AU_TIMEZONES.map((zone) => (
-                    <option key={zone.value} value={zone.value}>
-                      {zone.label}
-                    </option>
-                  ))}
-                  {!AU_TIMEZONES.some((z) => z.value === timeZone) && timeZone ? (
-                    <option value={timeZone}>{timeZone}</option>
-                  ) : null}
-                </select>
+                  onChange={setTimeZone}
+                  options={[
+                    ...AU_TIMEZONES.map((zone) => ({
+                      value: zone.value,
+                      label: zone.label,
+                    })),
+                    ...(!AU_TIMEZONES.some((z) => z.value === timeZone) && timeZone
+                      ? [{ value: timeZone, label: timeZone }]
+                      : []),
+                  ]}
+                />
                 <span className="mt-1 block text-xs text-muted">
                   {AU_TIMEZONES.find((z) => z.value === timeZone)?.hint ??
                     "Roster and shift times use this timezone."}

@@ -9,5 +9,10 @@ type PageProps = {
 
 export default function OrgAdminOnboardingReviewPage({ params }: PageProps) {
   const { memberId } = use(params);
-  return <OrgAdminOnboardingReviewContent memberId={memberId} />;
+  return (
+    <OrgAdminOnboardingReviewContent
+      memberId={memberId}
+      returnTo="/org-admin/team"
+    />
+  );
 }

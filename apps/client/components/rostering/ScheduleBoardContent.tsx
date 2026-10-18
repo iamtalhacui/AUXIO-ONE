@@ -144,8 +144,8 @@ export function ScheduleBoardContent() {
         </p>
       ) : null}
 
-      <div className="dashboard-card flex flex-col gap-3 p-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-4">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="dashboard-card flex min-w-0 flex-col gap-3 p-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-4">
+        <div className="flex min-w-0 flex-wrap items-center justify-center gap-2 sm:justify-start">
           <button
             type="button"
             className="btn-secondary !rounded-lg !px-3 !py-2"
@@ -153,8 +153,8 @@ export function ScheduleBoardContent() {
           >
             ←
           </button>
-          <div className="min-w-[12rem] text-center">
-            <p className="text-sm font-semibold">
+          <div className="min-w-0 flex-1 text-center sm:min-w-[12rem] sm:flex-none">
+            <p className="truncate text-sm font-semibold">
               {range === "day"
                 ? formatLongDate(date)
                 : `${formatShortDate(weekDates[0])} – ${formatShortDate(weekDates[6])}`}
@@ -375,50 +375,57 @@ function TableView({
 function DayCalendar({ shifts }: { shifts: ScheduleShift[] }) {
   return (
     <div className="dashboard-card overflow-hidden">
-      <div className="relative border-b border-border/50 bg-surface-subtle">
-        <div className="flex pl-0">
-          {HOURS.map((h) => (
-            <div
-              key={h}
-              className="flex-1 border-r border-border/40 px-1 py-3 text-[10px] font-medium text-muted last:border-r-0"
-            >
-              {String(h).padStart(2, "0")}:00
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="relative min-h-[220px] p-3">
-        {shifts.length === 0 ? (
-          <p className="py-16 text-center text-sm text-muted">No shifts on this day.</p>
-        ) : (
-          <div className="relative h-[200px]">
-            <div className="pointer-events-none absolute inset-0 flex">
+      <p className="border-b border-border/40 px-3 py-2 text-[11px] text-muted sm:hidden">
+        Swipe sideways to see the full day timeline.
+      </p>
+      <div className="overflow-x-auto overscroll-x-contain">
+        <div className="min-w-[720px]">
+          <div className="relative border-b border-border/50 bg-surface-subtle">
+            <div className="flex pl-0">
               {HOURS.map((h) => (
-                <div key={h} className="flex-1 border-r border-border/30 last:border-r-0" />
+                <div
+                  key={h}
+                  className="flex-1 border-r border-border/40 px-1 py-3 text-[10px] font-medium text-muted last:border-r-0"
+                >
+                  {String(h).padStart(2, "0")}:00
+                </div>
               ))}
             </div>
-            {shifts.map((shift, index) => {
-              const row = index % 3;
-              return (
-                <div
-                  key={shift.id}
-                  style={{
-                    ...blockStyle(shift),
-                    top: `${row * 62 + 8}px`,
-                  }}
-                  className={`absolute h-14 overflow-hidden rounded-lg border px-2 py-1.5 ${blockTone(shift)}`}
-                  title={`${shift.serviceTitle} · ${workerLabel(shift)}`}
-                >
-                  <p className="truncate text-[11px] font-bold">
-                    {shift.startTime}–{shift.endTime}
-                  </p>
-                  <p className="truncate text-[11px]">{shift.participantName}</p>
-                  <p className="truncate text-[10px] opacity-80">{workerLabel(shift)}</p>
-                </div>
-              );
-            })}
           </div>
-        )}
+          <div className="relative min-h-[220px] p-3">
+            {shifts.length === 0 ? (
+              <p className="py-16 text-center text-sm text-muted">No shifts on this day.</p>
+            ) : (
+              <div className="relative h-[200px]">
+                <div className="pointer-events-none absolute inset-0 flex">
+                  {HOURS.map((h) => (
+                    <div key={h} className="flex-1 border-r border-border/30 last:border-r-0" />
+                  ))}
+                </div>
+                {shifts.map((shift, index) => {
+                  const row = index % 3;
+                  return (
+                    <div
+                      key={shift.id}
+                      style={{
+                        ...blockStyle(shift),
+                        top: `${row * 62 + 8}px`,
+                      }}
+                      className={`absolute h-14 overflow-hidden rounded-lg border px-2 py-1.5 ${blockTone(shift)}`}
+                      title={`${shift.serviceTitle} · ${workerLabel(shift)}`}
+                    >
+                      <p className="truncate text-[11px] font-bold">
+                        {shift.startTime}–{shift.endTime}
+                      </p>
+                      <p className="truncate text-[11px]">{shift.participantName}</p>
+                      <p className="truncate text-[10px] opacity-80">{workerLabel(shift)}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -434,36 +441,41 @@ function WeekCalendar({
   onSelectDay: (date: string) => void;
 }) {
   return (
-    <div className="dashboard-card overflow-x-auto">
-      <div className="grid min-w-[720px] grid-cols-7 divide-x divide-border/40">
-        {dates.map((d) => {
-          const dayShifts = shifts.filter((s) => s.date === d);
-          return (
-            <div key={d} className="min-h-[280px]">
-              <button
-                type="button"
-                onClick={() => onSelectDay(d)}
-                className="w-full border-b border-border/50 bg-surface-subtle px-2 py-3 text-left hover:bg-surface"
-              >
-                <p className="text-xs font-semibold text-muted">{formatShortDate(d)}</p>
-                <p className="mt-0.5 text-[11px] text-muted">{dayShifts.length} shifts</p>
-              </button>
-              <ul className="space-y-1.5 p-2">
-                {dayShifts.map((s) => (
-                  <li
-                    key={s.id}
-                    className={`rounded-md border px-1.5 py-1.5 text-[10px] ${blockTone(s)}`}
-                  >
-                    <p className="font-bold">
-                      {s.startTime} {s.participantName.split(" ")[0]}
-                    </p>
-                    <p className="truncate opacity-80">{workerLabel(s)}</p>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          );
-        })}
+    <div className="dashboard-card overflow-hidden">
+      <p className="border-b border-border/40 px-3 py-2 text-[11px] text-muted sm:hidden">
+        Swipe sideways to browse the week.
+      </p>
+      <div className="overflow-x-auto overscroll-x-contain">
+        <div className="grid min-w-[720px] grid-cols-7 divide-x divide-border/40">
+          {dates.map((d) => {
+            const dayShifts = shifts.filter((s) => s.date === d);
+            return (
+              <div key={d} className="min-h-[280px] min-w-0">
+                <button
+                  type="button"
+                  onClick={() => onSelectDay(d)}
+                  className="w-full border-b border-border/50 bg-surface-subtle px-2 py-3 text-left hover:bg-surface"
+                >
+                  <p className="text-xs font-semibold text-muted">{formatShortDate(d)}</p>
+                  <p className="mt-0.5 text-[11px] text-muted">{dayShifts.length} shifts</p>
+                </button>
+                <ul className="space-y-1.5 p-2">
+                  {dayShifts.map((s) => (
+                    <li
+                      key={s.id}
+                      className={`rounded-md border px-1.5 py-1.5 text-[10px] ${blockTone(s)}`}
+                    >
+                      <p className="font-bold">
+                        {s.startTime} {s.participantName.split(" ")[0]}
+                      </p>
+                      <p className="truncate opacity-80">{workerLabel(s)}</p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

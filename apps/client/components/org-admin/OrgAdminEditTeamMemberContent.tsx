@@ -6,7 +6,8 @@ import { PageHeader } from "@/components/dashboard/PageHeader";
 import { useGetOrgTeamMemberQuery, useUpdateTeamMemberMutation } from "@/lib/api/authApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
 import { useToast } from "@/components/toast/ToastProvider";
-import type { UserStatus, WorkforceRole } from "@/lib/api/types";
+import type { UserStatus } from "@/lib/api/types";
+import { ConstrainedSelect } from "@/components/ui/ConstrainedSelect";
 import { REGISTERABLE_ROLES } from "@/lib/dashboard/content/org-admin-team";
 import { inputClass, labelClass } from "@/lib/onboarding/form-styles";
 
@@ -26,7 +27,19 @@ function statusOptionsForMember(current: UserStatus) {
   return ALL_STATUS_OPTIONS.filter((option) => option.value !== "INVITED");
 }
 
+function formatRole(role: string) {
+  return (
+    REGISTERABLE_ROLES.find((item) => item.code === role)?.label ??
+    role
+      .toLowerCase()
+      .split("_")
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ")
+  );
+}
+
 // Org Admin edit form for a workforce member (not the Org Admin account).
+// Role is assigned at invite and cannot be changed here.
 export function OrgAdminEditTeamMemberContent({ memberId }: OrgAdminEditTeamMemberContentProps) {
   const { toast } = useToast();
   const { data: member, isLoading, error } = useGetOrgTeamMemberQuery(memberId);
@@ -36,7 +49,6 @@ export function OrgAdminEditTeamMemberContent({ memberId }: OrgAdminEditTeamMemb
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<WorkforceRole>("EMPLOYEE");
   const [status, setStatus] = useState<UserStatus>("INVITED");
 
   useEffect(() => {
@@ -44,13 +56,6 @@ export function OrgAdminEditTeamMemberContent({ memberId }: OrgAdminEditTeamMemb
     setFirstName(member.firstName);
     setLastName(member.lastName);
     setEmail(member.email);
-    if (
-      member.role === "MANAGER" ||
-      member.role === "ROSTERING_EXPERT" ||
-      member.role === "EMPLOYEE"
-    ) {
-      setRole(member.role);
-    }
     setStatus(member.status);
   }, [member]);
 
@@ -64,7 +69,6 @@ export function OrgAdminEditTeamMemberContent({ memberId }: OrgAdminEditTeamMemb
         firstName,
         lastName,
         email,
-        role,
         status,
       }).unwrap();
       toast({ variant: "success", title: "Member updated" });
@@ -104,7 +108,7 @@ export function OrgAdminEditTeamMemberContent({ memberId }: OrgAdminEditTeamMemb
     <div className="space-y-6">
       <PageHeader
         title="Edit team member"
-        description="Update name, email, role, or access status."
+        description="Update name, email, or access status. Role is set when the member is invited."
         action={
           <Link href="/org-admin/team" className="btn-secondary">
             Back to team
@@ -142,33 +146,27 @@ export function OrgAdminEditTeamMemberContent({ memberId }: OrgAdminEditTeamMemb
               required
             />
           </label>
-          <label className="block">
+          <div className="block">
             <span className={labelClass}>Role</span>
-            <select
-              className={inputClass}
-              value={role}
-              onChange={(e) => setRole(e.target.value as WorkforceRole)}
-            >
-              {REGISTERABLE_ROLES.map((item) => (
-                <option key={item.code} value={item.code}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-          </label>
+            <p className={`${inputClass} flex items-center bg-surface-muted text-foreground`}>
+              {formatRole(member.role)}
+            </p>
+            <p className="mt-2 text-xs text-muted">
+              Role is assigned at invite and cannot be changed. Invite a new member if a
+              different role is needed.
+            </p>
+          </div>
           <label className="block md:col-span-2">
             <span className={labelClass}>Access status</span>
-            <select
-              className={inputClass}
+            <ConstrainedSelect
+              aria-label="Access status"
               value={status}
-              onChange={(e) => setStatus(e.target.value as UserStatus)}
-            >
-              {statusOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+              onChange={(next) => setStatus(next as UserStatus)}
+              options={statusOptions.map((option) => ({
+                value: option.value,
+                label: option.label,
+              }))}
+            />
             {member.status !== "INVITED" ? (
               <p className="mt-2 text-xs text-muted">
                 Invited is only used before the member sets a password. Use Suspended to block

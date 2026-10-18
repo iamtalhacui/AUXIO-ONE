@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardSidebar } from "@/components/dashboard/DashboardSidebar";
 import { useConfirmOrgSession } from "@/components/auth/useConfirmOrgSession";
+import { MaintenanceBanner } from "@/components/maintenance/MaintenanceBanner";
 import { useListOrgModulesQuery } from "@/lib/api/authApi";
 import {
   getDashboardConfigForPath,
@@ -96,6 +97,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
           notificationsEnabled={notificationsEnabled}
         />
         <div className="dashboard-content">
+          {!isPlatform ? <MaintenanceBanner /> : null}
           {dashboardDisabled ? <DashboardUnavailable /> : children}
         </div>
       </main>

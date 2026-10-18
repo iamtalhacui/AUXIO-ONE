@@ -422,11 +422,11 @@ enum ShiftStatus {
   OFFERED
   ACCEPTED
   IN_PROGRESS
-  // Outside ±15 minute margin — waiting for Org Admin.
+  // Outside allowed time windows — waiting for Manager.
   PENDING_APPROVAL
-  // Auto-approved (within margin) or Org Admin approved.
+  // Auto-approved (within window) or Manager approved.
   APPROVED
-  // Org Admin rejected the submitted variance.
+  // Manager rejected the submitted variance.
   REJECTED
   CANCELLED
 }
@@ -593,7 +593,14 @@ model AvailabilityException {
 
 model PlatformSetting {
   id              String   @id @default("default")
+  /** True while org access is locked (synced from the schedule window). */
   maintenanceMode Boolean  @default(false)
+  /** When the maintenance window starts (null = no schedule). */
+  maintenanceStartsAt DateTime?
+  /** When the window ends (null = open-ended until cleared). */
+  maintenanceEndsAt   DateTime?
+  /** Optional notice shown to org users before/during maintenance. */
+  maintenanceMessage  String?
   updatedAt       DateTime @updatedAt
 }
 

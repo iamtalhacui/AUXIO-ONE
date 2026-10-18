@@ -32,7 +32,7 @@ export function NowStrip({ shift, now, offersCount, onViewOffers }: Props) {
             Review {offersCount} offer{offersCount === 1 ? "" : "s"}
           </button>
         ) : (
-          <Link href="/employee/availability" className="btn-secondary">
+          <Link href="/my-availability" className="btn-secondary">
             Update availability
           </Link>
         )}
@@ -63,7 +63,7 @@ export function NowStrip({ shift, now, offersCount, onViewOffers }: Props) {
             </p>
           </div>
 
-          <Link href={`/employee/shifts/${shift.id}`} className="btn-primary shrink-0">
+          <Link href={`/my-shifts/${shift.id}`} className="btn-primary shrink-0">
             {live
               ? "Resume shift"
               : clock.canStartNow

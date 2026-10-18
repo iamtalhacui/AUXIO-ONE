@@ -142,7 +142,7 @@ export function EmployeeNeedsAttentionCard({
               : `${total} item${total === 1 ? "" : "s"} need you`}
           </p>
         </div>
-        <Link href="/employee/shifts" className="text-sm font-semibold text-primary">
+        <Link href="/my-shifts" className="text-sm font-semibold text-primary">
           All shifts
         </Link>
       </div>
@@ -181,7 +181,7 @@ export function EmployeeNeedsAttentionCard({
                     key={item.shiftId}
                     item={item}
                     cta="Continue"
-                    href={`/employee/shifts/${item.shiftId}`}
+                    href={`/my-shifts/${item.shiftId}`}
                   />
                 ))}
               </ul>
@@ -202,7 +202,7 @@ export function EmployeeNeedsAttentionCard({
                     key={item.shiftId}
                     item={item}
                     cta="Open"
-                    href={`/employee/shifts/${item.shiftId}`}
+                    href={`/my-shifts/${item.shiftId}`}
                   />
                 ))}
               </ul>
@@ -218,7 +218,7 @@ export function EmployeeNeedsAttentionCard({
                 <ActionRow
                   item={attention.nextShift}
                   cta="View"
-                  href={`/employee/shifts/${attention.nextShift.shiftId}`}
+                  href={`/my-shifts/${attention.nextShift.shiftId}`}
                 />
               </ul>
             </div>

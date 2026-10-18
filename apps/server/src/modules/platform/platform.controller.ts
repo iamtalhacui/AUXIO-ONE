@@ -21,13 +21,13 @@ export class PlatformController {
     return this.platform.getSettings();
   }
 
-  // Persist maintenance mode and write an audit row.
+  // Schedule, emergency-on, or clear maintenance (single engine).
   @Patch('settings')
   setSettings(
     @CurrentSuperAdmin() admin: PlatformJwtPayload,
     @Body() dto: UpdatePlatformSettingsDto,
   ) {
-    return this.platform.setMaintenanceMode(dto.maintenanceMode, admin.email);
+    return this.platform.updateMaintenance(dto, admin.email);
   }
 
   @Get('audit')

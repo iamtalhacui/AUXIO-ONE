@@ -1,5 +1,6 @@
-import { ShiftApprovalsContent } from "@/components/org-admin/ShiftApprovalsContent";
+import { redirect } from "next/navigation";
 
-export default function ShiftApprovalsPage() {
-  return <ShiftApprovalsContent />;
+/** Out-of-window shift approvals are owned by Managers now. */
+export default function LegacyOrgAdminShiftApprovalsPage() {
+  redirect("/org-admin");
 }

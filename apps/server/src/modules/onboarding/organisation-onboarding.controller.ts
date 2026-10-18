@@ -23,25 +23,35 @@ import { OnboardingService } from './onboarding.service';
 export class OrganisationOnboardingController {
   constructor(private readonly onboarding: OnboardingService) {}
 
-  // List onboarding submissions in this organisation (Org Admin).
+  // List onboarding submissions (Org Admin or Manager with APPROVE_ONBOARDING).
   @Get()
   list(
     @CurrentOrgUser() user: OrgJwtPayload,
     @Query('status') status?: string,
   ) {
-    return this.onboarding.listForAdmin(user.organisationId, user.role, status);
+    return this.onboarding.listForAdmin(
+      user.organisationId,
+      user.role,
+      user.sub,
+      status,
+    );
   }
 
-  // Full submission detail for review (Org Admin).
+  // Full submission detail for review.
   @Get(':userId')
   getByUser(
     @CurrentOrgUser() user: OrgJwtPayload,
     @Param('userId') userId: string,
   ) {
-    return this.onboarding.getForAdmin(user.organisationId, user.role, userId);
+    return this.onboarding.getForAdmin(
+      user.organisationId,
+      user.role,
+      user.sub,
+      userId,
+    );
   }
 
-  // Download a member document during review (Org Admin).
+  // Download a member document during review.
   @Get(':userId/documents/:documentId')
   async downloadDocument(
     @CurrentOrgUser() user: OrgJwtPayload,
@@ -52,6 +62,7 @@ export class OrganisationOnboardingController {
     const result = await this.onboarding.downloadDocumentForAdmin(
       user.organisationId,
       user.role,
+      user.sub,
       userId,
       documentId,
     );

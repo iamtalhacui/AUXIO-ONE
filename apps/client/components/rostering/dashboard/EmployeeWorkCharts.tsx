@@ -45,16 +45,16 @@ function WeekLoadBars({
   }
 
   return (
-    <div className="flex h-36 flex-col justify-center gap-3">
+    <div className="space-y-3">
       {weekLoad.map((day) => (
-        <div key={day.date}>
-          <div className="mb-1 flex items-center justify-between text-xs">
-            <span className="text-muted">{formatShortDate(day.date)}</span>
-            <span className="font-semibold">{day.count}</span>
+        <div key={day.date} className="min-w-0">
+          <div className="mb-1.5 flex items-center justify-between gap-3 text-xs">
+            <span className="truncate text-muted">{formatShortDate(day.date)}</span>
+            <span className="shrink-0 font-semibold tabular-nums">{day.count}</span>
           </div>
-          <div className="h-2 overflow-hidden rounded-full bg-[#f0eeeb]">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-[#f0eeeb]">
             <div
-              className="h-full rounded-full bg-primary"
+              className="h-full rounded-full bg-primary transition-[width]"
               style={{ width: `${(day.count / max) * 100}%` }}
             />
           </div>
@@ -156,7 +156,7 @@ function AvailabilitySnapshot({
       <div className="flex h-36 flex-col items-center justify-center gap-2 text-center text-sm text-muted">
         <p>Availability not set yet</p>
         <Link
-          href="/employee/availability"
+          href="/my-availability"
           className="font-semibold text-primary hover:underline"
         >
           Set availability →

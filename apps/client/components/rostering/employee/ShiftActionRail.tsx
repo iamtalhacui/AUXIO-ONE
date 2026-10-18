@@ -2,7 +2,6 @@
 
 import type { ScheduleShift } from "@/lib/api/types";
 import {
-  EARLY_END_ALLOW_MINUTES,
   EARLY_START_ALLOW_MINUTES,
   LATE_END_ALLOW_MINUTES,
   LATE_START_APPROVAL_MINUTES,
@@ -110,7 +109,7 @@ export function ShiftActionRail({
             <p className="rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-xs font-medium text-amber-900">
               Scheduled start is in {formatCountdown(clock.msToStart)}. You can start now
               (within the {EARLY_START_ALLOW_MINUTES}-minute early window). Starting more
-              than {LATE_START_APPROVAL_MINUTES} minutes late will need Org Admin approval
+              than {LATE_START_APPROVAL_MINUTES} minutes late will need Manager approval
               when you finish.
             </p>
           ) : null}
@@ -173,8 +172,8 @@ export function ShiftActionRail({
           <p className="mt-1 text-sm text-muted">
             Your start or end time was outside the allowed windows (start within{" "}
             {EARLY_START_ALLOW_MINUTES} min early / {LATE_START_APPROVAL_MINUTES} min late;
-            end within {EARLY_END_ALLOW_MINUTES / 60} h early / {LATE_END_ALLOW_MINUTES} min
-            late), so an Org Admin is reviewing this shift.
+            end within {clock.earlyEndAllowMinutes} min early / {LATE_END_ALLOW_MINUTES}{" "}
+            min late), so a Manager is reviewing this shift.
           </p>
         </section>
       ) : null}
@@ -185,15 +184,20 @@ export function ShiftActionRail({
 function VarianceMeter({ clock }: { clock: ShiftClock }) {
   const endVariance = clock.endVarianceMinutes ?? 0;
   const startVariance = clock.startVarianceMinutes ?? 0;
+  const durationGuess =
+    Math.max(
+      1,
+      Math.round((clock.scheduledEnd.getTime() - clock.scheduledStart.getTime()) / 60000),
+    );
   const outside =
     clock.outsideMargin ||
-    needsFinishApproval(startVariance, endVariance);
+    needsFinishApproval(startVariance, endVariance, durationGuess);
   const worst = Math.max(
     Math.abs(startVariance),
     Math.abs(endVariance),
     LATE_START_APPROVAL_MINUTES,
   );
-  const fill = Math.min(100, (worst / (EARLY_END_ALLOW_MINUTES / 2)) * 100);
+  const fill = Math.min(100, (worst / Math.max(clock.earlyEndAllowMinutes, 1)) * 100);
 
   return (
     <div className="rounded-lg border border-border/60 bg-surface-subtle px-3.5 py-3">

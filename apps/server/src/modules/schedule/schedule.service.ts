@@ -8,6 +8,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { OrganisationsService } from '../organisations/organisations.service';
 import { PermissionsService } from '../permissions/permissions.service';
+import { isConfigurableRole } from 'database/role-permissions';
 import type {
   CreateShiftDto,
   PreviewRecurrenceDto,
@@ -21,17 +22,29 @@ import {
   DEFAULT_SERVICE_LINE_TASKS,
 } from './default-service-line-tasks';
 
+const ASSIGNABLE_ROLES = ['MANAGER', 'ROSTERING_EXPERT', 'EMPLOYEE'] as const;
+
 /** Finish auto-approves when start/end stay inside these windows. */
 export const LATE_START_APPROVAL_MINUTES = 15;
 /** Employees may start from this many minutes before scheduled start. */
 export const EARLY_START_ALLOW_MINUTES = 30;
-/** Finish more than this many minutes before scheduled end → approval. */
-export const EARLY_END_ALLOW_MINUTES = 3 * 60;
+/**
+ * Max minutes before scheduled end that still auto-approves.
+ * Short shifts use min(this, half duration) so a 45–60m visit cannot
+ * auto-approve after doing only a small fraction of the service.
+ */
+export const EARLY_END_ALLOW_MINUTES = 30;
 /** Finish more than this many minutes after scheduled end → approval. */
 export const LATE_END_ALLOW_MINUTES = 15;
 
 /** @deprecated Prefer the named start/end window constants above. */
 export const VARIANCE_MARGIN_MINUTES = LATE_START_APPROVAL_MINUTES;
+
+/** Early-end allow for one shift: min(30, half duration), at least 1 minute. */
+export function earlyEndAllowMinutes(durationMinutes: number): number {
+  const half = Math.floor(Math.max(0, durationMinutes) / 2);
+  return Math.max(1, Math.min(EARLY_END_ALLOW_MINUTES, half));
+}
 
 const COVERED_STATUSES = new Set([
   'ACCEPTED',
@@ -106,10 +119,12 @@ function zonedWallTimeToUtc(dateKey: string, hhmm: string, timeZone: string): Da
 function needsFinishApproval(
   startVarianceMinutes: number,
   endVarianceMinutes: number,
+  durationMinutes: number,
 ): boolean {
+  const earlyEndAllow = earlyEndAllowMinutes(durationMinutes);
   const startedTooLate = startVarianceMinutes > LATE_START_APPROVAL_MINUTES;
   const startedTooEarly = startVarianceMinutes < -EARLY_START_ALLOW_MINUTES;
-  const endedTooEarly = endVarianceMinutes < -EARLY_END_ALLOW_MINUTES;
+  const endedTooEarly = endVarianceMinutes < -earlyEndAllow;
   const endedTooLate = endVarianceMinutes > LATE_END_ALLOW_MINUTES;
   return startedTooLate || startedTooEarly || endedTooEarly || endedTooLate;
 }
@@ -232,10 +247,70 @@ export class ScheduleService {
     );
   }
 
-  private assertEmployee(role: string) {
-    if (role !== 'EMPLOYEE') {
-      throw new ForbiddenException('Only employees can access this resource');
-    }
+  private async assertViewMyShifts(organisationId: string, role: string) {
+    await this.permissions.assertAction(
+      organisationId,
+      role,
+      'VIEW_MY_SHIFTS',
+    );
+  }
+
+  private async assertManageMyAvailability(
+    organisationId: string,
+    role: string,
+  ) {
+    await this.permissions.assertAction(
+      organisationId,
+      role,
+      'MANAGE_MY_AVAILABILITY',
+    );
+  }
+
+  private async assertExecuteMyShifts(organisationId: string, role: string) {
+    await this.permissions.assertAction(
+      organisationId,
+      role,
+      'EXECUTE_MY_SHIFTS',
+    );
+  }
+
+  private async assertViewMyShiftsOrTimesheets(
+    organisationId: string,
+    role: string,
+  ) {
+    await this.permissions.assertAnyAction(organisationId, role, [
+      'VIEW_MY_SHIFTS',
+      'VIEW_MY_TIMESHEETS',
+    ]);
+  }
+
+  /** Active users whose role matrix allows ASSIGNABLE_AS_WORKER (not Org Admin). */
+  private async findAssignableWorkerUsers(organisationId: string) {
+    const [users, matrix] = await Promise.all([
+      this.prisma.user.findMany({
+        where: {
+          organisationId,
+          status: 'ACTIVE',
+          role: { in: [...ASSIGNABLE_ROLES] },
+        },
+        orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+          onboardingStatus: true,
+          weeklyAvailability: true,
+        },
+      }),
+      this.permissions.getMatrix(organisationId),
+    ]);
+
+    return users.filter(
+      (user) =>
+        isConfigurableRole(user.role) &&
+        matrix[user.role].actions.ASSIGNABLE_AS_WORKER,
+    );
   }
 
   // ─── Time helpers ───────────────────────────────────────
@@ -438,36 +513,23 @@ export class ScheduleService {
     }));
   }
 
-  /** Active verified employees available for matching. */
+  /** Active assignable workers available for matching (permission-gated). */
   async listWorkers(organisationId: string, role: string) {
     await this.assertSchedulePage(organisationId, role);
 
-    const workers = await this.prisma.user.findMany({
-      where: {
-        organisationId,
-        role: 'EMPLOYEE',
-        status: 'ACTIVE',
-        onboardingStatus: 'VERIFIED',
-      },
-      orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        onboardingStatus: true,
-        weeklyAvailability: true,
-      },
-    });
+    const workers = await this.findAssignableWorkerUsers(organisationId);
 
-    return workers.map((w) => ({
-      id: w.id,
-      firstName: w.firstName,
-      lastName: w.lastName,
-      displayName: `${w.firstName} ${w.lastName}`,
-      // Phase A readiness: verified onboarding = ready / compliance OK.
-      complianceOk: w.onboardingStatus === 'VERIFIED',
-      hasAvailabilityPattern: w.weeklyAvailability.some((d) => d.enabled),
-    }));
+    return workers
+      .filter((w) => w.onboardingStatus === 'VERIFIED')
+      .map((w) => ({
+        id: w.id,
+        firstName: w.firstName,
+        lastName: w.lastName,
+        displayName: `${w.firstName} ${w.lastName}`,
+        // Phase A readiness: verified onboarding = ready / compliance OK.
+        complianceOk: w.onboardingStatus === 'VERIFIED',
+        hasAvailabilityPattern: w.weeklyAvailability.some((d) => d.enabled),
+      }));
   }
 
   // ─── List / get shifts (Rostering Expert) ───────────────
@@ -879,7 +941,7 @@ export class ScheduleService {
       type: 'INFO',
       title: 'Shift assigned to you',
       message: `You've been assigned a ${updated.serviceTitle} shift on ${this.formatDateOnly(updated.date)} (${updated.startTime}–${updated.endTime}).`,
-      link: `/employee/shifts/${updated.id}`,
+      link: `/my-shifts/${updated.id}`,
     });
 
     return this.toShiftDto(updated);
@@ -946,26 +1008,19 @@ export class ScheduleService {
     return this.toShiftDto(updated);
   }
 
-  /** Notify active employees about a broadcast shift (eligibility re-checked on accept). */
+  /** Notify assignable workers about a broadcast shift (eligibility re-checked on accept). */
   private async notifyBroadcastEligible(
     organisationId: string,
     shift: ShiftRow,
   ) {
-    const workers = await this.prisma.user.findMany({
-      where: {
-        organisationId,
-        role: 'EMPLOYEE',
-        status: 'ACTIVE',
-      },
-      select: { id: true },
-    });
+    const workers = await this.findAssignableWorkerUsers(organisationId);
 
     for (const worker of workers) {
       void this.notifications.notifyUser(worker.id, organisationId, {
         type: 'INFO',
         title: 'Open shift available',
         message: `A ${shift.serviceTitle} shift on ${this.formatDateOnly(shift.date)} (${shift.startTime}–${shift.endTime}) is open — first to accept gets it.`,
-        link: `/employee/shifts/${shift.id}`,
+        link: `/my-shifts/${shift.id}`,
       });
     }
   }
@@ -979,21 +1034,9 @@ export class ScheduleService {
       return [];
     }
 
-    const workers = await this.prisma.user.findMany({
-      where: {
-        organisationId,
-        role: 'EMPLOYEE',
-        status: 'ACTIVE',
-      },
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        onboardingStatus: true,
-      },
-    });
+    const workers = await this.findAssignableWorkerUsers(organisationId);
 
-    // Collect matching scores for every active employee (hard rules only).
+    // Collect matching scores for every assignable worker (hard rules only).
     type CandidateRow = {
       workerId: string;
       displayName: string;
@@ -1030,7 +1073,11 @@ export class ScheduleService {
     workerId: string,
   ) {
     const worker = await this.prisma.user.findFirst({
-      where: { id: workerId, organisationId, role: 'EMPLOYEE' },
+      where: {
+        id: workerId,
+        organisationId,
+        role: { in: [...ASSIGNABLE_ROLES] },
+      },
     });
     if (!worker || worker.status !== 'ACTIVE') {
       return {
@@ -1043,6 +1090,16 @@ export class ScheduleService {
     }
 
     const blockers: string[] = [];
+
+    const assignable =
+      isConfigurableRole(worker.role) &&
+      (await this.permissions.hasAction(
+        organisationId,
+        worker.role,
+        'ASSIGNABLE_AS_WORKER',
+      ));
+    if (!assignable) blockers.push('Not assignable as a worker');
+
     const complianceOk = worker.onboardingStatus === 'VERIFIED';
     if (!complianceOk) blockers.push('Not ready / onboarding incomplete');
 
@@ -1053,10 +1110,10 @@ export class ScheduleService {
     const hasConflict = await this.workerHasConflict(organisationId, workerId, shift);
     if (hasConflict) blockers.push('Scheduling conflict');
 
-    // Fully ready = verified + fully available + no conflict.
+    // Fully ready = assignable + verified + fully available + no conflict.
     // Partial availability must never look fully ready (OX-032).
     const eligible =
-      complianceOk && availability === 'FULL' && !hasConflict;
+      assignable && complianceOk && availability === 'FULL' && !hasConflict;
 
     return {
       eligible,
@@ -1129,7 +1186,7 @@ export class ScheduleService {
   // ─── Employee: my shifts ────────────────────────────────
 
   async listMyShifts(organisationId: string, userId: string, role: string) {
-    this.assertEmployee(role);
+    await this.assertViewMyShiftsOrTimesheets(organisationId, role);
 
     const shifts = await this.prisma.shift.findMany({
       where: {
@@ -1156,7 +1213,7 @@ export class ScheduleService {
     role: string,
     shiftId: string,
   ) {
-    this.assertEmployee(role);
+    await this.assertViewMyShifts(organisationId, role);
     const shift = await this.prisma.shift.findFirst({
       where: {
         id: shiftId,
@@ -1181,7 +1238,7 @@ export class ScheduleService {
     role: string,
     shiftId: string,
   ) {
-    this.assertEmployee(role);
+    await this.assertViewMyShifts(organisationId, role);
     const shift = await this.findOrgShift(organisationId, shiftId);
 
     const isPersonalOffer =
@@ -1242,7 +1299,7 @@ export class ScheduleService {
     role: string,
     shiftId: string,
   ) {
-    this.assertEmployee(role);
+    await this.assertViewMyShifts(organisationId, role);
     const shift = await this.findOrgShift(organisationId, shiftId);
 
     if (shift.isBroadcast && shift.status === 'OFFERED' && !shift.offeredWorkerId) {
@@ -1289,7 +1346,7 @@ export class ScheduleService {
     role: string,
     customerId: string,
   ) {
-    this.assertEmployee(role);
+    await this.assertViewMyShifts(organisationId, role);
 
     const relationship = await this.prisma.shift.findFirst({
       where: {
@@ -1362,7 +1419,7 @@ export class ScheduleService {
   // ─── Employee availability (OX-029) ─────────────────────
 
   async getMyAvailability(organisationId: string, userId: string, role: string) {
-    this.assertEmployee(role);
+    await this.assertManageMyAvailability(organisationId, role);
 
     const weekly = await this.prisma.workerAvailability.findMany({
       where: { userId, organisationId },
@@ -1404,7 +1461,7 @@ export class ScheduleService {
     role: string,
     dto: SaveAvailabilityDto,
   ) {
-    this.assertEmployee(role);
+    await this.assertManageMyAvailability(organisationId, role);
 
     if (dto.weekly.length !== 7) {
       throw new BadRequestException('Provide all 7 weekdays');
@@ -1613,7 +1670,7 @@ export class ScheduleService {
     role: string,
     shiftId: string,
   ) {
-    this.assertEmployee(role);
+    await this.assertExecuteMyShifts(organisationId, role);
     const shift = await this.findOrgShift(organisationId, shiftId);
 
     if (shift.assignedWorkerId !== userId || shift.status !== 'ACCEPTED') {
@@ -1653,7 +1710,7 @@ export class ScheduleService {
     shiftId: string,
     taskId: string,
   ) {
-    this.assertEmployee(role);
+    await this.assertExecuteMyShifts(organisationId, role);
     const shift = await this.findOrgShift(organisationId, shiftId);
 
     if (shift.assignedWorkerId !== userId) {
@@ -1686,7 +1743,7 @@ export class ScheduleService {
     shiftId: string,
     dto: SaveProgressNoteDto,
   ) {
-    this.assertEmployee(role);
+    await this.assertExecuteMyShifts(organisationId, role);
     const shift = await this.findOrgShift(organisationId, shiftId);
 
     if (shift.assignedWorkerId !== userId) {
@@ -1708,7 +1765,7 @@ export class ScheduleService {
    * Finish the shift.
    * Auto-approve when:
    *  - start within 30 min early … 15 min late of scheduled start, and
-   *  - end within 3 hours early … 15 min late of scheduled end.
+   *  - end within min(30, half duration) early … 15 min late of scheduled end.
    * Otherwise finishReason required → PENDING_APPROVAL for Org Admin.
    */
   async finishMyShift(
@@ -1718,7 +1775,7 @@ export class ScheduleService {
     shiftId: string,
     finishReason?: string,
   ) {
-    this.assertEmployee(role);
+    await this.assertExecuteMyShifts(organisationId, role);
     const shift = await this.findOrgShift(organisationId, shiftId);
 
     if (shift.assignedWorkerId !== userId || shift.status !== 'IN_PROGRESS') {
@@ -1754,12 +1811,17 @@ export class ScheduleService {
     // Positive = late/after scheduled; negative = early/before scheduled.
     const startVarianceMinutes = this.minutesBetween(scheduledStart, shift.actualStartedAt);
     const endVarianceMinutes = this.minutesBetween(scheduledEnd, now);
+    const earlyEndAllow = earlyEndAllowMinutes(shift.durationMinutes);
 
-    const outsideMargin = needsFinishApproval(startVarianceMinutes, endVarianceMinutes);
+    const outsideMargin = needsFinishApproval(
+      startVarianceMinutes,
+      endVarianceMinutes,
+      shift.durationMinutes,
+    );
 
     if (outsideMargin && !finishReason?.trim()) {
       throw new BadRequestException(
-        `A reason is required when you start more than ${LATE_START_APPROVAL_MINUTES} minutes late, finish more than ${EARLY_END_ALLOW_MINUTES / 60} hours early, or finish more than ${LATE_END_ALLOW_MINUTES} minutes after the scheduled end`,
+        `A reason is required when you start more than ${LATE_START_APPROVAL_MINUTES} minutes late, finish more than ${earlyEndAllow} minutes early, or finish more than ${LATE_END_ALLOW_MINUTES} minutes after the scheduled end`,
       );
     }
 
@@ -1781,18 +1843,18 @@ export class ScheduleService {
     });
 
     if (outsideMargin) {
-      void this.notifications.notifyRole(organisationId, 'ORG_ADMIN', {
+      void this.notifications.notifyRole(organisationId, 'MANAGER', {
         type: 'WARNING',
         title: 'Shift needs approval',
         message: `${updated.assignedWorker?.firstName ?? 'A worker'}'s ${updated.serviceTitle} shift finished outside the allowed time windows and needs approval.`,
-        link: '/org-admin/shift-approvals',
+        link: '/shift-approvals',
       });
     }
 
     return this.toShiftDto(updated);
   }
 
-  // ─── Org Admin approval queue ───────────────────────────
+  // ─── Manager approval queue (out-of-window finishes) ────
 
   async listPendingApprovals(organisationId: string, role: string) {
     await this.assertApproveServiceDelivery(organisationId, role);
@@ -1823,7 +1885,7 @@ export class ScheduleService {
         status: 'APPROVED',
         reviewedById: actorId,
         reviewedAt: new Date(),
-        reviewNote: reviewNote?.trim() || 'Approved by Org Admin',
+        reviewNote: reviewNote?.trim() || 'Approved by Manager',
       },
       include: this.shiftInclude,
     });
@@ -1833,7 +1895,7 @@ export class ScheduleService {
         type: 'SUCCESS',
         title: 'Shift approved',
         message: `Your ${updated.serviceTitle} shift on ${this.formatDateOnly(updated.date)} was approved.`,
-        link: `/employee/shifts/${updated.id}`,
+        link: `/my-shifts/${updated.id}`,
       });
     }
 
@@ -1872,7 +1934,7 @@ export class ScheduleService {
         type: 'ERROR',
         title: 'Shift rejected',
         message: `Your ${updated.serviceTitle} shift on ${this.formatDateOnly(updated.date)} was rejected: ${reviewNote.trim()}`,
-        link: `/employee/shifts/${updated.id}`,
+        link: `/my-shifts/${updated.id}`,
       });
     }
 
@@ -1880,27 +1942,27 @@ export class ScheduleService {
   }
 
   /**
-   * Rostering Expert home dashboard — coverage + open matching work.
-   * Soft-gates when SCHEDULE module is disabled.
+   * Rostering Expert home — always reachable when Dashboard can open.
+   * Soft-gates schedule sections by module + SCHEDULE page permission
+   * (does not 403 when Schedule page access is off).
    */
   async getRosterOverview(organisationId: string, role: string) {
-    await this.assertSchedulePage(organisationId, role);
-
     const now = new Date();
 
-    const [org, moduleRows] = await Promise.all([
+    const [org, moduleRows, hasSchedulePage] = await Promise.all([
       this.prisma.organisation.findUnique({
         where: { id: organisationId },
         select: { name: true, timezone: true },
       }),
       this.organisations.listOrgModules(organisationId),
+      this.permissions.hasPage(organisationId, role, 'SCHEDULE'),
     ]);
 
     if (!org) throw new NotFoundException('Organisation not found');
 
-    const scheduleEnabled = moduleRows.some(
-      (m) => m.code === 'SCHEDULE' && m.enabled,
-    );
+    const scheduleEnabled =
+      hasSchedulePage &&
+      moduleRows.some((m) => m.code === 'SCHEDULE' && m.enabled);
 
     const emptyFunnel = {
       DRAFT: 0,
@@ -2127,7 +2189,7 @@ export class ScheduleService {
   }
 
   /**
-   * Employee home dashboard — personal offers, shifts, availability.
+   * Personal home dashboard — offers, shifts, availability for the signed-in user.
    * Soft-gates SCHEDULE / SERVICE_DELIVERY modules.
    */
   async getEmployeeOverview(
@@ -2135,7 +2197,12 @@ export class ScheduleService {
     userId: string,
     role: string,
   ) {
-    this.assertEmployee(role);
+    await this.permissions.assertAnyAction(organisationId, role, [
+      'VIEW_MY_SHIFTS',
+      'VIEW_MY_TIMESHEETS',
+      'MANAGE_MY_AVAILABILITY',
+      'EXECUTE_MY_SHIFTS',
+    ]);
 
     const now = new Date();
 

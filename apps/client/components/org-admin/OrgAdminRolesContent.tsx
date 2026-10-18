@@ -86,6 +86,10 @@ export function OrgAdminRolesContent() {
   }
 
   function setAction(action: ActionPermission, enabled: boolean) {
+    // Approve Onboarding can only be granted to Manager.
+    if (action === "APPROVE_ONBOARDING" && activeRole !== "MANAGER") {
+      return;
+    }
     setDraft((prev) => ({
       ...prev,
       [activeRole]: {
@@ -220,7 +224,11 @@ export function OrgAdminRolesContent() {
             Business actions this role may perform when the related module is enabled.
           </p>
           <div className="mt-3 divide-y divide-border/70 rounded-xl border border-border/80">
-            {ACTION_PERMISSIONS.map((action) => (
+            {ACTION_PERMISSIONS.filter(
+              (action) =>
+                // Approve Onboarding is Manager-only (Org Admin always has it).
+                action !== "APPROVE_ONBOARDING" || activeRole === "MANAGER",
+            ).map((action) => (
               <ToggleRow
                 key={action}
                 id={`action-${activeRole}-${action}`}

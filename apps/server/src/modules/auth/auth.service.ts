@@ -89,9 +89,11 @@ export class AuthService {
       throw new UnauthorizedException('Account is not active');
     }
 
-    if (await this.platform.isMaintenanceMode()) {
+    const maintenance = await this.platform.getMaintenanceStatus();
+    if (maintenance.active) {
       throw new ForbiddenException(
-        'The platform is in maintenance mode. Please try again later.',
+        maintenance.message ||
+          'The platform is in maintenance mode. Please try again later.',
       );
     }
 

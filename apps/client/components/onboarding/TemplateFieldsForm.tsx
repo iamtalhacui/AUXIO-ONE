@@ -1,6 +1,8 @@
 "use client";
 
 import type { ChangeEvent } from "react";
+import { ConstrainedDateInput } from "@/components/ui/ConstrainedDateInput";
+import { ConstrainedSelect } from "@/components/ui/ConstrainedSelect";
 import type { FieldDef } from "@/lib/onboarding/templates";
 import type { OnboardingFormValues } from "@/lib/onboarding/wizard-state";
 import { inputClass, labelClass } from "@/lib/onboarding/form-styles";
@@ -98,19 +100,41 @@ export function TemplateFieldsForm({ fields, values, onChange }: TemplateFieldsF
                 {field.label}
                 <RequiredMark required={field.required} />
               </span>
-              <select
-                value={typeof value === "string" ? value : ""}
-                onChange={onInput(field.key)}
-                disabled={field.readOnly}
-                className={`${inputClass} mt-1.5 ${field.readOnly ? "bg-surface-muted" : ""}`}
-              >
-                <option value="">Select…</option>
-                {field.options.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+              <div className="mt-1.5">
+                <ConstrainedSelect
+                  aria-label={field.label}
+                  value={typeof value === "string" ? value : ""}
+                  disabled={field.readOnly}
+                  placeholder="Select…"
+                  onChange={(next) => setValue(field.key, next)}
+                  options={[
+                    { value: "", label: "Select…" },
+                    ...field.options.map((option) => ({
+                      value: option.value,
+                      label: option.label,
+                    })),
+                  ]}
+                />
+              </div>
+            </label>
+          );
+        }
+
+        if (field.type === "date") {
+          return (
+            <label key={field.key} className={`block ${wrapperClass}`}>
+              <span className={labelClass}>
+                {field.label}
+                <RequiredMark required={field.required} />
+              </span>
+              <div className="mt-1.5">
+                <ConstrainedDateInput
+                  aria-label={field.label}
+                  value={typeof value === "string" ? value : ""}
+                  disabled={field.readOnly}
+                  onChange={(next) => setValue(field.key, next)}
+                />
+              </div>
             </label>
           );
         }
@@ -122,7 +146,7 @@ export function TemplateFieldsForm({ fields, values, onChange }: TemplateFieldsF
               <RequiredMark required={field.required} />
             </span>
             <input
-              type={field.type === "email" || field.type === "tel" || field.type === "date" ? field.type : "text"}
+              type={field.type === "email" || field.type === "tel" ? field.type : "text"}
               value={typeof value === "string" ? value : ""}
               onChange={onInput(field.key)}
               placeholder={field.placeholder}

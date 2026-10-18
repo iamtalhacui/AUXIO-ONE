@@ -8,7 +8,8 @@ type ManagerNeedsAttentionCardProps = {
   modules: ManagerOverview["modules"];
 };
 
-function formatAge(iso: string) {
+function formatAge(iso: string | null) {
+  if (!iso) return "—";
   const ms = Date.now() - new Date(iso).getTime();
   const hours = Math.floor(ms / (1000 * 60 * 60));
   if (hours < 1) return "Just now";
@@ -39,7 +40,12 @@ export function ManagerNeedsAttentionCard({
   attention,
   modules,
 }: ManagerNeedsAttentionCardProps) {
-  if (!modules.customersEnabled && !modules.crmEnabled) {
+  const hasOps =
+    modules.customersEnabled ||
+    modules.crmEnabled ||
+    modules.serviceDeliveryEnabled;
+
+  if (!hasOps) {
     return (
       <div className="dashboard-card overflow-hidden">
         <div className="border-b border-border/70 px-6 py-5">
@@ -47,7 +53,8 @@ export function ManagerNeedsAttentionCard({
           <p className="text-sm text-muted">No operations modules enabled</p>
         </div>
         <p className="px-6 py-10 text-center text-sm text-muted">
-          Ask your Org Admin to enable Customers or CRM in Module settings.
+          Ask your Org Admin to enable Service Delivery, Customers, or CRM in
+          Module settings.
         </p>
       </div>
     );
@@ -58,6 +65,18 @@ export function ManagerNeedsAttentionCard({
     count: number;
     rows: AttentionRow[];
   }> = [
+    {
+      title: "Shift approvals",
+      count: attention.pendingShiftApprovals.length,
+      rows: attention.pendingShiftApprovals.map((item) => ({
+        key: `shift-${item.shiftId}`,
+        title: item.participantName,
+        detail: `Out-of-window finish · ${item.variance} min variance`,
+        age: formatAge(item.endedAt),
+        href: "/shift-approvals",
+        cta: "Review",
+      })),
+    },
     {
       title: "Ready to activate",
       count: attention.readyToActivate.length,
@@ -98,12 +117,10 @@ export function ManagerNeedsAttentionCard({
       rows: attention.acceptedNotConverted.map((item) => ({
         key: `convert-${item.opportunityId}`,
         title: item.title,
-        detail: [
-          item.contactName,
-          money(item.estimatedAnnualValue),
-        ]
-          .filter(Boolean)
-          .join(" · ") || "Ready to convert",
+        detail:
+          [item.contactName, money(item.estimatedAnnualValue)]
+            .filter(Boolean)
+            .join(" · ") || "Ready to convert",
         href: "/crm",
         cta: "Convert",
       })),
@@ -111,6 +128,7 @@ export function ManagerNeedsAttentionCard({
   ].filter((section) => section.count > 0);
 
   const total =
+    attention.pendingShiftApprovals.length +
     attention.readyToActivate.length +
     attention.incompleteOnboarding.length +
     attention.overdueFollowUps.length +
@@ -127,7 +145,15 @@ export function ManagerNeedsAttentionCard({
               : `${total} item${total === 1 ? "" : "s"} need your review`}
           </p>
         </div>
-        {modules.crmEnabled && attention.overdueFollowUps.length > 0 ? (
+        {modules.serviceDeliveryEnabled &&
+        attention.pendingShiftApprovals.length > 0 ? (
+          <Link
+            href="/shift-approvals"
+            className="text-sm font-semibold text-primary"
+          >
+            All approvals
+          </Link>
+        ) : modules.crmEnabled && attention.overdueFollowUps.length > 0 ? (
           <Link href="/crm" className="text-sm font-semibold text-primary">
             Open CRM
           </Link>
@@ -135,7 +161,9 @@ export function ManagerNeedsAttentionCard({
       </div>
 
       {total === 0 ? (
-        <p className="px-6 py-10 text-center text-sm text-muted">You&apos;re caught up.</p>
+        <p className="px-6 py-10 text-center text-sm text-muted">
+          You&apos;re caught up.
+        </p>
       ) : (
         <div className="divide-y divide-border/60">
           {sections.map((section) => (

@@ -2,6 +2,8 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
+import { ConstrainedDateInput } from "@/components/ui/ConstrainedDateInput";
+import { ConstrainedSelect } from "@/components/ui/ConstrainedSelect";
 import { useAppSelector } from "@/lib/store/hooks";
 import { AU_STATES } from "@/lib/onboarding/constants";
 import { useToast } from "@/components/toast/ToastProvider";
@@ -157,18 +159,16 @@ export function WorkforceProfileContent() {
               />
             </Field>
             <Field label="State">
-              <select
-                className="input-field"
+              <ConstrainedSelect
+                aria-label="State"
                 value={form.state}
-                onChange={(e) => patch("state", e.target.value)}
-              >
-                <option value="">Select state</option>
-                {AU_STATES.map((state) => (
-                  <option key={state} value={state}>
-                    {state}
-                  </option>
-                ))}
-              </select>
+                placeholder="Select state"
+                onChange={(next) => patch("state", next)}
+                options={[
+                  { value: "", label: "Select state" },
+                  ...AU_STATES.map((state) => ({ value: state, label: state })),
+                ]}
+              />
             </Field>
             <Field label="Postcode">
               <input
@@ -194,26 +194,26 @@ export function WorkforceProfileContent() {
               />
             </Field>
             <Field label="Date of birth">
-              <input
-                type="date"
-                className="input-field"
+              <ConstrainedDateInput
+                aria-label="Date of birth"
                 value={form.dateOfBirth}
-                onChange={(e) => patch("dateOfBirth", e.target.value)}
+                onChange={(next) => patch("dateOfBirth", next)}
               />
             </Field>
             <Field label="Gender">
-              <select
-                className="input-field"
+              <ConstrainedSelect
+                aria-label="Gender"
                 value={form.gender}
-                onChange={(e) => patch("gender", e.target.value)}
-              >
-                <option value="">Select gender</option>
-                {GENDER_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </select>
+                placeholder="Select gender"
+                onChange={(next) => patch("gender", next)}
+                options={[
+                  { value: "", label: "Select gender" },
+                  ...GENDER_OPTIONS.map((option) => ({
+                    value: option,
+                    label: option,
+                  })),
+                ]}
+              />
             </Field>
             <Field label="Languages">
               <input

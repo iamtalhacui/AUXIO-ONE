@@ -106,7 +106,7 @@ export function EmployeeTimesheetsContent() {
             <p className="mt-1 text-sm text-muted">
               Finish a shift and it will appear here once submitted or approved.
             </p>
-            <Link href="/employee/shifts" className="btn-primary mt-5 inline-flex">
+            <Link href="/my-shifts" className="btn-primary mt-5 inline-flex">
               Go to shifts
             </Link>
           </div>
@@ -117,7 +117,7 @@ export function EmployeeTimesheetsContent() {
               return (
                 <li key={shift.id}>
                   <Link
-                    href={`/employee/shifts/${shift.id}`}
+                    href={`/my-shifts/${shift.id}`}
                     className="flex flex-col gap-3 px-5 py-4 transition hover:bg-surface-subtle sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="min-w-0">

@@ -7,6 +7,8 @@ import {
   useListPlatformModulesQuery,
   useRegisterOrganisationMutation,
 } from "@/lib/api/platformAuthApi";
+import { ConstrainedDateInput } from "@/components/ui/ConstrainedDateInput";
+import { ConstrainedSelect } from "@/components/ui/ConstrainedSelect";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
 import type { BillingCycle, OrgPlan } from "@/lib/api/types";
 import { AU_TIMEZONES, DEFAULT_AU_TIMEZONE } from "@/lib/timezones/au";
@@ -236,17 +238,15 @@ export function RegisterOrganisationForm() {
               </label>
               <label className="reg-field">
                 <span className="input-label">Timezone</span>
-                <select
+                <ConstrainedSelect
+                  aria-label="Timezone"
                   value={timezone}
-                  onChange={(e) => setTimezone(e.target.value)}
-                  className="input-field"
-                >
-                  {AU_TIMEZONES.map((zone) => (
-                    <option key={zone.value} value={zone.value}>
-                      {zone.label}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setTimezone}
+                  options={AU_TIMEZONES.map((zone) => ({
+                    value: zone.value,
+                    label: zone.label,
+                  }))}
+                />
                 <span className="mt-1 block text-xs text-muted">
                   {AU_TIMEZONES.find((z) => z.value === timezone)?.hint ??
                     "Shift times use this timezone."}
@@ -395,14 +395,12 @@ export function RegisterOrganisationForm() {
                   </div>
                 </fieldset>
 
-                <label className="reg-field">
+                <label className="reg-field min-w-0">
                   <span className="input-label">Start date</span>
-                  <input
-                    type="date"
+                  <ConstrainedDateInput
+                    aria-label="Subscription start date"
                     value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    required
-                    className="input-field"
+                    onChange={setStartDate}
                   />
                 </label>
 
