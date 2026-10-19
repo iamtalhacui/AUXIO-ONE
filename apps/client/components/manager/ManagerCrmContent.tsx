@@ -98,7 +98,7 @@ export function ManagerCrmContent() {
   }
 
   if (isLoading || pipelineLoading) {
-    return <p className="text-sm text-muted">Loading CRM…</p>;
+    return <p className="text-sm text-muted">Loading CRM……</p>;
   }
 
   if (error) {
