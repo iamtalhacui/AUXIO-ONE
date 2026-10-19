@@ -1,5 +1,5 @@
-import { EmployeeShiftsContent } from "@/components/rostering/EmployeeShiftsContent";
+import { redirect } from "next/navigation";
 
-export default function Page() {
-  return <EmployeeShiftsContent />;
+export default function LegacyEmployeeShiftsPage() {
+  redirect("/my-shifts");
 }

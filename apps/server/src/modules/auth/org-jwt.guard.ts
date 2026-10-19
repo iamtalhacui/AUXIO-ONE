@@ -37,9 +37,11 @@ export class OrgJwtGuard implements CanActivate {
 
     // Super Admin routes are not guarded here. Org users get 403 while
     // maintenance is on; the client then clears the org session.
-    if (await this.platform.isMaintenanceMode()) {
+    const maintenance = await this.platform.getMaintenanceStatus();
+    if (maintenance.active) {
       throw new ForbiddenException(
-        'The platform is in maintenance mode. Please try again later.',
+        maintenance.message ||
+          'The platform is in maintenance mode. Please try again later.',
       );
     }
 

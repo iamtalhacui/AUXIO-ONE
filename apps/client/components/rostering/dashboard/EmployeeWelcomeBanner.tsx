@@ -48,19 +48,19 @@ export function EmployeeWelcomeBanner({
       <div className="mt-5 flex flex-wrap gap-2">
         {continueShift ? (
           <Link
-            href={`/employee/shifts/${continueShift.shiftId}`}
+            href={`/my-shifts/${continueShift.shiftId}`}
             className="btn-primary"
           >
             Continue shift
           </Link>
         ) : null}
         <Link
-          href="/employee/shifts"
+          href="/my-shifts"
           className={continueShift ? "btn-secondary" : "btn-primary"}
         >
           My shifts
         </Link>
-        <Link href="/employee/availability" className="btn-secondary">
+        <Link href="/my-availability" className="btn-secondary">
           Availability
         </Link>
         <Link href="/employee/profile" className="btn-secondary">

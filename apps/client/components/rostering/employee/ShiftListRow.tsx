@@ -84,7 +84,7 @@ export function ShiftListRow({
     return (
       <li>
         <Link
-          href={`/employee/shifts/${shift.id}`}
+          href={`/my-shifts/${shift.id}`}
           className="block transition hover:bg-surface-subtle"
         >
           {body}
@@ -114,7 +114,7 @@ export function ShiftListRow({
           Decline
         </button>
         <Link
-          href={`/employee/shifts/${shift.id}`}
+          href={`/my-shifts/${shift.id}`}
           className="ml-auto text-sm font-semibold text-primary hover:underline"
         >
           View details

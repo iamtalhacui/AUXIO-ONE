@@ -21,6 +21,8 @@ import {
   typeLabel,
 } from "@/lib/incidents/format";
 import type { IncidentFilters } from "@/lib/incidents/types";
+import { ConstrainedDateInput } from "@/components/ui/ConstrainedDateInput";
+import { ConstrainedSelect } from "@/components/ui/ConstrainedSelect";
 import { useListIncidentsQuery } from "@/lib/api/authApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
 import type { ListIncidentsParams } from "@/lib/api/types";
@@ -120,7 +122,7 @@ export function ManagerIncidentsContent() {
           ) : null}
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <FilterSelect
             id="filter-status"
             label="Status"
@@ -151,28 +153,27 @@ export function ManagerIncidentsContent() {
               label: INCIDENT_TYPE_LABELS[t],
             }))}
           />
-          <div>
+          <div className="min-w-0">
             <label className="input-label" htmlFor="filter-from">
               From date
             </label>
-            <input
+            <ConstrainedDateInput
               id="filter-from"
-              type="date"
-              className="input-field"
+              aria-label="From date"
               value={filters.dateFrom}
-              onChange={(e) => patch({ dateFrom: e.target.value })}
+              onChange={(next) => patch({ dateFrom: next })}
             />
           </div>
-          <div>
+          <div className="min-w-0">
             <label className="input-label" htmlFor="filter-to">
               To date
             </label>
-            <input
+            <ConstrainedDateInput
               id="filter-to"
-              type="date"
-              className="input-field"
+              aria-label="To date"
               value={filters.dateTo}
-              onChange={(e) => patch({ dateTo: e.target.value })}
+              min={filters.dateFrom || undefined}
+              onChange={(next) => patch({ dateTo: next })}
             />
           </div>
         </div>
@@ -263,23 +264,18 @@ function FilterSelect({
   options: { value: string; label: string }[];
 }) {
   return (
-    <div>
+    <div className="min-w-0">
       <label className="input-label" htmlFor={id}>
         {label}
       </label>
-      <select
+      <ConstrainedSelect
         id={id}
-        className="input-field"
+        aria-label={label}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
-      >
-        <option value="">All</option>
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
+        onChange={onChange}
+        placeholder="All"
+        options={[{ value: "", label: "All" }, ...options]}
+      />
     </div>
   );
 }

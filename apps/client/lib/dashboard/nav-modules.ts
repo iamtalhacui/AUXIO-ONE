@@ -5,14 +5,16 @@ function filterItem(
   item: NavItem,
   enabled: Set<string>,
   pages: Set<string> | null,
+  actions: Set<string> | null,
 ): NavItem | null {
   if (item.module && !enabled.has(item.module)) return null;
   if (item.page && pages && !pages.has(item.page)) return null;
+  if (item.action && actions && !actions.has(item.action)) return null;
 
   if (!item.children?.length) return item;
 
   const children = item.children
-    .map((child) => filterItem(child, enabled, pages))
+    .map((child) => filterItem(child, enabled, pages, actions))
     .filter((child): child is NavItem => child !== null);
 
   if (item.href) return { ...item, children };
@@ -48,7 +50,7 @@ export function filterNavByModules(
   groups: NavGroup[],
   enabledCodes: string[],
   permissions?: RolePermissionsPayload | null,
-  /** ORG_ADMIN bypasses page filters. */
+  /** ORG_ADMIN bypasses page/action filters. */
   bypassPagePermissions = false,
 ): NavGroup[] {
   const enabled = new Set(enabledCodes);
@@ -60,12 +62,20 @@ export function filterNavByModules(
             .filter(([, on]) => on)
             .map(([key]) => key),
         );
+  const actions =
+    bypassPagePermissions || !permissions
+      ? null
+      : new Set(
+          Object.entries(permissions.actions)
+            .filter(([, on]) => on)
+            .map(([key]) => key),
+        );
 
   return groups
     .map((group) => ({
       ...group,
       items: group.items
-        .map((item) => filterItem(item, enabled, pages))
+        .map((item) => filterItem(item, enabled, pages, actions))
         .filter((item): item is NavItem => item !== null),
     }))
     .filter((group) => group.items.length > 0);

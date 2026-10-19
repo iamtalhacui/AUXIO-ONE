@@ -6,7 +6,7 @@ export default function AdminSettingsPage() {
     <>
       <PageHeader
         title="Platform settings"
-        description="Turn maintenance mode on or off for organisation users."
+        description="Schedule maintenance windows or enable an emergency lock for organisation users."
       />
       <SettingsPageContent />
     </>

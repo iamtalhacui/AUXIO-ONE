@@ -22,6 +22,7 @@ import {
   useShiftClock,
 } from "@/lib/rostering/useShiftClock";
 import { formatLongDate, formatShiftTime } from "@/lib/rostering/format";
+import { auTimezoneLabel } from "@/lib/timezones/au";
 import { ShiftActionRail } from "./ShiftActionRail";
 import { ShiftNotesPanel } from "./ShiftNotesPanel";
 import { ShiftPrepPanel } from "./ShiftPrepPanel";
@@ -137,7 +138,7 @@ export function ShiftWorkspace({ shiftId }: { shiftId: string }) {
   }
 
   function openIncidentReport() {
-    router.push(`/employee/incidents/report?shiftId=${encodeURIComponent(shiftId)}`);
+    router.push(`/my-incidents/report?shiftId=${encodeURIComponent(shiftId)}`);
   }
 
   async function handleFinish(finishReason?: string) {
@@ -153,7 +154,7 @@ export function ShiftWorkspace({ shiftId }: { shiftId: string }) {
         description:
           result.status === "APPROVED"
             ? "Auto-approved — within allowed start/end time windows."
-            : "Sent to your Org Admin for approval.",
+            : "Sent to your Manager for approval.",
       });
       void refetch();
     } catch (err) {
@@ -200,6 +201,9 @@ export function ShiftWorkspace({ shiftId }: { shiftId: string }) {
             {formatLongDate(shift.date)} ·{" "}
             {formatShiftTime(shift.startTime, shift.endTime)} · {shift.serviceTitle}
           </p>
+          <p className="mt-1 text-xs font-medium text-primary">
+            Times in {auTimezoneLabel(clock.timeZone)}
+          </p>
         </div>
         <ShiftStatusPill status={shift.status} audience="employee" />
       </div>
@@ -212,8 +216,8 @@ export function ShiftWorkspace({ shiftId }: { shiftId: string }) {
 
       {clock.phase === "overrun" ? (
         <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-          This shift is past its scheduled end. Finish when care is complete — you will be
-          asked for a reason if you are more than {LATE_END_ALLOW_MINUTES} minutes over.
+          This shift is past its scheduled end. Finish when care is complete — finishing more
+          than {LATE_END_ALLOW_MINUTES} minutes late needs a reason and Manager approval.
         </p>
       ) : null}
 
@@ -228,6 +232,7 @@ export function ShiftWorkspace({ shiftId }: { shiftId: string }) {
                 interactive
                 busyTaskId={busyTaskId}
                 disabled={busy}
+                timeZone={clock.timeZone}
                 onComplete={(taskId) => void handleCompleteTask(taskId)}
               />
               <ShiftNotesPanel
@@ -247,7 +252,7 @@ export function ShiftWorkspace({ shiftId }: { shiftId: string }) {
           ) : (
             <>
               <ShiftPrepPanel shift={shift} />
-              <ShiftTaskList tasks={tasks} interactive={false} />
+              <ShiftTaskList tasks={tasks} interactive={false} timeZone={clock.timeZone} />
               {finished ? (
                 <ShiftNotesPanel
                   value={serverNote}
@@ -295,7 +300,7 @@ export function ShiftWorkspace({ shiftId }: { shiftId: string }) {
 function BackLink() {
   return (
     <Link
-      href="/employee/shifts"
+      href="/my-shifts"
       className="inline-flex text-sm font-semibold text-primary hover:underline"
     >
       ← Back to shifts

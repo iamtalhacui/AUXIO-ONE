@@ -87,7 +87,7 @@ export function EmployeeHomeContent() {
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <ShiftStatusPill status={next.status} />
-            <Link href={`/employee/shifts/${next.id}`} className="btn-primary">
+            <Link href={`/my-shifts/${next.id}`} className="btn-primary">
               {next.date === today ? "Open today’s shift" : "View shift"}
             </Link>
           </div>
@@ -108,7 +108,7 @@ export function EmployeeHomeContent() {
           <p className="mt-2 text-3xl font-bold">{upcoming.length}</p>
         </div>
         <Link
-          href="/employee/availability"
+          href="/my-availability"
           className="dashboard-card flex flex-col justify-center px-5 py-4 transition hover:border-primary/30"
         >
           <p className="text-sm font-semibold text-primary">Manage availability</p>
@@ -119,7 +119,7 @@ export function EmployeeHomeContent() {
       <section className="dashboard-card">
         <div className="flex items-center justify-between border-b border-border/50 px-5 py-4">
           <h2 className="text-base font-semibold">Coming up</h2>
-          <Link href="/employee/shifts" className="text-sm font-semibold text-primary hover:underline">
+          <Link href="/my-shifts" className="text-sm font-semibold text-primary hover:underline">
             All shifts
           </Link>
         </div>
@@ -130,7 +130,7 @@ export function EmployeeHomeContent() {
             {upcoming.slice(0, 3).map((shift) => (
               <li key={shift.id}>
                 <Link
-                  href={`/employee/shifts/${shift.id}`}
+                  href={`/my-shifts/${shift.id}`}
                   className="flex items-center justify-between gap-3 px-5 py-4 transition hover:bg-surface-subtle"
                 >
                   <div>

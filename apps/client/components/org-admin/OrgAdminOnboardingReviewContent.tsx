@@ -16,6 +16,8 @@ import { useAppSelector } from "@/lib/store/hooks";
 
 type OrgAdminOnboardingReviewContentProps = {
   memberId: string;
+  /** Where Approve / Reject / Back should return. */
+  returnTo?: string;
 };
 
 const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL ?? "http://localhost:4000";
@@ -88,6 +90,7 @@ async function openDocumentBlob(args: {
 
 export function OrgAdminOnboardingReviewContent({
   memberId,
+  returnTo = "/onboarding-reviews",
 }: OrgAdminOnboardingReviewContentProps) {
   const router = useRouter();
   const { toast } = useToast();
@@ -157,7 +160,7 @@ export function OrgAdminOnboardingReviewContent({
     try {
       await reviewOnboarding({ userId: memberId, decision: "VERIFIED" }).unwrap();
       toast({ variant: "success", title: "Onboarding approved", description: `${name} is now verified.` });
-      router.push("/org-admin/team");
+      router.push(returnTo);
     } catch (err) {
       const message = getErrorMessage(err, "Could not approve application.");
       setActionError(message);
@@ -178,7 +181,7 @@ export function OrgAdminOnboardingReviewContent({
         note: rejectReason.trim(),
       }).unwrap();
       toast({ variant: "info", title: "Changes requested", description: `${name} was notified.` });
-      router.push("/org-admin/team");
+      router.push(returnTo);
     } catch (err) {
       const message = getErrorMessage(err, "Could not reject application.");
       setRejectError(message);
@@ -222,16 +225,18 @@ export function OrgAdminOnboardingReviewContent({
             <IconBell className="h-4 w-4" />
           </button>
           <span className="rounded-full border border-border/70 bg-surface px-3 py-1.5 text-xs font-semibold text-foreground/80">
-            Org Admin
+            {admin?.role === "MANAGER" ? "Manager" : "Org Admin"}
           </span>
         </div>
       </header>
 
       <Link
-        href="/org-admin/team"
+        href={returnTo}
         className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
       >
-        ← Back to all members
+        {returnTo.startsWith("/org-admin/team")
+          ? "← Back to all members"
+          : "← Back to onboarding reviews"}
       </Link>
 
       <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

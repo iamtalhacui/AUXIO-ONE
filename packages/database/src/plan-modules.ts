@@ -15,6 +15,7 @@ export const CORE_MODULES = [
   "CUSTOMERS",
   "SCHEDULE",
   "SERVICE_DELIVERY",
+  "INCIDENTS",
 ] as const;
 
 /** Granted in full on ADVANCED, a per-organisation choice on CUSTOM. */
@@ -22,7 +23,6 @@ export const OPTIONAL_MODULES = [
   "DASHBOARD",
   "CRM",
   "FINANCE",
-  "INCIDENTS",
 ] as const;
 
 export function isCoreModule(code: string): boolean {
@@ -52,7 +52,7 @@ export function getEntitledModuleCodes(plan: OrgPlan): readonly string[] {
 
 /**
  * Full entitlement for one organisation. On CUSTOM the granted add-ons are
- * unioned onto the core set, so the core four survive even if the stored rows
+ * unioned onto the core set, so the core modules survive even if the stored rows
  * are incomplete.
  */
 export function resolveEntitledModuleCodes(

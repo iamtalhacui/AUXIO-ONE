@@ -1,4 +1,7 @@
-import type { PagePermission } from "@/lib/dashboard/content/org-admin-roles";
+import type {
+  ActionPermission,
+  PagePermission,
+} from "@/lib/dashboard/content/org-admin-roles";
 import type { UserRole } from "@/lib/dashboard/roles";
 
 export type NavItem = {
@@ -7,6 +10,8 @@ export type NavItem = {
   module?: string;
   /** Role page permission required (configurable matrix). */
   page?: PagePermission;
+  /** Role action permission required (configurable matrix). */
+  action?: ActionPermission;
   locked?: boolean;
   children?: NavItem[];
 };
@@ -24,6 +29,28 @@ export type DashboardConfig = {
   sidebarGroups: NavGroup[];
 };
 
+/** Personal worker tools — shown for any role with the matching action. */
+const MY_WORK_PAGES: NavItem[] = [
+  {
+    label: "Shifts",
+    href: "/my-shifts",
+    module: "SCHEDULE",
+    action: "VIEW_MY_SHIFTS",
+  },
+  {
+    label: "Availability",
+    href: "/my-availability",
+    module: "SCHEDULE",
+    action: "MANAGE_MY_AVAILABILITY",
+  },
+  {
+    label: "Timesheets",
+    href: "/my-timesheets",
+    module: "FINANCE",
+    action: "VIEW_MY_TIMESHEETS",
+  },
+];
+
 /** Shared feature pages gated by page permission + module. */
 const FEATURE_PAGES: NavItem[] = [
   { label: "CRM", href: "/crm", module: "CRM", page: "CRM" },
@@ -37,10 +64,16 @@ const FEATURE_PAGES: NavItem[] = [
     page: "SCHEDULE",
   },
   {
-    label: "Service delivery",
-    href: "/service-delivery",
+    label: "Shift approvals",
+    href: "/shift-approvals",
     module: "SERVICE_DELIVERY",
-    page: "SERVICE_DELIVERY",
+    action: "APPROVE_TIMESHEETS_SERVICE_DELIVERY",
+  },
+  {
+    label: "Onboarding reviews",
+    href: "/onboarding-reviews",
+    module: "WORKFORCE",
+    action: "APPROVE_ONBOARDING",
   },
   { label: "Incidents", href: "/incidents", module: "INCIDENTS", page: "INCIDENTS" },
   {
@@ -113,11 +146,6 @@ const orgAdminNav: NavGroup[] = [
           { label: "Security", href: "/org-admin/settings/password" },
         ],
       },
-      {
-        label: "Shift approvals",
-        href: "/org-admin/shift-approvals",
-        module: "SERVICE_DELIVERY",
-      },
       { label: "Payments", href: "/org-admin/payments" },
     ],
   },
@@ -130,7 +158,11 @@ const orgAdminNav: NavGroup[] = [
 const managerNav: NavGroup[] = [
   {
     title: "Overview",
-    items: [{ label: "Dashboard", href: "/manager", module: "DASHBOARD", page: "INSIGHTS" }],
+    items: [{ label: "Dashboard", href: "/manager", module: "DASHBOARD" }],
+  },
+  {
+    title: "My work",
+    items: MY_WORK_PAGES,
   },
   {
     title: "Operations",
@@ -145,7 +177,11 @@ const managerNav: NavGroup[] = [
 const rosterNav: NavGroup[] = [
   {
     title: "Overview",
-    items: [{ label: "Dashboard", href: "/roster", module: "DASHBOARD", page: "INSIGHTS" }],
+    items: [{ label: "Dashboard", href: "/roster", module: "DASHBOARD" }],
+  },
+  {
+    title: "My work",
+    items: MY_WORK_PAGES,
   },
   {
     title: "Operations",
@@ -160,15 +196,11 @@ const rosterNav: NavGroup[] = [
 const employeeNav: NavGroup[] = [
   {
     title: "Overview",
-    items: [{ label: "Dashboard", href: "/employee", module: "DASHBOARD", page: "INSIGHTS" }],
+    items: [{ label: "Dashboard", href: "/employee", module: "DASHBOARD" }],
   },
   {
     title: "My work",
-    items: [
-      { label: "Shifts", href: "/employee/shifts", module: "SCHEDULE" },
-      { label: "Availability", href: "/employee/availability", module: "SCHEDULE" },
-      { label: "Timesheets", href: "/employee/timesheets", module: "FINANCE" },
-    ],
+    items: MY_WORK_PAGES,
   },
   {
     title: "Operations",

@@ -7,16 +7,11 @@ import {
   useListPlatformModulesQuery,
   useRegisterOrganisationMutation,
 } from "@/lib/api/platformAuthApi";
+import { ConstrainedDateInput } from "@/components/ui/ConstrainedDateInput";
+import { ConstrainedSelect } from "@/components/ui/ConstrainedSelect";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
 import type { BillingCycle, OrgPlan } from "@/lib/api/types";
-
-const timeZones = [
-  "Australia/Sydney",
-  "Australia/Melbourne",
-  "Australia/Brisbane",
-  "Australia/Perth",
-  "Australia/Adelaide",
-];
+import { AU_TIMEZONES, DEFAULT_AU_TIMEZONE } from "@/lib/timezones/au";
 
 const PLANS: {
   value: OrgPlan;
@@ -28,13 +23,13 @@ const PLANS: {
     value: "BASIC",
     label: "Basic",
     blurb: "Core ops for smaller providers",
-    modules: ["Workforce", "Customers", "Schedule", "Service Delivery"],
+    modules: ["Workforce", "Customers", "Schedule", "Service Delivery", "Incidents"],
   },
   {
     value: "ADVANCED",
     label: "Advanced",
     blurb: "Full suite for growing teams",
-    modules: ["Everything in Basic", "Dashboard", "CRM", "Finance", "Incidents"],
+    modules: ["Everything in Basic", "Dashboard", "CRM", "Finance"],
   },
   {
     value: "CUSTOM",
@@ -80,7 +75,7 @@ export function RegisterOrganisationForm() {
   const [register, { isLoading, error, reset }] = useRegisterOrganisationMutation();
   const [step, setStep] = useState(0);
   const [name, setName] = useState("");
-  const [timezone, setTimezone] = useState(timeZones[0]);
+  const [timezone, setTimezone] = useState(DEFAULT_AU_TIMEZONE);
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [plan, setPlan] = useState<OrgPlan>("BASIC");
@@ -243,17 +238,19 @@ export function RegisterOrganisationForm() {
               </label>
               <label className="reg-field">
                 <span className="input-label">Timezone</span>
-                <select
+                <ConstrainedSelect
+                  aria-label="Timezone"
                   value={timezone}
-                  onChange={(e) => setTimezone(e.target.value)}
-                  className="input-field"
-                >
-                  {timeZones.map((zone) => (
-                    <option key={zone} value={zone}>
-                      {zone.replace("Australia/", "")}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setTimezone}
+                  options={AU_TIMEZONES.map((zone) => ({
+                    value: zone.value,
+                    label: zone.label,
+                  }))}
+                />
+                <span className="mt-1 block text-xs text-muted">
+                  {AU_TIMEZONES.find((z) => z.value === timezone)?.hint ??
+                    "Shift times use this timezone."}
+                </span>
               </label>
               <label className="reg-field">
                 <span className="input-label">
@@ -398,14 +395,12 @@ export function RegisterOrganisationForm() {
                   </div>
                 </fieldset>
 
-                <label className="reg-field">
+                <label className="reg-field min-w-0">
                   <span className="input-label">Start date</span>
-                  <input
-                    type="date"
+                  <ConstrainedDateInput
+                    aria-label="Subscription start date"
                     value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    required
-                    className="input-field"
+                    onChange={setStartDate}
                   />
                 </label>
 

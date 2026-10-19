@@ -26,6 +26,7 @@ import type {
   SaveOnboardingDraftRequest,
   OnboardingDocumentMeta,
   OnboardingAdminDetailResponse,
+  OnboardingAdminListItem,
   ReviewOnboardingRequest,
   OnboardingStatus,
   Customer,
@@ -58,6 +59,7 @@ import type {
   OrgBillingSummary,
   OrganisationPayment,
   RolePermissionMatrixPayload,
+  MaintenanceStatus,
 } from "@/lib/api/types";
 import { isMaintenanceError, rememberMaintenanceLogout } from "@/lib/api/getErrorMessage";
 import { logoutOrg } from "@/lib/store/orgAuthSlice";
@@ -119,8 +121,13 @@ export const authApi = createApi({
     "Incidents",
     "Payments",
     "RolePermissions",
+    "MaintenanceStatus",
   ],
   endpoints: (builder) => ({
+    getMaintenanceStatus: builder.query<MaintenanceStatus, void>({
+      query: () => "/platform/public/maintenance",
+      providesTags: ["MaintenanceStatus"],
+    }),
     setupAccount: builder.mutation<SetupAccountResponse, SetupAccountRequest>({
       query: (body) => ({
         url: "/auth/setup",
@@ -311,6 +318,25 @@ export const authApi = createApi({
       }),
       invalidatesTags: ["OnboardingMe"],
     }),
+    listAdminOnboarding: builder.query<
+      OnboardingAdminListItem[],
+      { status?: OnboardingStatus } | void
+    >({
+      query: (params) => ({
+        url: "/organisation/onboarding",
+        params: params?.status ? { status: params.status } : undefined,
+      }),
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.map((row) => ({
+                type: "OnboardingAdmin" as const,
+                id: row.user.id,
+              })),
+              { type: "OnboardingAdmin" as const, id: "LIST" },
+            ]
+          : [{ type: "OnboardingAdmin" as const, id: "LIST" }],
+    }),
     getAdminOnboarding: builder.query<OnboardingAdminDetailResponse, string>({
       query: (userId) => `/organisation/onboarding/${userId}`,
       providesTags: (_r, _e, userId) => [{ type: "OnboardingAdmin", id: userId }],
@@ -324,7 +350,13 @@ export const authApi = createApi({
         method: "POST",
         body,
       }),
-      invalidatesTags: ["OnboardingAdmin", "OrgTeam", "OnboardingMe", "OrgOverview"],
+      invalidatesTags: [
+        "OnboardingAdmin",
+        "OrgTeam",
+        "OnboardingMe",
+        "OrgOverview",
+        "ManagerOverview",
+      ],
     }),
 
     // ── Customers (CUSTOMERS module) ──
@@ -544,6 +576,18 @@ export const authApi = createApi({
         "RosterOverview",
       ],
     }),
+    broadcastScheduleShift: builder.mutation<ScheduleShift, string>({
+      query: (id) => ({
+        url: `/organisation/schedule/shifts/${id}/broadcast`,
+        method: "POST",
+      }),
+      invalidatesTags: [
+        "ScheduleShifts",
+        "MyShifts",
+        "MatchCandidates",
+        "RosterOverview",
+      ],
+    }),
     withdrawShiftOffer: builder.mutation<ScheduleShift, string>({
       query: (id) => ({
         url: `/organisation/schedule/shifts/${id}/withdraw-offer`,
@@ -674,7 +718,7 @@ export const authApi = createApi({
       ],
     }),
 
-    // Org Admin — variance approvals + task catalogues
+    // Manager — variance approvals; Org Admin — task catalogues
     listPendingShiftApprovals: builder.query<ScheduleShift[], void>({
       query: () => "/organisation/schedule/admin/pending-approvals",
       providesTags: ["PendingApprovals"],
@@ -692,7 +736,7 @@ export const authApi = createApi({
         "PendingApprovals",
         "MyShifts",
         "ScheduleShifts",
-        "OrgOverview",
+        "ManagerOverview",
       ],
     }),
     rejectPendingShift: builder.mutation<
@@ -708,7 +752,7 @@ export const authApi = createApi({
         "PendingApprovals",
         "MyShifts",
         "ScheduleShifts",
-        "OrgOverview",
+        "ManagerOverview",
       ],
     }),
     listServiceLineTasks: builder.query<ServiceLineTaskCatalogue[], void>({
@@ -872,6 +916,7 @@ export const authApi = createApi({
 });
 
 export const {
+  useGetMaintenanceStatusQuery,
   useSetupAccountMutation,
   useForgotPasswordMutation,
   useResetPasswordMutation,
@@ -899,6 +944,7 @@ export const {
   useSubmitOnboardingMutation,
   useUploadOnboardingDocumentMutation,
   useDeleteOnboardingDocumentMutation,
+  useListAdminOnboardingQuery,
   useGetAdminOnboardingQuery,
   useReviewOnboardingMutation,
   useListCustomersQuery,
@@ -923,6 +969,7 @@ export const {
   useUpdateScheduleShiftMutation,
   useCancelScheduleShiftMutation,
   usePublishOfferShiftMutation,
+  useBroadcastScheduleShiftMutation,
   useWithdrawShiftOfferMutation,
   useListMatchCandidatesQuery,
   useListMyShiftsQuery,

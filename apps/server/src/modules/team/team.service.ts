@@ -189,7 +189,6 @@ export class TeamService {
         firstName: dto.firstName?.trim(),
         lastName: dto.lastName?.trim(),
         email: dto.email?.trim().toLowerCase(),
-        role: dto.role,
         status: dto.status,
       },
       select: MEMBER_SELECT,

@@ -1,5 +1,5 @@
-import { EmployeeAvailabilityContent } from "@/components/rostering/EmployeeAvailabilityContent";
+import { redirect } from "next/navigation";
 
-export default function Page() {
-  return <EmployeeAvailabilityContent />;
+export default function LegacyEmployeeAvailabilityPage() {
+  redirect("/my-availability");
 }

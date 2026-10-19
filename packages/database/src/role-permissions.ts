@@ -18,7 +18,6 @@ export const PAGE_PERMISSIONS = [
   "CUSTOMERS",
   "WORKFORCE",
   "SCHEDULE",
-  "SERVICE_DELIVERY",
   "INCIDENTS",
   "FORMS_DOCUMENTS",
   "FINANCE",
@@ -32,15 +31,36 @@ export const ACTION_PERMISSIONS = [
   "MANAGE_SHIFTS",
   "PUBLISH_ASSIGN_SHIFTS",
   "MANAGE_CUSTOMERS",
-  "MANAGE_WORKER_COMPLIANCE",
   "APPROVE_ONBOARDING",
   "APPROVE_TIMESHEETS_SERVICE_DELIVERY",
   "MANAGE_INCIDENTS",
   "MANAGE_DOCUMENTS_FORMS",
   "VIEW_EXPORT_REPORTS",
+  /** Personal worker tools — scoped to the signed-in user only. */
+  "VIEW_MY_SHIFTS",
+  "MANAGE_MY_AVAILABILITY",
+  "EXECUTE_MY_SHIFTS",
+  "VIEW_MY_TIMESHEETS",
+  /** May appear in Matching / be assigned or offered shifts. */
+  "ASSIGNABLE_AS_WORKER",
 ] as const;
 
 export type ActionPermission = (typeof ACTION_PERMISSIONS)[number];
+
+/** Worker self-service actions (Org Admin is not a field worker). */
+export const PERSONAL_WORKER_ACTIONS = [
+  "VIEW_MY_SHIFTS",
+  "MANAGE_MY_AVAILABILITY",
+  "EXECUTE_MY_SHIFTS",
+  "VIEW_MY_TIMESHEETS",
+  "ASSIGNABLE_AS_WORKER",
+] as const satisfies readonly ActionPermission[];
+
+export function isPersonalWorkerAction(
+  action: string,
+): action is (typeof PERSONAL_WORKER_ACTIONS)[number] {
+  return (PERSONAL_WORKER_ACTIONS as readonly string[]).includes(action);
+}
 
 export type PagePermissionMap = Record<PagePermission, boolean>;
 export type ActionPermissionMap = Record<ActionPermission, boolean>;
@@ -58,7 +78,6 @@ export const PAGE_MODULE: Partial<Record<PagePermission, string>> = {
   CUSTOMERS: "CUSTOMERS",
   WORKFORCE: "WORKFORCE",
   SCHEDULE: "SCHEDULE",
-  SERVICE_DELIVERY: "SERVICE_DELIVERY",
   INCIDENTS: "INCIDENTS",
   FINANCE: "FINANCE",
   INSIGHTS: "DASHBOARD",
@@ -69,7 +88,6 @@ export const PAGE_LABELS: Record<PagePermission, string> = {
   CUSTOMERS: "Customers / Participants",
   WORKFORCE: "Workforce",
   SCHEDULE: "Schedule / Rostering",
-  SERVICE_DELIVERY: "Service Delivery",
   INCIDENTS: "Incidents",
   FORMS_DOCUMENTS: "Forms & Documents",
   FINANCE: "Finance",
@@ -81,12 +99,16 @@ export const ACTION_LABELS: Record<ActionPermission, string> = {
   MANAGE_SHIFTS: "Manage Shifts",
   PUBLISH_ASSIGN_SHIFTS: "Publish / Assign Shifts",
   MANAGE_CUSTOMERS: "Manage Customers / Participants",
-  MANAGE_WORKER_COMPLIANCE: "Manage Worker Compliance",
   APPROVE_ONBOARDING: "Approve Onboarding",
   APPROVE_TIMESHEETS_SERVICE_DELIVERY: "Approve Timesheets / Service Delivery",
   MANAGE_INCIDENTS: "Manage Incidents",
   MANAGE_DOCUMENTS_FORMS: "Manage Documents & Forms",
   VIEW_EXPORT_REPORTS: "View / Export Reports",
+  VIEW_MY_SHIFTS: "View My Shifts",
+  MANAGE_MY_AVAILABILITY: "Manage My Availability",
+  EXECUTE_MY_SHIFTS: "Execute My Shifts",
+  VIEW_MY_TIMESHEETS: "View My Timesheets",
+  ASSIGNABLE_AS_WORKER: "Assignable as Worker",
 };
 
 export const CONFIGURABLE_ROLE_META: Record<
@@ -95,7 +117,7 @@ export const CONFIGURABLE_ROLE_META: Record<
 > = {
   MANAGER: {
     label: "Manager",
-    description: "Oversees workforce, compliance, and day-to-day operations.",
+    description: "Oversees workforce, customers, and day-to-day operations.",
   },
   ROSTERING_EXPERT: {
     label: "Rostering Expert",
@@ -150,9 +172,10 @@ export const DEFAULT_ROLE_PERMISSIONS: RolePermissionMatrix = {
     actions: {
       ...allFalseActions(),
       MANAGE_CUSTOMERS: true,
-      MANAGE_WORKER_COMPLIANCE: true,
       MANAGE_INCIDENTS: true,
       MANAGE_DOCUMENTS_FORMS: true,
+      APPROVE_TIMESHEETS_SERVICE_DELIVERY: true,
+      APPROVE_ONBOARDING: true,
       VIEW_EXPORT_REPORTS: true,
     },
   },
@@ -173,13 +196,17 @@ export const DEFAULT_ROLE_PERMISSIONS: RolePermissionMatrix = {
   EMPLOYEE: {
     pages: {
       ...allFalsePages(),
-      // Personal shift/timesheet/incident-report routes stay outside this matrix.
       CUSTOMERS: true,
       FINANCE: true,
       INSIGHTS: true,
     },
     actions: {
       ...allFalseActions(),
+      VIEW_MY_SHIFTS: true,
+      MANAGE_MY_AVAILABILITY: true,
+      EXECUTE_MY_SHIFTS: true,
+      VIEW_MY_TIMESHEETS: true,
+      ASSIGNABLE_AS_WORKER: true,
     },
   },
 };
@@ -231,6 +258,11 @@ export function mergeRolePermissions(
     }
   }
 
+  // Onboarding approval is Manager (and Org Admin) only.
+  if (role !== "MANAGER") {
+    actions.APPROVE_ONBOARDING = false;
+  }
+
   return { pages, actions };
 }
 
@@ -263,6 +295,11 @@ export function sanitizeRolePermissionsInput(
     } else {
       actions[id] = DEFAULT_ROLE_PERMISSIONS[role].actions[id];
     }
+  }
+
+  // Onboarding approval is Manager (and Org Admin) only — never Rostering/Employee.
+  if (role !== "MANAGER") {
+    actions.APPROVE_ONBOARDING = false;
   }
 
   return { pages, actions };

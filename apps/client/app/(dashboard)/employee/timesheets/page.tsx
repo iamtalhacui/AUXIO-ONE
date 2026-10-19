@@ -1,5 +1,5 @@
-import { EmployeeTimesheetsContent } from "@/components/rostering/EmployeeTimesheetsContent";
+import { redirect } from "next/navigation";
 
-export default function Page() {
-  return <EmployeeTimesheetsContent />;
+export default function LegacyEmployeeTimesheetsPage() {
+  redirect("/my-timesheets");
 }

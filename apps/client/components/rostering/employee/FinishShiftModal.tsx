@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import type { ScheduleShift } from "@/lib/api/types";
 import {
-  EARLY_END_ALLOW_MINUTES,
   EARLY_START_ALLOW_MINUTES,
   LATE_END_ALLOW_MINUTES,
   LATE_START_APPROVAL_MINUTES,
@@ -26,9 +25,9 @@ function startNeedsApproval(minutes: number | null): boolean {
   return minutes > LATE_START_APPROVAL_MINUTES || minutes < -EARLY_START_ALLOW_MINUTES;
 }
 
-function endNeedsApproval(minutes: number | null): boolean {
+function endNeedsApproval(minutes: number | null, earlyEndAllow: number): boolean {
   if (minutes === null) return false;
-  return minutes < -EARLY_END_ALLOW_MINUTES || minutes > LATE_END_ALLOW_MINUTES;
+  return minutes < -earlyEndAllow || minutes > LATE_END_ALLOW_MINUTES;
 }
 
 export function FinishShiftModal({
@@ -50,11 +49,12 @@ export function FinishShiftModal({
   }, [open]);
 
   const needsReason = clock.outsideMargin;
+  const earlyEndAllow = clock.earlyEndAllowMinutes;
 
   async function handleConfirm() {
     if (needsReason && reason.trim().length < 3) {
       setError(
-        `A reason is required when you start more than ${LATE_START_APPROVAL_MINUTES} minutes late, finish more than ${EARLY_END_ALLOW_MINUTES / 60} hours early, or finish more than ${LATE_END_ALLOW_MINUTES} minutes after the scheduled end.`,
+        `A reason is required when you start more than ${LATE_START_APPROVAL_MINUTES} minutes late, finish more than ${earlyEndAllow} minutes early, or finish more than ${LATE_END_ALLOW_MINUTES} minutes after the scheduled end.`,
       );
       return;
     }
@@ -93,7 +93,9 @@ export function FinishShiftModal({
           <SummaryRow
             label="Actual"
             value={`${
-              shift.actualStartedAt ? formatClock(shift.actualStartedAt) : "—"
+              shift.actualStartedAt
+                ? formatClock(shift.actualStartedAt, clock.timeZone)
+                : "—"
             } – now`}
           />
           <SummaryRow label="Time worked" value={formatElapsed(clock.elapsedMs)} />
@@ -113,7 +115,9 @@ export function FinishShiftModal({
                 ? "—"
                 : formatVariance(clock.endVarianceMinutes)
             }
-            tone={endNeedsApproval(clock.endVarianceMinutes) ? "warn" : "ok"}
+            tone={
+              endNeedsApproval(clock.endVarianceMinutes, earlyEndAllow) ? "warn" : "ok"
+            }
           />
         </div>
 
@@ -125,8 +129,8 @@ export function FinishShiftModal({
           }`}
         >
           {needsReason
-            ? `Approval required — start must be within ${EARLY_START_ALLOW_MINUTES} min early / ${LATE_START_APPROVAL_MINUTES} min late, and end within ${EARLY_END_ALLOW_MINUTES / 60} h early / ${LATE_END_ALLOW_MINUTES} min late. This shift goes to your Org Admin.`
-            : `Within allowed windows — start within ${EARLY_START_ALLOW_MINUTES} min early / ${LATE_START_APPROVAL_MINUTES} min late, end within ${EARLY_END_ALLOW_MINUTES / 60} h early / ${LATE_END_ALLOW_MINUTES} min late. Auto-approved on finish.`}
+            ? `Approval required — start must be within ${EARLY_START_ALLOW_MINUTES} min early / ${LATE_START_APPROVAL_MINUTES} min late, and end within ${earlyEndAllow} min early / ${LATE_END_ALLOW_MINUTES} min late. This shift goes to your Manager.`
+            : `Within allowed windows — start within ${EARLY_START_ALLOW_MINUTES} min early / ${LATE_START_APPROVAL_MINUTES} min late, end within ${earlyEndAllow} min early / ${LATE_END_ALLOW_MINUTES} min late. Auto-approved on finish.`}
         </div>
 
         {needsReason ? (

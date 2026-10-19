@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, ClipboardList, Clock3, UserRound } from "lucide-react";
+import { CheckCircle2, Clock3, UserRound } from "lucide-react";
 import type { OrgAdminOverview } from "@/lib/api/types";
 
 type TeamNeedsAttentionCardProps = {
@@ -45,15 +45,6 @@ export function TeamNeedsAttentionCard({ attention }: TeamNeedsAttentionCardProp
       href: `/org-admin/team/${item.userId}/onboarding`,
       cta: "Review",
     })),
-    ...attention.pendingShiftApprovals.map((item) => ({
-      key: `shift-${item.shiftId}`,
-      icon: ClipboardList,
-      title: item.participantName,
-      detail: `Shift variance · ${item.variance} min`,
-      age: formatAge(item.endedAt),
-      href: "/org-admin/shift-approvals",
-      cta: "Approve",
-    })),
     ...attention.staleInvites.map((item) => ({
       key: `invite-${item.userId}`,
       icon: Clock3,
@@ -78,19 +69,13 @@ export function TeamNeedsAttentionCard({ attention }: TeamNeedsAttentionCardProp
               : `${total} item${total === 1 ? "" : "s"} ready for your review`}
           </p>
         </div>
-        {attention.pendingShiftApprovals.length > 0 ? (
-          <Link href="/org-admin/shift-approvals" className="oad-text-link">
-            All approvals
-            <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-          </Link>
-        ) : null}
       </header>
 
       {total === 0 ? (
         <div className="oad-empty">
           <CheckCircle2 className="h-8 w-8 text-primary/70" aria-hidden />
           <p className="mt-2 text-sm font-medium text-foreground">You&apos;re caught up</p>
-          <p className="mt-0.5 text-xs text-muted">Onboarding, shifts, and invites look healthy.</p>
+          <p className="mt-0.5 text-xs text-muted">Onboarding and invites look healthy.</p>
         </div>
       ) : (
         <ul className="oad-attention-list">

@@ -1,27 +1,17 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
-import { EmployeeReportIncidentFlow } from "@/components/incidents/EmployeeReportIncidentFlow";
-import { PageHeader } from "@/components/dashboard/PageHeader";
+type PageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
 
-function ReportIncidentPageInner() {
-  const searchParams = useSearchParams();
-  const shiftId = searchParams.get("shiftId") ?? undefined;
-  return <EmployeeReportIncidentFlow shiftId={shiftId} />;
-}
-
-export default function EmployeeReportIncidentPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="space-y-4">
-          <PageHeader title="Report incident" description="Loading…" />
-          <div className="dashboard-card h-64 animate-pulse" />
-        </div>
-      }
-    >
-      <ReportIncidentPageInner />
-    </Suspense>
-  );
+export default async function LegacyEmployeeReportIncidentPage({
+  searchParams,
+}: PageProps) {
+  const params = await searchParams;
+  const shiftId = params.shiftId;
+  const q =
+    typeof shiftId === "string" && shiftId
+      ? `?shiftId=${encodeURIComponent(shiftId)}`
+      : "";
+  redirect(`/my-incidents/report${q}`);
 }

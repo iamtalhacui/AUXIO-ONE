@@ -3,12 +3,22 @@
 import { FormEvent, useEffect, useState } from "react";
 import {
   useCancelScheduleShiftMutation,
+  useGetOrganisationQuery,
   useUpdateScheduleShiftMutation,
 } from "@/lib/api/authApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { ConstrainedDateInput } from "@/components/ui/ConstrainedDateInput";
+import { ConstrainedSelect } from "@/components/ui/ConstrainedSelect";
+import { ConstrainedTimeInput } from "@/components/ui/ConstrainedTimeInput";
 import { useToast } from "@/components/toast/ToastProvider";
 import type { ScheduleShift, SeriesEditScope } from "@/lib/api/types";
-import { endTimeFromDuration, SERVICE_LINE_OPTIONS } from "@/lib/rostering/format";
+import {
+  durationMinutesFromTimes,
+  endTimeFromDuration,
+  SERVICE_LINE_OPTIONS,
+  snapDurationMinutes,
+} from "@/lib/rostering/format";
+import { auTimezoneLabel } from "@/lib/timezones/au";
 
 type Props = {
   shift: ScheduleShift | null;
@@ -19,6 +29,8 @@ type Props = {
 /** Edit one shift, or this + following shifts in a recurring series. */
 export function EditShiftModal({ shift, onClose, onSaved }: Props) {
   const { toast } = useToast();
+  const { data: org } = useGetOrganisationQuery(undefined, { skip: !shift });
+  const timeZoneLabel = auTimezoneLabel(org?.timezone);
   const [update, updateState] = useUpdateScheduleShiftMutation();
   const [cancel, cancelState] = useCancelScheduleShiftMutation();
 
@@ -28,6 +40,7 @@ export function EditShiftModal({ shift, onClose, onSaved }: Props) {
   const [startTime, setStartTime] = useState("");
   const [hours, setHours] = useState(0);
   const [minutes, setMinutes] = useState(0);
+  const [endTime, setEndTime] = useState("");
   const [notes, setNotes] = useState("");
   const [locationLabel, setLocationLabel] = useState("");
   const [seriesScope, setSeriesScope] = useState<SeriesEditScope>("THIS");
@@ -41,6 +54,7 @@ export function EditShiftModal({ shift, onClose, onSaved }: Props) {
     setStartTime(shift.startTime);
     setHours(Math.floor(shift.durationMinutes / 60));
     setMinutes(shift.durationMinutes % 60);
+    setEndTime(endTimeFromDuration(shift.startTime, shift.durationMinutes));
     setNotes(shift.notes ?? "");
     setLocationLabel(shift.locationLabel);
     setSeriesScope("THIS");
@@ -50,9 +64,31 @@ export function EditShiftModal({ shift, onClose, onSaved }: Props) {
   if (!shift) return null;
 
   const durationMinutes = hours * 60 + minutes;
-  const endTime =
-    durationMinutes >= 5 ? endTimeFromDuration(startTime, durationMinutes) : "—";
   const busy = updateState.isLoading || cancelState.isLoading;
+
+  function setDurationFromParts(nextHours: number, nextMinutes: number) {
+    const h = Math.max(0, Math.min(23, Number.isFinite(nextHours) ? nextHours : 0));
+    const m = nextMinutes;
+    setHours(h);
+    setMinutes(m);
+    const dur = h * 60 + m;
+    if (dur >= 5) setEndTime(endTimeFromDuration(startTime, dur));
+  }
+
+  function setEndTimeAndDuration(nextEnd: string) {
+    setEndTime(nextEnd);
+    if (!nextEnd || !startTime) return;
+    const snapped = snapDurationMinutes(durationMinutesFromTimes(startTime, nextEnd));
+    setHours(Math.floor(snapped / 60));
+    setMinutes(snapped % 60);
+    setEndTime(endTimeFromDuration(startTime, snapped));
+  }
+
+  function setStartTimeKeepingDuration(nextStart: string) {
+    setStartTime(nextStart);
+    const dur = hours * 60 + minutes;
+    if (dur >= 5) setEndTime(endTimeFromDuration(nextStart, dur));
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -99,9 +135,9 @@ export function EditShiftModal({ shift, onClose, onSaved }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
       <div
-        className="max-h-[min(90vh,720px)] w-full max-w-lg overflow-y-auto rounded-2xl border border-border bg-surface shadow-xl"
+        className="max-h-[min(92vh,720px)] w-full min-w-0 max-w-lg overflow-x-hidden overflow-y-auto rounded-t-2xl border border-border bg-surface shadow-xl sm:rounded-2xl"
         role="dialog"
         aria-labelledby="edit-shift-title"
       >
@@ -113,6 +149,9 @@ export function EditShiftModal({ shift, onClose, onSaved }: Props) {
             <p className="mt-0.5 text-sm text-muted">
               {shift.participantName} · {shift.status}
             </p>
+            <p className="mt-1 text-xs font-medium text-primary">
+              All times are in {timeZoneLabel}
+            </p>
           </div>
           <button
             type="button"
@@ -123,7 +162,7 @@ export function EditShiftModal({ shift, onClose, onSaved }: Props) {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 px-5 py-5">
+        <form onSubmit={handleSubmit} className="min-w-0 space-y-4 px-4 py-5 sm:px-5">
           <div>
             <label className="input-label" htmlFor="edit-location">
               Location
@@ -141,20 +180,18 @@ export function EditShiftModal({ shift, onClose, onSaved }: Props) {
             <label className="input-label" htmlFor="edit-line">
               Service line
             </label>
-            <select
+            <ConstrainedSelect
               id="edit-line"
-              className="input-field"
+              aria-label="Service line"
               value={serviceLine}
-              onChange={(e) => setServiceLine(e.target.value)}
-            >
-              {[serviceLine, ...SERVICE_LINE_OPTIONS.filter((s) => s !== serviceLine)].map(
-                (s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ),
-              )}
-            </select>
+              onChange={setServiceLine}
+              options={[
+                serviceLine,
+                ...SERVICE_LINE_OPTIONS.filter((s) => s !== serviceLine),
+              ]
+                .filter(Boolean)
+                .map((s) => ({ value: s, label: s }))}
+            />
           </div>
 
           <div>
@@ -170,39 +207,34 @@ export function EditShiftModal({ shift, onClose, onSaved }: Props) {
             />
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
+          <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="min-w-0">
               <label className="input-label" htmlFor="edit-date">
                 Date
               </label>
-              <input
+              <ConstrainedDateInput
                 id="edit-date"
-                type="date"
-                className="input-field"
+                aria-label="Shift date"
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
+                onChange={setDate}
                 disabled={seriesScope === "THIS_AND_FOLLOWING"}
-                required
               />
             </div>
-            <div>
+            <div className="min-w-0">
               <label className="input-label" htmlFor="edit-start">
                 Start time
               </label>
-              <input
+              <ConstrainedTimeInput
                 id="edit-start"
-                type="time"
-                step={300}
-                className="input-field"
+                aria-label="Start time"
                 value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                required
+                onChange={setStartTimeKeepingDuration}
               />
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div>
+          <div className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3">
+            <div className="min-w-0">
               <label className="input-label" htmlFor="edit-h">
                 Hours
               </label>
@@ -210,33 +242,38 @@ export function EditShiftModal({ shift, onClose, onSaved }: Props) {
                 id="edit-h"
                 type="number"
                 min={0}
+                max={23}
+                inputMode="numeric"
                 className="input-field"
                 value={hours}
-                onChange={(e) => setHours(Number(e.target.value))}
+                onChange={(e) => setDurationFromParts(Number(e.target.value), minutes)}
               />
             </div>
-            <div>
+            <div className="min-w-0">
               <label className="input-label" htmlFor="edit-m">
                 Minutes
               </label>
-              <select
+              <ConstrainedSelect
                 id="edit-m"
-                className="input-field"
-                value={minutes}
-                onChange={(e) => setMinutes(Number(e.target.value))}
-              >
-                {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
+                aria-label="Minutes"
+                value={String(minutes)}
+                onChange={(next) => setDurationFromParts(hours, Number(next))}
+                options={[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map((m) => ({
+                  value: String(m),
+                  label: String(m),
+                }))}
+              />
             </div>
-            <div>
-              <p className="input-label">End time</p>
-              <p className="rounded-lg border border-border/60 bg-surface-subtle px-3.5 py-2.5 text-sm font-medium">
-                {endTime}
-              </p>
+            <div className="col-span-2 min-w-0 sm:col-span-1">
+              <label className="input-label" htmlFor="edit-end">
+                End time
+              </label>
+              <ConstrainedTimeInput
+                id="edit-end"
+                aria-label="End time"
+                value={endTime}
+                onChange={setEndTimeAndDuration}
+              />
             </div>
           </div>
 

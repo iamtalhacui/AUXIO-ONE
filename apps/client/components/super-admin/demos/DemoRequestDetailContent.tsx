@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { DemoStatusBadge } from "@/components/dashboard/StatusBadge";
+import { ConstrainedSelect } from "@/components/ui/ConstrainedSelect";
 import {
   useGetDemoRequestQuery,
   useUpdateDemoRequestStatusMutation,
@@ -160,20 +161,16 @@ export function DemoRequestDetailContent({ requestId }: { requestId: string }) {
             <span className="text-xs font-semibold uppercase tracking-wide text-muted">
               Status
             </span>
-            <select
+            <ConstrainedSelect
+              aria-label="Demo request status"
               value={selectedStatus}
-              onChange={(event) =>
-                setSelectedStatus(event.target.value as DemoRequestStatus)
-              }
-              className="input-field"
               disabled={isUpdating}
-            >
-              {STATUSES.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
+              onChange={(next) => setSelectedStatus(next as DemoRequestStatus)}
+              options={STATUSES.map((status) => ({
+                value: status,
+                label: status,
+              }))}
+            />
           </label>
 
           <button

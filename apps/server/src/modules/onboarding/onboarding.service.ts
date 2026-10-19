@@ -303,12 +303,32 @@ export class OnboardingService {
       .findUnique({ where: { id: user.id }, select: { firstName: true, lastName: true, role: true } })
       .then((member) => {
         if (!member) return;
-        return this.notifications.notifyRole(organisationId, 'ORG_ADMIN', {
-          type: 'INFO',
-          title: 'Onboarding submitted for review',
-          message: `${member.firstName} ${member.lastName} submitted their onboarding for review.`,
-          link: `/org-admin/onboarding/${user.id}`,
-        });
+        const message = `${member.firstName} ${member.lastName} submitted their onboarding for review.`;
+        const link = `/onboarding-reviews/${user.id}`;
+        return Promise.all([
+          this.notifications.notifyRole(
+            organisationId,
+            'ORG_ADMIN',
+            {
+              type: 'INFO',
+              title: 'Onboarding submitted for review',
+              message,
+              link,
+            },
+            { excludeUserId: user.id },
+          ),
+          this.notifications.notifyRole(
+            organisationId,
+            'MANAGER',
+            {
+              type: 'INFO',
+              title: 'Onboarding submitted for review',
+              message,
+              link,
+            },
+            { excludeUserId: user.id },
+          ),
+        ]);
       });
 
     return {
@@ -485,6 +505,11 @@ export class OnboardingService {
     organisationId: string,
     actorRole: string,
   ) {
+    if (actorRole !== 'ORG_ADMIN' && actorRole !== 'MANAGER') {
+      throw new ForbiddenException(
+        'Only organisation administrators and managers can approve onboarding',
+      );
+    }
     await this.permissions.assertAction(
       organisationId,
       actorRole,
@@ -492,11 +517,25 @@ export class OnboardingService {
     );
   }
 
-  async listForAdmin(organisationId: string, actorRole: string, status?: string) {
+  private assertNotSelfReview(actorUserId: string, memberUserId: string) {
+    if (actorUserId === memberUserId) {
+      throw new ForbiddenException(
+        'You cannot review or approve your own onboarding',
+      );
+    }
+  }
+
+  async listForAdmin(
+    organisationId: string,
+    actorRole: string,
+    actorUserId: string,
+    status?: string,
+  ) {
     await this.requireApproveOnboarding(organisationId, actorRole);
 
     const where: Prisma.OnboardingSubmissionWhereInput = {
       organisationId,
+      userId: { not: actorUserId },
     };
 
     if (status) {
@@ -537,8 +576,14 @@ export class OnboardingService {
     }));
   }
 
-  async getForAdmin(organisationId: string, actorRole: string, memberUserId: string) {
+  async getForAdmin(
+    organisationId: string,
+    actorRole: string,
+    actorUserId: string,
+    memberUserId: string,
+  ) {
     await this.requireApproveOnboarding(organisationId, actorRole);
+    this.assertNotSelfReview(actorUserId, memberUserId);
 
     const submission = await this.prisma.onboardingSubmission.findFirst({
       where: { userId: memberUserId, organisationId },
@@ -590,10 +635,12 @@ export class OnboardingService {
   async downloadDocumentForAdmin(
     organisationId: string,
     actorRole: string,
+    actorUserId: string,
     memberUserId: string,
     documentId: string,
   ) {
     await this.requireApproveOnboarding(organisationId, actorRole);
+    this.assertNotSelfReview(actorUserId, memberUserId);
 
     const document = await this.prisma.onboardingDocument.findFirst({
       where: {
@@ -630,6 +677,7 @@ export class OnboardingService {
     note?: string,
   ) {
     await this.requireApproveOnboarding(organisationId, actorRole);
+    this.assertNotSelfReview(actorUserId, memberUserId);
 
     if (decision === 'CHANGES_REQUIRED' && !note?.trim()) {
       throw new BadRequestException('A rejection reason is required');

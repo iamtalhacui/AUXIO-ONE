@@ -70,7 +70,7 @@ export function shiftClockCopy(shift: ScheduleShift, clock: ShiftClock): ClockCo
       return {
         caption: "Submitted",
         value: formatElapsed(clock.elapsedMs),
-        hint: "Waiting on your Org Admin",
+        hint: "Waiting on your Manager",
         tone: "warn",
       };
 

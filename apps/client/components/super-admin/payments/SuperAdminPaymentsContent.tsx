@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { ConstrainedSelect } from "@/components/ui/ConstrainedSelect";
 import { useGetPlatformPaymentsOverviewQuery } from "@/lib/api/platformAuthApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
 import type { PaymentStatus, SubscriptionStatus } from "@/lib/api/types";
@@ -180,26 +181,26 @@ export function SuperAdminPaymentsContent() {
           <p className="text-sm text-muted">
             Current subscription and payment status across the platform.
           </p>
-          <div className="mt-4 flex flex-wrap gap-3">
+          <div className="mt-4 flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap">
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Search organisation…"
-              className="input-field max-w-sm"
+              className="input-field w-full min-w-0 sm:max-w-sm"
             />
-            <select
+            <ConstrainedSelect
+              className="w-full sm:max-w-[12rem]"
+              aria-label="Subscription status filter"
               value={statusFilter}
-              onChange={(event) =>
-                setStatusFilter(event.target.value as SubscriptionStatus | "ALL")
-              }
-              className="input-field max-w-[12rem]"
-            >
-              <option value="ALL">All statuses</option>
-              <option value="ACTIVE">Active</option>
-              <option value="EXPIRING_SOON">Expiring soon</option>
-              <option value="GRACE_PERIOD">Grace period</option>
-              <option value="SUSPENDED">Suspended</option>
-            </select>
+              onChange={(next) => setStatusFilter(next as SubscriptionStatus | "ALL")}
+              options={[
+                { value: "ALL", label: "All statuses" },
+                { value: "ACTIVE", label: "Active" },
+                { value: "EXPIRING_SOON", label: "Expiring soon" },
+                { value: "GRACE_PERIOD", label: "Grace period" },
+                { value: "SUSPENDED", label: "Suspended" },
+              ]}
+            />
           </div>
         </div>
 

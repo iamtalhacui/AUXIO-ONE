@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/dashboard/PageHeader";
+import { ConstrainedDateInput } from "@/components/ui/ConstrainedDateInput";
+import { ConstrainedTimeInput } from "@/components/ui/ConstrainedTimeInput";
 import {
   useGetMyAvailabilityQuery,
   useSaveMyAvailabilityMutation,
@@ -209,24 +211,22 @@ export function EmployeeAvailabilityContent() {
               </label>
 
               {row.enabled ? (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="time"
-                    step={300}
-                    className="input-field !w-auto tabular-nums"
+                <div className="flex min-w-0 flex-1 items-center gap-2">
+                  <ConstrainedTimeInput
+                    aria-label={`${DAY_LABELS[row.dayOfWeek - 1]} start time`}
+                    className="min-w-0 flex-1"
                     value={row.startTime}
-                    onChange={(e) =>
-                      updateDay(row.dayOfWeek, "startTime", e.target.value)
+                    onChange={(next) =>
+                      updateDay(row.dayOfWeek, "startTime", next)
                     }
                   />
-                  <span className="text-xs text-muted">to</span>
-                  <input
-                    type="time"
-                    step={300}
-                    className="input-field !w-auto tabular-nums"
+                  <span className="shrink-0 text-xs text-muted">to</span>
+                  <ConstrainedTimeInput
+                    aria-label={`${DAY_LABELS[row.dayOfWeek - 1]} end time`}
+                    className="min-w-0 flex-1"
                     value={row.endTime}
-                    onChange={(e) =>
-                      updateDay(row.dayOfWeek, "endTime", e.target.value)
+                    onChange={(next) =>
+                      updateDay(row.dayOfWeek, "endTime", next)
                     }
                   />
                 </div>
@@ -286,29 +286,28 @@ export function EmployeeAvailabilityContent() {
           <p className="text-xs font-semibold uppercase tracking-wide text-muted">
             Add unavailable period
           </p>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
+          <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+            <div className="min-w-0">
               <label className="input-label" htmlFor="avail-from">
                 From
               </label>
-              <input
+              <ConstrainedDateInput
                 id="avail-from"
-                type="date"
-                className="input-field"
+                aria-label="Unavailable from"
                 value={from}
-                onChange={(e) => setFrom(e.target.value)}
+                onChange={setFrom}
               />
             </div>
-            <div>
+            <div className="min-w-0">
               <label className="input-label" htmlFor="avail-to">
                 To
               </label>
-              <input
+              <ConstrainedDateInput
                 id="avail-to"
-                type="date"
-                className="input-field"
+                aria-label="Unavailable to"
                 value={to}
-                onChange={(e) => setTo(e.target.value)}
+                min={from || undefined}
+                onChange={setTo}
               />
             </div>
           </div>

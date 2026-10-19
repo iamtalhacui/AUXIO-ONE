@@ -12,6 +12,8 @@ import {
   useUpdateCrmOpportunityMutation,
 } from "@/lib/api/authApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { ConstrainedDateInput } from "@/components/ui/ConstrainedDateInput";
+import { ConstrainedSelect } from "@/components/ui/ConstrainedSelect";
 import { useToast } from "@/components/toast/ToastProvider";
 import type { OpportunityStage } from "@/lib/api/types";
 
@@ -169,9 +171,13 @@ export function ManagerCrmContent() {
             <span className="input-label">Contact phone</span>
             <input className="input-field" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} />
           </label>
-          <label className="block">
+          <label className="block min-w-0">
             <span className="input-label">Next follow-up</span>
-            <input type="date" className="input-field" value={nextFollowUpAt} onChange={(e) => setNextFollowUpAt(e.target.value)} />
+            <ConstrainedDateInput
+              aria-label="Next follow-up"
+              value={nextFollowUpAt}
+              onChange={setNextFollowUpAt}
+            />
           </label>
           <label className="block sm:col-span-2">
             <span className="input-label">Follow-up note</span>
@@ -219,13 +225,14 @@ export function ManagerCrmContent() {
                     </p>
                   </td>
                   <td>
-                    <select
-                      className="input-field max-w-[10rem]"
+                    <ConstrainedSelect
+                      className="max-w-[10rem]"
+                      aria-label="Opportunity stage"
                       value={opp.stage}
-                      onChange={(e) =>
-                        updateOpp({
+                      onChange={(next) => {
+                        void updateOpp({
                           id: opp.id,
-                          stage: e.target.value as OpportunityStage,
+                          stage: next as OpportunityStage,
                         })
                           .unwrap()
                           .then(() => toast({ variant: "success", title: "Stage updated" }))
@@ -235,15 +242,13 @@ export function ManagerCrmContent() {
                               title: "Could not update stage",
                               description: getErrorMessage(err, "Could not update stage"),
                             }),
-                          )
-                      }
-                    >
-                      {STAGES.map((stage) => (
-                        <option key={stage} value={stage}>
-                          {stage}
-                        </option>
-                      ))}
-                    </select>
+                          );
+                      }}
+                      options={STAGES.map((stage) => ({
+                        value: stage,
+                        label: stage,
+                      }))}
+                    />
                   </td>
                   <td className="text-muted">
                     {opp.estimatedAnnualValue != null

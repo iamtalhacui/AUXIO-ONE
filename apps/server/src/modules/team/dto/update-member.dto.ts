@@ -1,8 +1,8 @@
 import { IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { UserStatus } from 'database';
-import { WorkforceRole } from './register-member.dto';
 
 // All fields optional so the edit form can send only what changed.
+// Role is fixed at invite time and cannot be changed here.
 export class UpdateMemberDto {
   @IsOptional()
   @IsString()
@@ -17,10 +17,6 @@ export class UpdateMemberDto {
   @IsOptional()
   @IsEmail()
   email?: string;
-
-  @IsOptional()
-  @IsEnum(WorkforceRole)
-  role?: WorkforceRole;
 
   @IsOptional()
   @IsEnum(UserStatus)

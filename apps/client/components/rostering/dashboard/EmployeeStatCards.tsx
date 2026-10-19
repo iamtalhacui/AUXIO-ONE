@@ -42,7 +42,7 @@ export function EmployeeStatCards({ kpis, scheduleEnabled }: EmployeeStatCardsPr
       </article>
 
       <Link
-        href="/employee/shifts"
+        href="/my-shifts"
         className="dashboard-card block p-5 transition hover:border-primary/40"
       >
         <p className="text-sm text-muted">This week</p>

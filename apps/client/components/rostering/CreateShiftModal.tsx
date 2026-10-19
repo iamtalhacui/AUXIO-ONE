@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   useCreateScheduleShiftsMutation,
+  useGetOrganisationQuery,
   useListScheduleParticipantsQuery,
   usePreviewRecurrenceMutation,
 } from "@/lib/api/authApi";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { ConstrainedDateInput } from "@/components/ui/ConstrainedDateInput";
+import { ConstrainedSelect } from "@/components/ui/ConstrainedSelect";
+import { ConstrainedTimeInput } from "@/components/ui/ConstrainedTimeInput";
 import { useToast } from "@/components/toast/ToastProvider";
 import type {
   CreateScheduleShiftRequest,
@@ -14,9 +18,12 @@ import type {
   ShiftLocationKind,
 } from "@/lib/api/types";
 import {
+  durationMinutesFromTimes,
   endTimeFromDuration,
   SERVICE_LINE_OPTIONS,
+  snapDurationMinutes,
 } from "@/lib/rostering/format";
+import { auTimezoneLabel } from "@/lib/timezones/au";
 
 type Props = {
   open: boolean;
@@ -27,11 +34,12 @@ type Props = {
 
 /**
  * Create one draft shift or a recurring series.
- * Optionally broadcast so any eligible employee can accept (first wins).
- * Direct assignment happens from Matching.
+ * Filling (direct assign or broadcast) happens from Matching.
  */
 export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Props) {
   const { toast } = useToast();
+  const { data: org } = useGetOrganisationQuery(undefined, { skip: !open });
+  const timeZoneLabel = auTimezoneLabel(org?.timezone);
   const { data: participants = [], isLoading: loadingParticipants } =
     useListScheduleParticipantsQuery(undefined, { skip: !open });
   const [preview, previewState] = usePreviewRecurrenceMutation();
@@ -46,8 +54,8 @@ export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Prop
   const [startTime, setStartTime] = useState("09:00");
   const [hours, setHours] = useState(4);
   const [minutes, setMinutes] = useState(0);
+  const [endTime, setEndTime] = useState(() => endTimeFromDuration("09:00", 4 * 60));
   const [notes, setNotes] = useState("");
-  const [broadcast, setBroadcast] = useState(false);
   const [recurring, setRecurring] = useState(false);
   const [frequency, setFrequency] = useState<RecurrenceFrequency>("WEEKLY");
   const [interval, setInterval] = useState(1);
@@ -58,10 +66,31 @@ export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Prop
   const [error, setError] = useState("");
 
   const durationMinutes = hours * 60 + minutes;
-  const endTime = useMemo(
-    () => (durationMinutes >= 5 ? endTimeFromDuration(startTime, durationMinutes) : "—"),
-    [startTime, durationMinutes],
-  );
+
+  function setDurationFromParts(nextHours: number, nextMinutes: number) {
+    const h = Math.max(0, Math.min(23, Number.isFinite(nextHours) ? nextHours : 0));
+    const m = nextMinutes;
+    setHours(h);
+    setMinutes(m);
+    const dur = h * 60 + m;
+    if (dur >= 5) setEndTime(endTimeFromDuration(startTime, dur));
+  }
+
+  function setEndTimeAndDuration(nextEnd: string) {
+    setEndTime(nextEnd);
+    if (!nextEnd) return;
+    const snapped = snapDurationMinutes(durationMinutesFromTimes(startTime, nextEnd));
+    setHours(Math.floor(snapped / 60));
+    setMinutes(snapped % 60);
+    // Keep end aligned to the snapped duration (5-minute steps).
+    setEndTime(endTimeFromDuration(startTime, snapped));
+  }
+
+  function setStartTimeKeepingDuration(nextStart: string) {
+    setStartTime(nextStart);
+    const dur = hours * 60 + minutes;
+    if (dur >= 5) setEndTime(endTimeFromDuration(nextStart, dur));
+  }
 
   // Reset form each time the modal opens.
   useEffect(() => {
@@ -69,13 +98,13 @@ export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Prop
     setDate(defaultDate);
     setError("");
     setPreviewResult(null);
-    setBroadcast(false);
     setRecurring(false);
     setServiceTitle("");
     setNotes("");
     setHours(4);
     setMinutes(0);
     setStartTime("09:00");
+    setEndTime(endTimeFromDuration("09:00", 4 * 60));
     setLocationKind("PARTICIPANT");
     setCustomerId("");
     setLocationLabel("");
@@ -124,7 +153,6 @@ export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Prop
       startTime,
       durationMinutes,
       notes: notes.trim() || undefined,
-      broadcast,
       recurring,
       frequency: recurring ? frequency : undefined,
       interval: recurring ? interval : undefined,
@@ -157,9 +185,7 @@ export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Prop
       toast({
         variant: "success",
         title: result.shifts.length > 1 ? "Shift series created" : "Shift created",
-        description: broadcast
-          ? `${result.shifts.length} shift${result.shifts.length === 1 ? "" : "s"} broadcast — first accept wins.`
-          : `${result.shifts.length} draft shift${result.shifts.length === 1 ? "" : "s"} saved. Assign from Matching.`,
+        description: `${result.shifts.length} draft shift${result.shifts.length === 1 ? "" : "s"} saved. Assign or broadcast from Matching.`,
       });
       onClose();
     } catch (err) {
@@ -172,9 +198,9 @@ export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Prop
   const busy = createState.isLoading || previewState.isLoading;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
       <div
-        className="max-h-[min(90vh,760px)] w-full max-w-lg overflow-y-auto rounded-2xl border border-border bg-surface shadow-xl"
+        className="max-h-[min(92vh,760px)] w-full min-w-0 max-w-lg overflow-x-hidden overflow-y-auto rounded-t-2xl border border-border bg-surface shadow-xl sm:rounded-2xl"
         role="dialog"
         aria-labelledby="create-shift-title"
       >
@@ -184,7 +210,10 @@ export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Prop
               Create shift
             </h2>
             <p className="mt-0.5 text-sm text-muted">
-              Save as draft and assign later, or broadcast to all employees now.
+              Save as draft, then assign or broadcast from Matching.
+            </p>
+            <p className="mt-1 text-xs font-medium text-primary">
+              All times are in {timeZoneLabel}
             </p>
           </div>
           <button
@@ -196,7 +225,7 @@ export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Prop
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 px-5 py-5">
+        <form onSubmit={handleSubmit} className="min-w-0 space-y-4 px-4 py-5 sm:px-5">
           {/* Location type */}
           <div>
             <p className="input-label">Location type</p>
@@ -233,21 +262,21 @@ export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Prop
               <label className="input-label" htmlFor="participant">
                 Participant
               </label>
-              <select
+              <ConstrainedSelect
                 id="participant"
-                className="input-field"
+                aria-label="Participant"
                 value={customerId}
                 disabled={loadingParticipants}
-                onChange={(e) => setCustomerId(e.target.value)}
-                required
-              >
-                <option value="">Select participant…</option>
-                {participants.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.displayName}
-                  </option>
-                ))}
-              </select>
+                placeholder="Select participant…"
+                onChange={setCustomerId}
+                options={[
+                  { value: "", label: "Select participant…" },
+                  ...participants.map((p) => ({
+                    value: p.id,
+                    label: p.displayName,
+                  })),
+                ]}
+              />
             </div>
           ) : null}
 
@@ -275,18 +304,16 @@ export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Prop
             <label className="input-label" htmlFor="service-line">
               Service line
             </label>
-            <select
+            <ConstrainedSelect
               id="service-line"
-              className="input-field"
+              aria-label="Service line"
               value={serviceLine}
-              onChange={(e) => setServiceLine(e.target.value)}
-            >
-              {SERVICE_LINE_OPTIONS.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
+              onChange={setServiceLine}
+              options={SERVICE_LINE_OPTIONS.map((s) => ({
+                value: s,
+                label: s,
+              }))}
+            />
           </div>
 
           <div>
@@ -303,39 +330,34 @@ export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Prop
             />
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
+          <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="min-w-0">
               <label className="input-label" htmlFor="shift-date">
                 Date
               </label>
-              <input
+              <ConstrainedDateInput
                 id="shift-date"
-                type="date"
-                className="input-field"
+                aria-label="Shift date"
                 value={date}
-                onChange={(e) => setDate(e.target.value)}
-                required
+                onChange={setDate}
               />
             </div>
-            <div>
+            <div className="min-w-0">
               <label className="input-label" htmlFor="start-time">
                 Start time
               </label>
-              <input
+              <ConstrainedTimeInput
                 id="start-time"
-                type="time"
-                step={300}
-                className="input-field"
+                aria-label="Start time"
                 value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                required
+                onChange={setStartTimeKeepingDuration}
               />
             </div>
           </div>
 
-          {/* Duration in hours + minutes (5-minute steps) */}
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div>
+          {/* Duration ↔ end time stay in sync either way. */}
+          <div className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3">
+            <div className="min-w-0">
               <label className="input-label" htmlFor="hours">
                 Hours
               </label>
@@ -344,33 +366,37 @@ export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Prop
                 type="number"
                 min={0}
                 max={23}
+                inputMode="numeric"
                 className="input-field"
                 value={hours}
-                onChange={(e) => setHours(Number(e.target.value))}
+                onChange={(e) => setDurationFromParts(Number(e.target.value), minutes)}
               />
             </div>
-            <div>
+            <div className="min-w-0">
               <label className="input-label" htmlFor="mins">
                 Minutes
               </label>
-              <select
+              <ConstrainedSelect
                 id="mins"
-                className="input-field"
-                value={minutes}
-                onChange={(e) => setMinutes(Number(e.target.value))}
-              >
-                {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
+                aria-label="Minutes"
+                value={String(minutes)}
+                onChange={(next) => setDurationFromParts(hours, Number(next))}
+                options={[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map((m) => ({
+                  value: String(m),
+                  label: String(m),
+                }))}
+              />
             </div>
-            <div>
-              <p className="input-label">End time</p>
-              <p className="rounded-lg border border-border/60 bg-surface-subtle px-3.5 py-2.5 text-sm font-medium">
-                {durationMinutes >= 5 ? endTime : "—"}
-              </p>
+            <div className="col-span-2 min-w-0 sm:col-span-1">
+              <label className="input-label" htmlFor="end-time">
+                End time
+              </label>
+              <ConstrainedTimeInput
+                id="end-time"
+                aria-label="End time"
+                value={endTime}
+                onChange={setEndTimeAndDuration}
+              />
             </div>
           </div>
 
@@ -385,21 +411,6 @@ export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Prop
               onChange={(e) => setNotes(e.target.value)}
             />
           </div>
-
-          <label className="flex items-center gap-3 rounded-xl border border-border/60 px-4 py-3">
-            <input
-              type="checkbox"
-              checked={broadcast}
-              onChange={(e) => setBroadcast(e.target.checked)}
-              className="h-4 w-4 rounded border-border text-primary"
-            />
-            <span>
-              <span className="block text-sm font-semibold">Broadcast to all employees</span>
-              <span className="text-xs text-muted">
-                Publish now as an open offer — first eligible employee to accept gets the shift
-              </span>
-            </span>
-          </label>
 
           <label className="flex items-center gap-3 rounded-xl border border-border/60 px-4 py-3">
             <input
@@ -426,51 +437,46 @@ export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Prop
                   <label className="input-label" htmlFor="freq">
                     Frequency
                   </label>
-                  <select
+                  <ConstrainedSelect
                     id="freq"
-                    className="input-field"
+                    aria-label="Frequency"
                     value={frequency}
-                    onChange={(e) =>
-                      setFrequency(e.target.value as RecurrenceFrequency)
-                    }
-                  >
-                    <option value="WEEKLY">Weekly</option>
-                    <option value="MONTHLY">Monthly</option>
-                  </select>
+                    onChange={(next) => setFrequency(next as RecurrenceFrequency)}
+                    options={[
+                      { value: "WEEKLY", label: "Weekly" },
+                      { value: "MONTHLY", label: "Monthly" },
+                    ]}
+                  />
                 </div>
                 <div>
                   <label className="input-label" htmlFor="interval">
                     Every
                   </label>
-                  <select
+                  <ConstrainedSelect
                     id="interval"
-                    className="input-field"
-                    value={interval}
-                    onChange={(e) => setInterval(Number(e.target.value))}
-                  >
-                    {[1, 2, 3, 4].map((n) => (
-                      <option key={n} value={n}>
-                        {n} {frequency === "WEEKLY" ? "week(s)" : "month(s)"}
-                      </option>
-                    ))}
-                  </select>
+                    aria-label="Interval"
+                    value={String(interval)}
+                    onChange={(next) => setInterval(Number(next))}
+                    options={[1, 2, 3, 4].map((n) => ({
+                      value: String(n),
+                      label: `${n} ${frequency === "WEEKLY" ? "week(s)" : "month(s)"}`,
+                    }))}
+                  />
                 </div>
               </div>
-              <div>
+              <div className="min-w-0">
                 <label className="input-label" htmlFor="until">
                   Until date
                 </label>
-                <input
+                <ConstrainedDateInput
                   id="until"
-                  type="date"
-                  className="input-field"
+                  aria-label="Until date"
                   value={untilDate}
                   min={date}
-                  onChange={(e) => {
-                    setUntilDate(e.target.value);
+                  onChange={(next) => {
+                    setUntilDate(next);
                     setPreviewResult(null);
                   }}
-                  required={recurring}
                 />
               </div>
               <button
@@ -503,13 +509,9 @@ export function CreateShiftModal({ open, defaultDate, onClose, onCreated }: Prop
             <button type="submit" className="btn-primary" disabled={busy}>
               {createState.isLoading
                 ? "Saving…"
-                : broadcast
-                  ? recurring
-                    ? "Broadcast series"
-                    : "Broadcast shift"
-                  : recurring
-                    ? "Create series"
-                    : "Create draft"}
+                : recurring
+                  ? "Create series"
+                  : "Create draft"}
             </button>
           </div>
         </form>

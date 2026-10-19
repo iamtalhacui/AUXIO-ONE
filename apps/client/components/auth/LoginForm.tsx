@@ -4,12 +4,25 @@ import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { loginCopy } from "@/lib/content/auth";
-import { useOrgLoginMutation } from "@/lib/api/authApi";
+import { useGetMaintenanceStatusQuery, useOrgLoginMutation } from "@/lib/api/authApi";
 import { getErrorMessage, takeMaintenanceLogoutNotice } from "@/lib/api/getErrorMessage";
+import { LIVE_POLL_MS } from "@/lib/api/liveRefresh";
 import { getPostLoginPath } from "@/lib/dashboard/roles";
 import { setOrgCredentials } from "@/lib/store/orgAuthSlice";
 import { useAppDispatch, useAppSelector } from "@/lib/store/hooks";
 import { BrandLogo } from "@/components/ui/BrandLogo";
+
+function formatWhen(iso: string | null) {
+  if (!iso) return null;
+  try {
+    return new Date(iso).toLocaleString(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+  } catch {
+    return iso;
+  }
+}
 
 export function LoginForm() {
   const router = useRouter();
@@ -21,6 +34,9 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [maintenanceNotice, setMaintenanceNotice] = useState("");
   const [login, { isLoading, error, reset }] = useOrgLoginMutation();
+  const { data: maintenance } = useGetMaintenanceStatusQuery(undefined, {
+    pollingInterval: LIVE_POLL_MS.lists,
+  });
 
   useEffect(() => {
     const notice = takeMaintenanceLogoutNotice();
@@ -50,6 +66,11 @@ export function LoginForm() {
     maintenanceNotice ||
     null;
 
+  const start = formatWhen(maintenance?.startsAt ?? null);
+  const end = formatWhen(maintenance?.endsAt ?? null);
+  const windowText =
+    start && end ? `${start} → ${end}` : start ? `from ${start}` : null;
+
   return (
     <div className="flex flex-1 items-center justify-center px-6 py-12 sm:px-10">
       <div className="w-full max-w-md">
@@ -64,6 +85,26 @@ export function LoginForm() {
         <h2 className="mt-2 text-2xl font-semibold tracking-tight">Sign in</h2>
         <p className="mt-2 text-sm text-muted">Use your organisation account credentials.</p>
 
+        {maintenance?.active ? (
+          <div className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+            <p className="font-semibold">Platform maintenance in progress</p>
+            {windowText ? <p className="mt-1">{windowText}</p> : null}
+            <p className="mt-1">
+              {maintenance.message ||
+                "Organisation sign-in is temporarily unavailable. Please try again later."}
+            </p>
+          </div>
+        ) : maintenance?.upcoming ? (
+          <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+            <p className="font-semibold">Upcoming platform maintenance</p>
+            {windowText ? <p className="mt-1">{windowText}</p> : null}
+            <p className="mt-1">
+              {maintenance.message ||
+                "Please adjust your work around this window. Sign-in may be unavailable during maintenance."}
+            </p>
+          </div>
+        ) : null}
+
         <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
           <label className="block">
             <span className="input-label">Email</span>
@@ -74,6 +115,7 @@ export function LoginForm() {
               required
               autoComplete="email"
               className="input-field"
+              disabled={Boolean(maintenance?.active)}
             />
           </label>
           <label className="block">
@@ -93,6 +135,7 @@ export function LoginForm() {
               required
               autoComplete="current-password"
               className="input-field"
+              disabled={Boolean(maintenance?.active)}
             />
           </label>
           {errorMessage ? (
@@ -100,8 +143,16 @@ export function LoginForm() {
               {errorMessage}
             </p>
           ) : null}
-          <button type="submit" disabled={isLoading} className="btn-primary w-full disabled:opacity-70">
-            {isLoading ? "Signing in…" : "Sign in"}
+          <button
+            type="submit"
+            disabled={isLoading || Boolean(maintenance?.active)}
+            className="btn-primary w-full disabled:opacity-70"
+          >
+            {maintenance?.active
+              ? "Unavailable during maintenance"
+              : isLoading
+                ? "Signing in…"
+                : "Sign in"}
           </button>
         </form>
       </div>

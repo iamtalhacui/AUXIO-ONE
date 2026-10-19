@@ -5,6 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/dashboard/PageHeader";
 import { IncidentSeverityPill } from "@/components/incidents/IncidentSeverityPill";
+import { ConstrainedDateInput } from "@/components/ui/ConstrainedDateInput";
+import { ConstrainedSelect } from "@/components/ui/ConstrainedSelect";
+import { ConstrainedTimeInput } from "@/components/ui/ConstrainedTimeInput";
 import {
   INCIDENT_SEVERITIES,
   INCIDENT_SEVERITY_LABELS,
@@ -206,7 +209,7 @@ export function EmployeeReportIncidentFlow({ shiftId }: Props) {
         title: "Incident submitted",
         description: `${created.reference} is pending manager review.`,
       });
-      router.push(shiftId ? `/employee/shifts/${shiftId}` : "/employee/shifts");
+      router.push(shiftId ? `/my-shifts/${shiftId}` : "/my-shifts");
     } catch (submitErr) {
       setStepError(getErrorMessage(submitErr, "Could not submit incident."));
       toast({
@@ -223,7 +226,7 @@ export function EmployeeReportIncidentFlow({ shiftId }: Props) {
     return (
       <div className="space-y-4">
         <Link
-          href="/employee/shifts"
+          href="/my-shifts"
           className="inline-flex text-sm font-semibold text-primary hover:underline"
         >
           ← Back to shifts
@@ -310,29 +313,27 @@ export function EmployeeReportIncidentFlow({ shiftId }: Props) {
         ) : null}
 
         {step === 1 ? (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
+          <div className="grid min-w-0 gap-4 sm:grid-cols-2">
+            <div className="min-w-0">
               <label className="input-label" htmlFor="inc-date">
                 Date
               </label>
-              <input
+              <ConstrainedDateInput
                 id="inc-date"
-                type="date"
-                className="input-field"
+                aria-label="Incident date"
                 value={form.date}
-                onChange={(e) => patch({ date: e.target.value })}
+                onChange={(next) => patch({ date: next })}
               />
             </div>
-            <div>
+            <div className="min-w-0">
               <label className="input-label" htmlFor="inc-time">
                 Approximate time
               </label>
-              <input
+              <ConstrainedTimeInput
                 id="inc-time"
-                type="time"
-                className="input-field"
+                aria-label="Approximate time"
                 value={form.approximateTime}
-                onChange={(e) => patch({ approximateTime: e.target.value })}
+                onChange={(next) => patch({ approximateTime: next })}
               />
             </div>
             <div className="sm:col-span-2">
@@ -374,37 +375,39 @@ export function EmployeeReportIncidentFlow({ shiftId }: Props) {
               <label className="input-label" htmlFor="inc-type">
                 Incident type
               </label>
-              <select
+              <ConstrainedSelect
                 id="inc-type"
-                className="input-field"
+                aria-label="Incident type"
                 value={form.type}
-                onChange={(e) => patch({ type: e.target.value as IncidentType | "" })}
-              >
-                <option value="">Select type…</option>
-                {INCIDENT_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {INCIDENT_TYPE_LABELS[t]}
-                  </option>
-                ))}
-              </select>
+                placeholder="Select type…"
+                onChange={(next) => patch({ type: next as IncidentType | "" })}
+                options={[
+                  { value: "", label: "Select type…" },
+                  ...INCIDENT_TYPES.map((t) => ({
+                    value: t,
+                    label: INCIDENT_TYPE_LABELS[t],
+                  })),
+                ]}
+              />
             </div>
             <div>
               <label className="input-label" htmlFor="inc-severity">
                 Initial severity
               </label>
-              <select
+              <ConstrainedSelect
                 id="inc-severity"
-                className="input-field"
+                aria-label="Initial severity"
                 value={form.severity}
-                onChange={(e) => patch({ severity: e.target.value as IncidentSeverity | "" })}
-              >
-                <option value="">Select severity…</option>
-                {INCIDENT_SEVERITIES.map((s) => (
-                  <option key={s} value={s}>
-                    {INCIDENT_SEVERITY_LABELS[s]}
-                  </option>
-                ))}
-              </select>
+                placeholder="Select severity…"
+                onChange={(next) => patch({ severity: next as IncidentSeverity | "" })}
+                options={[
+                  { value: "", label: "Select severity…" },
+                  ...INCIDENT_SEVERITIES.map((s) => ({
+                    value: s,
+                    label: INCIDENT_SEVERITY_LABELS[s],
+                  })),
+                ]}
+              />
             </div>
           </div>
         ) : null}
@@ -624,7 +627,7 @@ function ReviewRow({ label, value }: { label: string; value: ReactNode }) {
 function BackToShift({ shiftId }: { shiftId: string }) {
   return (
     <Link
-      href={`/employee/shifts/${shiftId}`}
+      href={`/my-shifts/${shiftId}`}
       className="inline-flex text-sm font-semibold text-primary hover:underline"
     >
       ← Back to shift
